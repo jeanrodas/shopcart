@@ -80,7 +80,27 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 
 ## Scripts de base de datos
 
-Pendiente. (Detalle de numeracion y orden de ejecucion en `db/README.md`.)
+Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
+`db/README.md`):
+
+| Script | Descripcion |
+|--------|-------------|
+| `001_CreateDatabase.sql` | Base de datos `ShopCart` y modelo relacional (26 tablas). |
+| `002_SP_Sistema_Ping.sql` | `dbo.SP_Sistema_Ping` para `/health`. |
+| `003_Security.sql` | Login `shopcart_app` (solo `EXECUTE`) y bitacora inmutable. |
+| `004_Catalogos.sql` | Roles, tipos de movimiento de inventario, parametros, indice de usuarios. |
+| `005_SP_Auth.sql` | SPs de autenticacion (registro, login, refresh tokens). |
+| `006_SP_Usuarios.sql` | SPs de gestion de usuarios (Administrador). |
+| `007_SP_Direcciones.sql` | SPs de direcciones del usuario. |
+| `099_Semillas.sql` | Datos de ejemplo (usuarios de prueba y direccion). Se aplica al final. |
+
+```bash
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/005_SP_Auth.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/006_SP_Usuarios.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/007_SP_Direcciones.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
+```
 
 ## Decisiones tecnicas
 
@@ -92,22 +112,49 @@ el codigo TypeScript. `assertIdentifier` valida el nombre del SP y de los
 parametros como defensa adicional, aunque siempre provienen del codigo.
 
 **Auditoria de bitacora via session context.** Todo SP que **escribe** datos
-recibe `@IDUsuario INT` como un parametro tipado mas y, como primera instruccion,
-publica ese valor en el contexto de sesion:
+recibe `@IDUsuarioEjecuta INT` como un parametro tipado mas (puede ser `NULL`
+solo en el registro de clientes, donde aun no hay actor) y, como primera
+instruccion, publica ese valor en el contexto de sesion:
 
 ```sql
-EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuario;
+EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 ```
 
 Los triggers de bitacora leen el autor con `SESSION_CONTEXT(N'IDUsuario')`. El
-backend **no** fija el contexto de sesion por su cuenta: solo pasa `@IDUsuario`
-dentro de `params`, como cualquier otro parametro del SP.
+backend **no** fija el contexto de sesion por su cuenta: solo pasa
+`@IDUsuarioEjecuta` dentro de `params`, como cualquier otro parametro del SP.
 
 **Bitacora inmutable.** `dbo.Bitacora` es append-only. Ver
 [Credenciales de prueba](#credenciales-de-prueba) y `db/scripts/003_Security.sql`:
 el usuario de aplicacion solo tiene `EXECUTE` sobre `dbo` (sin permisos de tabla),
 y un trigger `INSTEAD OF UPDATE, DELETE` bloquea cualquier modificacion o borrado,
 incluso desde `dbo` o un SP.
+
+### Autenticacion y usuarios (M1, RF-01)
+
+- **Hash de contrasenas con `bcryptjs`** (cost 10): implementacion en JS puro, sin
+  binarios nativos, para garantizar portabilidad en una maquina limpia (no depende
+  de `node-gyp` ni toolchain de compilacion).
+- **Refresh token en el cuerpo JSON, no en cookie.** Trade-off deliberado: el
+  frontend del reto es una SPA que guarda el token y lo envia explicitamente; evita
+  la complejidad de CSRF y de la configuracion de cookies cross-site. El costo es
+  que el almacenamiento seguro del refresh queda a cargo del cliente.
+- **Rotacion con deteccion de reutilizacion.** Cada refresh se guarda como hash
+  SHA-256 (`CHAR(64)`). Al rotar, si llega un token ya revocado se asume robo: se
+  revoca **toda la cadena activa** del usuario y se rechaza (401).
+- **Lockout de login:** 5 intentos fallidos bloquean la cuenta 15 minutos
+  (parametros `LOGIN_MAX_INTENTOS` / `LOGIN_BLOQUEO_MINUTOS`).
+- **403 en recursos ajenos verificado en el SP.** La pertenencia de una direccion
+  se valida dentro del stored procedure con el `@IDUsuario` del token, no en el
+  backend; una direccion de otro usuario responde 403.
+- **Usuario desactivado** se rechaza en el login y en el refresh. El access token
+  (15 min) no se revoca: simplemente expira solo.
+- **Rate limiting** en `/auth/registro`, `/auth/login` y `/auth/refresh`
+  (`express-rate-limit`, valores en `.env`); el exceso responde 429 con el mismo
+  formato de error del resto de la API.
+- **JWT access token** firmado con `JWT_ACCESS_SECRET`, payload
+  `{ sub, rol, nombre }`; el middleware `authenticate` adjunta `req.usuario` y
+  `authorize(...roles)` restringe por rol.
 
 ## Diagrama ER
 
@@ -123,6 +170,19 @@ tablas directamente.
 
 > **Es una credencial de desarrollo.** Debe cambiarse por un secreto fuerte y
 > rotarse fuera del control de versiones en cualquier ambiente real.
+
+### Usuarios de ejemplo (M1)
+
+`db/scripts/099_Semillas.sql` crea tres usuarios de **desarrollo** (hash bcryptjs,
+cost 10). El cliente incluye una direccion activa.
+
+| Correo | Contrasena | Rol |
+|--------|-----------|-----|
+| `admin@shopcart.local` | `Admin123!` | Administrador |
+| `operador@shopcart.local` | `Operador123!` | Operador |
+| `cliente@shopcart.local` | `Cliente123!` | Cliente |
+
+> Contrasenas de desarrollo conocidas: no usar en ambientes reales.
 
 ## Ciclo de vida del pedido
 

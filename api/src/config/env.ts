@@ -37,6 +37,9 @@ const envSchema = z.object({
   RESERVA_MINUTOS: z.coerce.number().int().positive().default(15),
   CARRITO_ABANDONO_HORAS: z.coerce.number().int().positive().default(24),
   IVA_PORCENTAJE: z.coerce.number().nonnegative().default(12),
+
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_AUTH_VENTANA_MIN: z.coerce.number().int().positive().default(15),
 });
 
 export type Env = z.infer<typeof envSchema>;

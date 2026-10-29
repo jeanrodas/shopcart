@@ -1,4 +1,4 @@
-/* ============================================================
+Ôªø/* ============================================================
    001_CreateDatabase.sql
    ShopCart - Base de datos y modelo relacional
    SQL Server 2019+. Ejecutar sobre instancia limpia.
@@ -20,7 +20,7 @@ SET QUOTED_IDENTIFIER ON;
 GO
 
 /* ------------------------------------------------------------
-   Secuencia para n˙mero de pedido legible (SC-000001)
+   Secuencia para n√∫mero de pedido legible (SC-000001)
    ------------------------------------------------------------ */
 CREATE SEQUENCE dbo.SEQ_Pedido_Numero
     AS INT
@@ -30,7 +30,7 @@ CREATE SEQUENCE dbo.SEQ_Pedido_Numero
 GO
 
 /* ------------------------------------------------------------
-   Par·metros de configuraciÛn leÌdos por SPs
+   Par√°metros de configuraci√≥n le√≠dos por SPs
    ------------------------------------------------------------ */
 CREATE TABLE dbo.Parametro (
     Clave        NVARCHAR(50)   NOT NULL,
@@ -117,7 +117,7 @@ CREATE NONCLUSTERED INDEX IX_Direccion_Usuario
 GO
 
 /* ------------------------------------------------------------
-   Cat·logo (RF-02)
+   Cat√°logo (RF-02)
    ------------------------------------------------------------ */
 CREATE TABLE dbo.Categoria (
     IDCategoria      INT IDENTITY(1,1) NOT NULL,
@@ -539,8 +539,8 @@ CREATE TABLE dbo.DevolucionDetalle (
 GO
 
 /* ------------------------------------------------------------
-   Bit·cora inmutable (RF-09)
-   Los DENY de UPDATE/DELETE se aplican en 002_Security.sql
+   Bit√°cora inmutable (RF-09)
+   Los DENY de UPDATE/DELETE se aplican en 003_Security.sql
    ------------------------------------------------------------ */
 CREATE TABLE dbo.Bitacora (
     IDBitacora       BIGINT IDENTITY(1,1) NOT NULL,

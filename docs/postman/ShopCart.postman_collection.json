@@ -1,0 +1,420 @@
+{
+  "info": {
+    "name": "ShopCart API - M1 (Auth, Usuarios, Direcciones)",
+    "description": "Coleccion de los endpoints del modulo M1 (RF-01). Incluye casos felices y negativos. Variables: baseUrl, accessToken, refreshToken, prevRefreshToken, adminAccessToken, clienteAccessToken, operadorAccessToken, direccionId. Aplicar antes los scripts 001-007 y 099 en SSMS.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "prevRefreshToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "clienteAccessToken", "value": "" },
+    { "key": "operadorAccessToken", "value": "" },
+    { "key": "direccionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Registro cliente nuevo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "if (j.refreshToken) pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/registro", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "registro"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"nuevo@shopcart.local\",\n  \"contrasena\": \"Cliente123!\",\n  \"nombre\": \"Nuevo Cliente\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('adminAccessToken', j.accessToken);",
+                  "pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "pm.test('200 ok', () => pm.expect(pm.response.code).to.eql(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}" }
+          }
+        },
+        {
+          "name": "Login cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('clienteAccessToken', j.accessToken);",
+                  "pm.collectionVariables.set('prevRefreshToken', j.refreshToken);",
+                  "pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "pm.test('200 ok', () => pm.expect(pm.response.code).to.eql(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}" }
+          }
+        },
+        {
+          "name": "Login operador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('operadorAccessToken', j.accessToken);",
+                  "pm.test('200 ok', () => pm.expect(pm.response.code).to.eql(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh (rotacion exitosa)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('prevRefreshToken', pm.collectionVariables.get('refreshToken'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "pm.test('200 ok', () => pm.expect(pm.response.code).to.eql(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "GET /auth/yo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/yo", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "yo"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios (Administrador)",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios?pagina=1&tamanoPagina=20&orden=Nombre&direccion=ASC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "usuarios"],
+              "query": [
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "20" },
+                { "key": "orden", "value": "Nombre" },
+                { "key": "direccion", "value": "ASC" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear usuario (Operador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador2@shopcart.local\",\n  \"contrasena\": \"Operador123!\",\n  \"nombre\": \"Segundo Operador\",\n  \"idRol\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Cambiar rol (usuario 4 -> Administrador)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/usuarios/4/rol", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios", "4", "rol"] },
+            "body": { "mode": "raw", "raw": "{\n  \"idRol\": 3\n}" }
+          }
+        },
+        {
+          "name": "Cambiar estado (desactivar usuario 2 - Operador)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/usuarios/2/estado", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios", "2", "estado"] },
+            "body": { "mode": "raw", "raw": "{\n  \"activo\": false\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Direcciones (Cliente)",
+      "item": [
+        {
+          "name": "Listar mis direcciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones"] }
+          }
+        },
+        {
+          "name": "Crear direccion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j && j.IDDireccion) pm.collectionVariables.set('direccionId', j.IDDireccion);",
+                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"Oficina\",\n  \"nombreReceptor\": \"Cliente ShopCart\",\n  \"telefono\": \"+502 5555-1111\",\n  \"linea1\": \"5a Avenida 10-20 Zona 10\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\",\n  \"codigoPostal\": \"01010\",\n  \"referencia\": \"Edificio de oficinas, piso 3\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener direccion",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] }
+          }
+        },
+        {
+          "name": "Actualizar direccion",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"Oficina principal\",\n  \"nombreReceptor\": \"Cliente ShopCart\",\n  \"telefono\": \"+502 5555-2222\",\n  \"linea1\": \"5a Avenida 10-20 Zona 10\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\",\n  \"codigoPostal\": \"01010\",\n  \"referencia\": \"Recepcion piso 3\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Desactivar direccion (baja logica)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Casos negativos",
+      "item": [
+        {
+          "name": "Refresh reutilizado (401)",
+          "description": "Enviar un refresh token ya rotado. Ejecutar despues de 'Refresh (rotacion exitosa)'. Debe revocar la cadena y responder 401.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 reutilizado', () => pm.expect(pm.response.code).to.eql(401));",
+                  "pm.test('code UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{prevRefreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "Cliente a /usuarios (403)",
+          "description": "Requiere 'Login cliente' antes (setea clienteAccessToken).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 prohibido', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios"] }
+          }
+        },
+        {
+          "name": "Direccion ajena (403)",
+          "description": "Admin solicita la direccion del cliente (IDDireccion 1 de las semillas). Requiere 'Login admin'. Debe responder 403.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 prohibido', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/1", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "1"] }
+          }
+        },
+        {
+          "name": "Login usuario desactivado (401)",
+          "description": "Ejecutar despues de 'Cambiar estado (desactivar usuario 2 - Operador)'. El operador desactivado no puede iniciar sesion.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 no autenticado', () => pm.expect(pm.response.code).to.eql(401));",
+                  "pm.test('mensaje desactivado', () => pm.expect(pm.response.json().message).to.include('desactivado'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+          }
+        },
+        {
+          "name": "Login x11 -> rate limit (429)",
+          "description": "Ejecutar este request 11 veces seguidas (Collection Runner con 11 iteraciones, o Send 11 veces). Con RATE_LIMIT_AUTH_MAX=10, la 11a respuesta es 429 con code RATE_LIMITED. Usa credenciales invalidas para no alterar el lockout de una cuenta real.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// La 11a (y siguientes dentro de la ventana) deben ser 429.",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('429 rate limited', () => pm.expect(pm.response.json().code).to.eql('RATE_LIMITED'));",
+                  "} else {",
+                  "  pm.test('aun dentro del limite (401)', () => pm.expect(pm.response.code).to.eql(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
