@@ -64,6 +64,14 @@
     {
       "key": "sufijo",
       "value": ""
+    },
+    {
+      "key": "invVarianteId",
+      "value": ""
+    },
+    {
+      "key": "existenciaInicial",
+      "value": ""
     }
   ],
   "item": [
@@ -1966,6 +1974,652 @@
                 "exec": [
                   "pm.test('404 oculto en tienda', () => pm.expect(pm.response.code).to.eql(404));",
                   "pm.test('code NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M3 Inventario",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sufijo', Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login operador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Existencias (operador) y capturar variante",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/existencias?orden=SKU&direccion=ASC&pagina=1&tamanoPagina=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "existencias"
+              ],
+              "query": [
+                {
+                  "key": "orden",
+                  "value": "SKU"
+                },
+                {
+                  "key": "direccion",
+                  "value": "ASC"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 existencias', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "pm.test('hay al menos una variante', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (pm.response.code === 200 && filas.length) {",
+                  "  pm.collectionVariables.set('invVarianteId', filas[0].IDVariante);",
+                  "  pm.collectionVariables.set('existenciaInicial', filas[0].Existencia);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entrada +10 (operador) 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/entradas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": \"{{invVarianteId}}\",\n  \"cantidad\": 10,\n  \"motivo\": \"Entrada Postman {{sufijo}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable invVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"invVarianteId\");",
+                  "  pm.expect(_v, \"variable invVarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable existenciaInicial no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"existenciaInicial\");",
+                  "  pm.expect(_v, \"variable existenciaInicial vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 entrada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "const anterior = Number(pm.collectionVariables.get('existenciaInicial'));",
+                  "pm.test('ExistenciaResultante = anterior + 10', () => pm.expect(j.ExistenciaResultante).to.eql(anterior + 10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ajuste negativo -3 con motivo (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/ajustes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": \"{{invVarianteId}}\",\n  \"tipo\": \"AJUSTE_NEGATIVO\",\n  \"cantidad\": 3,\n  \"motivo\": \"Ajuste merma Postman {{sufijo}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable invVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"invVarianteId\");",
+                  "  pm.expect(_v, \"variable invVarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 ajuste negativo', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ajuste sin motivo (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/ajustes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": \"{{invVarianteId}}\",\n  \"tipo\": \"AJUSTE_NEGATIVO\",\n  \"cantidad\": 1,\n  \"motivo\": \"\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable invVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"invVarianteId\");",
+                  "  pm.expect(_v, \"variable invVarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 motivo obligatorio', () => pm.expect(pm.response.code).to.eql(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ajuste negativo mayor que la existencia (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/ajustes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": \"{{invVarianteId}}\",\n  \"tipo\": \"AJUSTE_NEGATIVO\",\n  \"cantidad\": 100000,\n  \"motivo\": \"Ajuste excesivo Postman {{sufijo}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable invVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"invVarianteId\");",
+                  "  pm.expect(_v, \"variable invVarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 existencia insuficiente', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('code UNPROCESSABLE_ENTITY', () => pm.expect(pm.response.json().code).to.eql('UNPROCESSABLE_ENTITY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kardex de la variante (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/variantes/{{invVarianteId}}/kardex",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "variantes",
+                "{{invVarianteId}}",
+                "kardex"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable invVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"invVarianteId\");",
+                  "  pm.expect(_v, \"variable invVarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 kardex', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "pm.test('hay movimientos', () => pm.expect(filas.length).to.be.above(0));",
+                  "pm.test('ultimo movimiento es el ajuste negativo', () => pm.expect(filas[0].CodigoTipo).to.eql('AJUSTE_NEGATIVO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Existencias soloBajoStock=true (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/existencias?soloBajoStock=true&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "existencias"
+              ],
+              "query": [
+                {
+                  "key": "soloBajoStock",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 bajo stock', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('todas marcadas BajoStock', () => (j.filas || []).forEach(f => pm.expect(f.BajoStock).to.eql(true)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consistencia (admin) 200 consistente=true",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/consistencia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "consistencia"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 consistencia', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('inventario consistente', () => pm.expect(j.consistente).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consistencia con Operador (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/consistencia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "consistencia"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 solo administrador', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente a /inventario/existencias (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/existencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "existencias"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 prohibido para cliente', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
                 ]
               }
             }

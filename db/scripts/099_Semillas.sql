@@ -198,3 +198,53 @@ WHERE NOT EXISTS (
     SELECT 1 FROM dbo.ProductoImagen i
     WHERE i.IDProducto = p.IDProducto AND i.Url = x.Url);
 GO
+
+/* ============================================================
+   M3 - Carga inicial de inventario (RF-03)
+   Registra la existencia inicial de cada variante activa que aun no tenga
+   kardex, SIEMPRE a traves de SP_Inventario_RegistrarMovimiento (ENTRADA_COMPRA);
+   nunca modificando Existencia de forma directa. Idempotente: salta las variantes que
+   ya tienen movimientos de kardex. Las dos primeras reciben <= 5 unidades para
+   que el filtro de bajo stock devuelva resultados.
+   ============================================================ */
+
+DECLARE @AdminInv INT = (SELECT IDUsuario FROM dbo.Usuario WHERE Correo = N'admin@shopcart.local');
+
+IF @AdminInv IS NOT NULL
+BEGIN
+    DECLARE @IDVarianteInv INT, @Secuencia INT = 0, @CantidadInv INT;
+
+    DECLARE cur_inventario CURSOR LOCAL FAST_FORWARD FOR
+        SELECT v.IDVariante
+        FROM dbo.Variante v
+        WHERE v.Activo = 1
+          AND NOT EXISTS (SELECT 1 FROM dbo.Kardex k WHERE k.IDVariante = v.IDVariante)
+        ORDER BY v.IDVariante;
+
+    OPEN cur_inventario;
+    FETCH NEXT FROM cur_inventario INTO @IDVarianteInv;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @Secuencia += 1;
+        -- Cantidades variadas (3 a 60); las dos primeras <= 5 para bajo stock.
+        SET @CantidadInv = CASE @Secuencia
+                               WHEN 1 THEN 3
+                               WHEN 2 THEN 5
+                               ELSE ((@Secuencia * 7) % 58) + 3
+                           END;
+
+        EXEC dbo.SP_Inventario_RegistrarMovimiento
+             @IDVariante       = @IDVarianteInv,
+             @CodigoTipo       = N'ENTRADA_COMPRA',
+             @Cantidad         = @CantidadInv,
+             @Motivo           = N'Carga inicial de inventario',
+             @IDUsuarioEjecuta = @AdminInv;
+
+        FETCH NEXT FROM cur_inventario INTO @IDVarianteInv;
+    END
+
+    CLOSE cur_inventario;
+    DEALLOCATE cur_inventario;
+END
+GO

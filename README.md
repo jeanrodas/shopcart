@@ -95,7 +95,8 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `008_VW_Inventario.sql` | Vista de inventario disponible, indice de busqueda y TVP de atributos. |
 | `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02). |
 | `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02). |
-| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1 y catalogo de M2). Se aplica al final. |
+| `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03). |
+| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2 y carga inicial de inventario de M3). Se aplica al final. |
 
 ```bash
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
@@ -105,6 +106,7 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/007_SP_Direcciones.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/008_VW_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/009_SP_Categorias.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/010_SP_Catalogo.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -194,6 +196,39 @@ incluso desde `dbo` o un SP.
 - **404 uniforme** para un producto inexistente o inactivo en la ruta publica: la
   misma respuesta en ambos casos, para no revelar el catalogo oculto.
 
+### Inventario y kardex (M3, RF-03)
+
+- **Un unico SP escribe la existencia.** `SP_Inventario_RegistrarMovimiento` es el
+  unico lugar que hace `UPDATE` sobre `Variante.Existencia`; ningun otro SP de ningun
+  modulo la toca. Checkout, cancelacion y devolucion (modulos futuros) llamaran a este
+  SP desde sus propios SPs, nunca con un update directo.
+- **Invariante `Existencia = SUM(Signo * Cantidad)` del kardex.** Cada fila de `Kardex`
+  guarda `ExistenciaResultante`. `SP_Inventario_VerificarConsistencia` audita el
+  invariante y el endpoint `GET /inventario/consistencia` (Administrador) debe devolver
+  cero inconsistencias.
+- **Tipos reservados al sistema.** La API solo expone `ENTRADA_COMPRA`,
+  `AJUSTE_POSITIVO` y `AJUSTE_NEGATIVO`. `SALIDA_VENTA`, `DEVOLUCION` y `CANCELACION`
+  exigen `@OrigenInterno = 1`, que solo envian los SPs de pedidos; el backend nunca
+  expone ni envia ese parametro (intentarlo desde la API responde 403).
+- **Ajuste negativo mas estricto que el fisico.** Un movimiento negativo no puede dejar
+  la existencia fisica < 0 **ni** el disponible (`existencia - reservas activas no
+  vencidas`) < 0. Es mas estricto que exigir solo existencia >= 0: evita vender o retirar
+  unidades ya comprometidas por reservas de carritos vigentes, que romperian un checkout
+  en curso.
+- **Concurrencia.** El movimiento lee la variante con `WITH (UPDLOCK, HOLDLOCK)` dentro
+  de la transaccion (aislamiento READ COMMITTED por defecto), serializando los
+  movimientos concurrentes sobre la misma variante y evitando condiciones de carrera al
+  recalcular la existencia.
+- **Kardex inmutable de hecho:** solo hay `INSERT` sobre `Kardex`; ningun SP hace
+  `UPDATE`/`DELETE` de movimientos. La correccion de un error se hace con un ajuste
+  compensatorio, no editando el historial.
+- **`STOCK_MINIMO`** vive en `dbo.Parametro` (= 5); el listado de existencias marca
+  `BajoStock` cuando `Disponible <= STOCK_MINIMO` y acepta `soloBajoStock=true`.
+- **Semillas via el SP.** La carga inicial de inventario (`099`) recorre las variantes
+  activas sin kardex y llama a `SP_Inventario_RegistrarMovimiento` (ENTRADA_COMPRA);
+  nunca hace `UPDATE` directo, de modo que la existencia sembrada tambien respeta el
+  invariante.
+
 ## Pruebas con Postman
 
 La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1 y M2.
@@ -203,7 +238,8 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1 y M2.
    requests capturan solos). Ajuste `baseUrl` si la API no corre en
    `http://localhost:3000`.
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
-   **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo**.
+   **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
+   **M3 Inventario**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
    los scripts `001`-`010` y `099` en SQL Server.

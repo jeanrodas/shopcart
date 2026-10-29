@@ -1,0 +1,102 @@
+import sql from 'mssql';
+import { executeSp } from '../data/spExecutor.js';
+import type {
+  EntradaInput,
+  AjusteInput,
+  ExistenciasQuery,
+  KardexQuery,
+} from '../schemas/inventario.schema.js';
+
+// El backend solo envia los parametros expuestos: el SP aplica sus valores por
+// defecto para el resto (origen no interno y sin pedido asociado). Los tipos
+// reservados al sistema quedan asi fuera del alcance del backend.
+
+export async function registrarEntrada(datos: EntradaInput, actorId: number): Promise<unknown> {
+  const result = await executeSp('SP_Inventario_RegistrarMovimiento', [
+    { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
+    { name: 'CodigoTipo', type: sql.NVarChar(30), value: 'ENTRADA_COMPRA' },
+    { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
+    { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
+    { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+  ]);
+  return result.recordset[0];
+}
+
+export async function registrarAjuste(datos: AjusteInput, actorId: number): Promise<unknown> {
+  const result = await executeSp('SP_Inventario_RegistrarMovimiento', [
+    { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
+    { name: 'CodigoTipo', type: sql.NVarChar(30), value: datos.tipo },
+    { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
+    { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
+    { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+  ]);
+  return result.recordset[0];
+}
+
+export async function listarExistencias(q: ExistenciasQuery): Promise<{
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
+}> {
+  const result = await executeSp('SP_Inventario_ListarExistencias', [
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'IDCategoria', type: sql.Int, value: q.idCategoria ?? null },
+    { name: 'SoloBajoStock', type: sql.Bit, value: q.soloBajoStock },
+    { name: 'IncluirInactivas', type: sql.Bit, value: q.incluirInactivas },
+    { name: 'Orden', type: sql.NVarChar(30), value: q.orden },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'TamanoPagina', type: sql.Int, value: q.tamanoPagina },
+  ]);
+
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+}
+
+export async function listarKardex(
+  idVariante: number,
+  q: KardexQuery,
+): Promise<{
+  resumen: unknown;
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
+}> {
+  const result = await executeSp('SP_Inventario_ListarKardex', [
+    { name: 'IDVariante', type: sql.Int, value: idVariante },
+    { name: 'Desde', type: sql.DateTime2(0), value: q.desde ? new Date(q.desde) : null },
+    { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'TamanoPagina', type: sql.Int, value: q.tamanoPagina },
+  ]);
+
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  const resumen = result.recordsets[2]?.[0] ?? null;
+  return { resumen, filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+}
+
+export async function verificarConsistencia(): Promise<{
+  inconsistencias: unknown[];
+  totalVariantes: number;
+  variantesInconsistentes: number;
+  consistente: boolean;
+}> {
+  const result = await executeSp('SP_Inventario_VerificarConsistencia', []);
+
+  const inconsistencias = (result.recordsets[0] ?? []) as unknown[];
+  const resumen = result.recordsets[1]?.[0] as
+    | { TotalVariantes: number; VariantesInconsistentes: number }
+    | undefined;
+  const totalVariantes = resumen?.TotalVariantes ?? 0;
+  const variantesInconsistentes = resumen?.VariantesInconsistentes ?? 0;
+  return {
+    inconsistencias,
+    totalVariantes,
+    variantesInconsistentes,
+    consistente: variantesInconsistentes === 0,
+  };
+}

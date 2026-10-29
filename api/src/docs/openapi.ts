@@ -165,6 +165,67 @@ const varianteBody = {
   },
 };
 
+const movimientoKardexSchema = {
+  type: 'object',
+  properties: {
+    IDKardex: { type: 'integer', example: 101 },
+    IDVariante: { type: 'integer', example: 1 },
+    CodigoTipo: { type: 'string', example: 'ENTRADA_COMPRA' },
+    NombreTipo: { type: 'string', example: 'Entrada por compra' },
+    Signo: { type: 'integer', example: 1 },
+    Cantidad: { type: 'integer', example: 10 },
+    ExistenciaResultante: { type: 'integer', example: 25 },
+    Motivo: { type: 'string', example: 'Reposicion de stock' },
+    IDUsuario: { type: 'integer', example: 1 },
+    IDPedido: { type: 'integer', nullable: true, example: null },
+    Fecha: { type: 'string', format: 'date-time' },
+    Existencia: { type: 'integer', example: 25 },
+    Reservado: { type: 'integer', example: 0 },
+    Disponible: { type: 'integer', example: 25 },
+  },
+};
+
+const existenciaSchema = {
+  type: 'object',
+  properties: {
+    IDVariante: { type: 'integer', example: 1 },
+    SKU: { type: 'string', example: 'LUB-SIN-5W30-1QT' },
+    IDProducto: { type: 'integer', example: 1 },
+    Producto: { type: 'string', example: 'Aceite Sintetico Motor' },
+    IDCategoria: { type: 'integer', example: 1 },
+    Categoria: { type: 'string', example: 'Lubricantes' },
+    Precio: { type: 'number', example: 85.0 },
+    Activo: { type: 'boolean', example: true },
+    Existencia: { type: 'integer', example: 25 },
+    Reservado: { type: 'integer', example: 0 },
+    Disponible: { type: 'integer', example: 25 },
+    UltimoMovimiento: { type: 'string', format: 'date-time', nullable: true },
+    BajoStock: { type: 'boolean', example: false },
+  },
+};
+
+const consistenciaSchema = {
+  type: 'object',
+  properties: {
+    inconsistencias: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          IDVariante: { type: 'integer' },
+          SKU: { type: 'string' },
+          Existencia: { type: 'integer' },
+          SumaKardex: { type: 'integer' },
+          Diferencia: { type: 'integer' },
+        },
+      },
+    },
+    totalVariantes: { type: 'integer', example: 22 },
+    variantesInconsistentes: { type: 'integer', example: 0 },
+    consistente: { type: 'boolean', example: true },
+  },
+};
+
 const errRef = { $ref: '#/components/responses/Error' };
 
 const jsonBody = (schema: unknown) => ({ content: { 'application/json': { schema } } });
@@ -187,6 +248,7 @@ export const openapiDocument = {
     { name: 'Productos', description: 'Gestion de productos (Administrador/Operador)' },
     { name: 'Variantes', description: 'Gestion de variantes (Administrador)' },
     { name: 'Imagenes', description: 'Imagenes de producto (Administrador)' },
+    { name: 'Inventario', description: 'Existencias, movimientos y kardex (Operador/Administrador)' },
   ],
   components: {
     securitySchemes: {
@@ -207,6 +269,9 @@ export const openapiDocument = {
       ProductoResumen: productoResumenSchema,
       ProductoDetalle: productoDetalleSchema,
       Variante: varianteSchema,
+      MovimientoKardex: movimientoKardexSchema,
+      Existencia: existenciaSchema,
+      Consistencia: consistenciaSchema,
     },
   },
   paths: {
@@ -913,6 +978,155 @@ export const openapiDocument = {
           '401': errRef,
           '403': errRef,
           '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/entradas': {
+      post: {
+        tags: ['Inventario'],
+        summary: 'Registrar entrada de existencia (ENTRADA_COMPRA)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idVariante', 'cantidad', 'motivo'],
+            properties: {
+              idVariante: { type: 'integer', example: 1 },
+              cantidad: { type: 'integer', minimum: 1, maximum: 100000, example: 10 },
+              motivo: { type: 'string', minLength: 3, maxLength: 300, example: 'Reposicion de stock' },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Movimiento registrado', ...jsonBody(movimientoKardexSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/ajustes': {
+      post: {
+        tags: ['Inventario'],
+        summary: 'Registrar ajuste de existencia (AJUSTE_POSITIVO / AJUSTE_NEGATIVO)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idVariante', 'tipo', 'cantidad', 'motivo'],
+            properties: {
+              idVariante: { type: 'integer', example: 1 },
+              tipo: { type: 'string', enum: ['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO'], example: 'AJUSTE_NEGATIVO' },
+              cantidad: { type: 'integer', minimum: 1, maximum: 100000, example: 3 },
+              motivo: { type: 'string', minLength: 3, maxLength: 300, example: 'Merma por inventario fisico' },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Movimiento registrado', ...jsonBody(movimientoKardexSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/existencias': {
+      get: {
+        tags: ['Inventario'],
+        summary: 'Listar existencias por variante',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string', maxLength: 100 } },
+          { name: 'idCategoria', in: 'query', schema: { type: 'integer' } },
+          { name: 'soloBajoStock', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'incluirInactivas', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'orden', in: 'query', schema: { type: 'string', enum: ['SKU', 'Producto', 'Existencia', 'Disponible', 'UltimoMovimiento'] } },
+          { name: 'direccion', in: 'query', schema: { type: 'string', enum: ['ASC', 'DESC'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de existencias',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: { type: 'array', items: existenciaSchema },
+                total: { type: 'integer', example: 22 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/variantes/{id}/kardex': {
+      get: {
+        tags: ['Inventario'],
+        summary: 'Listar el kardex de una variante',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+          { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Movimientos de la variante con resumen',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                resumen: {
+                  type: 'object',
+                  properties: {
+                    IDVariante: { type: 'integer' },
+                    SKU: { type: 'string' },
+                    Producto: { type: 'string' },
+                    Existencia: { type: 'integer' },
+                    Reservado: { type: 'integer' },
+                    Disponible: { type: 'integer' },
+                  },
+                },
+                filas: { type: 'array', items: movimientoKardexSchema },
+                total: { type: 'integer', example: 2 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/consistencia': {
+      get: {
+        tags: ['Inventario'],
+        summary: 'Auditar el invariante Existencia = SUM(kardex) (Administrador)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Resultado de la auditoria', ...jsonBody(consistenciaSchema) },
+          '401': errRef,
+          '403': errRef,
         },
       },
     },
