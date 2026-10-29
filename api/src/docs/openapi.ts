@@ -58,6 +58,113 @@ const sesionResponse = {
   },
 };
 
+const categoriaSchema = {
+  type: 'object',
+  properties: {
+    IDCategoria: { type: 'integer', example: 1 },
+    Nombre: { type: 'string', example: 'Camisas' },
+    Descripcion: { type: 'string', nullable: true, example: 'Camisas formales y casuales' },
+    Activo: { type: 'boolean', example: true },
+    FechaCreacion: { type: 'string', format: 'date-time' },
+    CantidadProductosActivos: { type: 'integer', example: 3 },
+  },
+};
+
+const productoResumenSchema = {
+  type: 'object',
+  properties: {
+    IDProducto: { type: 'integer', example: 1 },
+    Nombre: { type: 'string', example: 'Camisa Oxford Clasica' },
+    Descripcion: { type: 'string', nullable: true },
+    IDCategoria: { type: 'integer', example: 1 },
+    Categoria: { type: 'string', example: 'Camisas' },
+    Activo: { type: 'boolean', example: true },
+    FechaCreacion: { type: 'string', format: 'date-time' },
+    PrecioMinimo: { type: 'number', nullable: true, example: 149.0 },
+    PrecioMaximo: { type: 'number', nullable: true, example: 149.0 },
+    VariantesActivas: { type: 'integer', example: 2 },
+    HayDisponible: { type: 'boolean', example: false },
+    ImagenPrincipal: { type: 'string', nullable: true, example: 'https://picsum.photos/seed/CAM-OXF/600/600' },
+  },
+};
+
+const varianteSchema = {
+  type: 'object',
+  properties: {
+    IDVariante: { type: 'integer', example: 1 },
+    SKU: { type: 'string', example: 'CAM-OXF-S-BLA' },
+    Precio: { type: 'number', example: 149.0 },
+    Activo: { type: 'boolean', example: true },
+    Existencia: { type: 'integer', example: 0 },
+    Reservado: { type: 'integer', example: 0 },
+    Disponible: { type: 'integer', example: 0 },
+    atributos: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          Nombre: { type: 'string', example: 'Talla' },
+          Valor: { type: 'string', example: 'S' },
+        },
+      },
+    },
+  },
+};
+
+const productoDetalleSchema = {
+  type: 'object',
+  properties: {
+    producto: {
+      type: 'object',
+      properties: {
+        IDProducto: { type: 'integer', example: 1 },
+        IDCategoria: { type: 'integer', example: 1 },
+        Categoria: { type: 'string', example: 'Camisas' },
+        Nombre: { type: 'string', example: 'Camisa Oxford Clasica' },
+        Descripcion: { type: 'string', nullable: true },
+        Activo: { type: 'boolean', example: true },
+        FechaCreacion: { type: 'string', format: 'date-time' },
+        FechaActualizacion: { type: 'string', format: 'date-time', nullable: true },
+      },
+    },
+    variantes: { type: 'array', items: varianteSchema },
+    imagenes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          IDProductoImagen: { type: 'integer', example: 1 },
+          IDProducto: { type: 'integer', example: 1 },
+          Url: { type: 'string', example: 'https://picsum.photos/seed/CAM-OXF/600/600' },
+          Orden: { type: 'integer', example: 0 },
+          EsPrincipal: { type: 'boolean', example: true },
+        },
+      },
+    },
+  },
+};
+
+const varianteBody = {
+  type: 'object',
+  required: ['sku', 'precio'],
+  properties: {
+    sku: { type: 'string', maxLength: 50, example: 'CAM-OXF-XL-BLA' },
+    precio: { type: 'number', example: 149.0 },
+    atributos: {
+      type: 'array',
+      maxItems: 10,
+      items: {
+        type: 'object',
+        required: ['nombre', 'valor'],
+        properties: {
+          nombre: { type: 'string', example: 'Talla' },
+          valor: { type: 'string', example: 'XL' },
+        },
+      },
+    },
+  },
+};
+
 const errRef = { $ref: '#/components/responses/Error' };
 
 const jsonBody = (schema: unknown) => ({ content: { 'application/json': { schema } } });
@@ -75,6 +182,11 @@ export const openapiDocument = {
     { name: 'Auth', description: 'Autenticacion y sesion' },
     { name: 'Usuarios', description: 'Gestion de usuarios (Administrador)' },
     { name: 'Direcciones', description: 'Direcciones del usuario autenticado' },
+    { name: 'Catalogo', description: 'Lectura publica del catalogo (sin token)' },
+    { name: 'Categorias', description: 'Gestion de categorias (Administrador/Operador)' },
+    { name: 'Productos', description: 'Gestion de productos (Administrador/Operador)' },
+    { name: 'Variantes', description: 'Gestion de variantes (Administrador)' },
+    { name: 'Imagenes', description: 'Imagenes de producto (Administrador)' },
   ],
   components: {
     securitySchemes: {
@@ -91,6 +203,10 @@ export const openapiDocument = {
       Usuario: usuarioSchema,
       Direccion: direccionSchema,
       SesionResponse: sesionResponse,
+      Categoria: categoriaSchema,
+      ProductoResumen: productoResumenSchema,
+      ProductoDetalle: productoDetalleSchema,
+      Variante: varianteSchema,
     },
   },
   paths: {
@@ -399,6 +515,401 @@ export const openapiDocument = {
             description: 'Direccion desactivada',
             ...jsonBody({ type: 'object', properties: { ok: { type: 'boolean', example: true } } }),
           },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/catalogo/categorias': {
+      get: {
+        tags: ['Catalogo'],
+        summary: 'Listar categorias activas (publico)',
+        responses: {
+          '200': { description: 'Categorias activas', ...jsonBody({ type: 'array', items: categoriaSchema }) },
+        },
+      },
+    },
+
+    '/api/v1/catalogo/productos': {
+      get: {
+        tags: ['Catalogo'],
+        summary: 'Buscar productos visibles en tienda (publico)',
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string', maxLength: 100 } },
+          { name: 'idCategoria', in: 'query', schema: { type: 'integer' } },
+          { name: 'precioMin', in: 'query', schema: { type: 'number' } },
+          { name: 'precioMax', in: 'query', schema: { type: 'number' } },
+          { name: 'soloDisponibles', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'orden', in: 'query', schema: { type: 'string', enum: ['Nombre', 'Precio', 'FechaCreacion'] } },
+          { name: 'direccion', in: 'query', schema: { type: 'string', enum: ['ASC', 'DESC'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de productos',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: { type: 'array', items: productoResumenSchema },
+                total: { type: 'integer', example: 12 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+        },
+      },
+    },
+
+    '/api/v1/catalogo/productos/{id}': {
+      get: {
+        tags: ['Catalogo'],
+        summary: 'Detalle de producto visible en tienda (publico)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': { description: 'Producto con variantes, atributos e imagenes', ...jsonBody(productoDetalleSchema) },
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/categorias': {
+      get: {
+        tags: ['Categorias'],
+        summary: 'Listar categorias (incluye inactivas opcionalmente)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'incluirInactivas', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } }],
+        responses: {
+          '200': { description: 'Categorias', ...jsonBody({ type: 'array', items: categoriaSchema }) },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+      post: {
+        tags: ['Categorias'],
+        summary: 'Crear categoria',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['nombre'],
+            properties: {
+              nombre: { type: 'string', maxLength: 100, example: 'Zapatos' },
+              descripcion: { type: 'string', maxLength: 300, example: 'Calzado formal' },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Categoria creada', ...jsonBody(categoriaSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/categorias/{id}': {
+      put: {
+        tags: ['Categorias'],
+        summary: 'Actualizar categoria',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['nombre'],
+            properties: {
+              nombre: { type: 'string', maxLength: 100 },
+              descripcion: { type: 'string', maxLength: 300 },
+            },
+          }),
+        },
+        responses: {
+          '200': { description: 'Categoria actualizada', ...jsonBody(categoriaSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/categorias/{id}/estado': {
+      patch: {
+        tags: ['Categorias'],
+        summary: 'Activar o desactivar una categoria',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({ type: 'object', required: ['activo'], properties: { activo: { type: 'boolean', example: false } } }),
+        },
+        responses: {
+          '200': { description: 'Categoria actualizada', ...jsonBody(categoriaSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos': {
+      get: {
+        tags: ['Productos'],
+        summary: 'Buscar productos (admin/operador, acepta incluirInactivos)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string', maxLength: 100 } },
+          { name: 'idCategoria', in: 'query', schema: { type: 'integer' } },
+          { name: 'precioMin', in: 'query', schema: { type: 'number' } },
+          { name: 'precioMax', in: 'query', schema: { type: 'number' } },
+          { name: 'soloDisponibles', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'incluirInactivos', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+          { name: 'orden', in: 'query', schema: { type: 'string', enum: ['Nombre', 'Precio', 'FechaCreacion'] } },
+          { name: 'direccion', in: 'query', schema: { type: 'string', enum: ['ASC', 'DESC'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de productos',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: { type: 'array', items: productoResumenSchema },
+                total: { type: 'integer', example: 13 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+      post: {
+        tags: ['Productos'],
+        summary: 'Crear producto',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idCategoria', 'nombre'],
+            properties: {
+              idCategoria: { type: 'integer', example: 1 },
+              nombre: { type: 'string', maxLength: 200, example: 'Camisa Nueva' },
+              descripcion: { type: 'string', example: 'Descripcion del producto' },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Producto creado', ...jsonBody(productoResumenSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}': {
+      get: {
+        tags: ['Productos'],
+        summary: 'Detalle de producto (admin/operador, acepta incluirInactivos)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+          { name: 'incluirInactivos', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+        ],
+        responses: {
+          '200': { description: 'Producto', ...jsonBody(productoDetalleSchema) },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+      put: {
+        tags: ['Productos'],
+        summary: 'Actualizar producto',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idCategoria', 'nombre'],
+            properties: {
+              idCategoria: { type: 'integer' },
+              nombre: { type: 'string', maxLength: 200 },
+              descripcion: { type: 'string' },
+            },
+          }),
+        },
+        responses: {
+          '200': { description: 'Producto actualizado', ...jsonBody(productoResumenSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}/estado': {
+      patch: {
+        tags: ['Productos'],
+        summary: 'Activar o desactivar un producto',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({ type: 'object', required: ['activo'], properties: { activo: { type: 'boolean', example: false } } }),
+        },
+        responses: {
+          '200': {
+            description: 'Producto actualizado (incluye TieneVentas)',
+            ...jsonBody({
+              allOf: [productoResumenSchema, { type: 'object', properties: { TieneVentas: { type: 'boolean', example: false } } }],
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}/variantes': {
+      post: {
+        tags: ['Variantes'],
+        summary: 'Crear una variante del producto',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: { required: true, ...jsonBody(varianteBody) },
+        responses: {
+          '201': {
+            description: 'Variante creada',
+            ...jsonBody({ type: 'object', properties: { variante: varianteSchema, atributos: { type: 'array', items: { type: 'object' } } } }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/variantes/{id}': {
+      put: {
+        tags: ['Variantes'],
+        summary: 'Actualizar una variante (reemplaza sus atributos)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: { required: true, ...jsonBody(varianteBody) },
+        responses: {
+          '200': {
+            description: 'Variante actualizada',
+            ...jsonBody({ type: 'object', properties: { variante: varianteSchema, atributos: { type: 'array', items: { type: 'object' } } } }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/variantes/{id}/estado': {
+      patch: {
+        tags: ['Variantes'],
+        summary: 'Activar o desactivar una variante',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({ type: 'object', required: ['activo'], properties: { activo: { type: 'boolean', example: false } } }),
+        },
+        responses: {
+          '200': { description: 'Variante actualizada', ...jsonBody(varianteSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}/imagenes': {
+      post: {
+        tags: ['Imagenes'],
+        summary: 'Agregar una imagen al producto',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['url'],
+            properties: {
+              url: { type: 'string', maxLength: 500, example: 'https://picsum.photos/seed/nueva/600/600' },
+              orden: { type: 'integer', default: 0 },
+              esPrincipal: { type: 'boolean', default: false },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Imagen agregada', ...jsonBody({ type: 'object' }) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}/imagenes/{idImagen}': {
+      delete: {
+        tags: ['Imagenes'],
+        summary: 'Eliminar (borrado fisico) una imagen del producto',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+          { name: 'idImagen', in: 'path', required: true, schema: { type: 'integer' } },
+        ],
+        responses: {
+          '200': { description: 'Imagen eliminada', ...jsonBody({ type: 'object', properties: { ok: { type: 'boolean', example: true } } }) },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos/{id}/imagenes/{idImagen}/principal': {
+      patch: {
+        tags: ['Imagenes'],
+        summary: 'Marcar una imagen como principal',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+          { name: 'idImagen', in: 'path', required: true, schema: { type: 'integer' } },
+        ],
+        responses: {
+          '200': { description: 'Imagen marcada como principal', ...jsonBody({ type: 'object' }) },
           '401': errRef,
           '403': errRef,
           '404': errRef,

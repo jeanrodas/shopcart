@@ -4,7 +4,9 @@ import { AppError, mapSqlError } from '../errors/index.js';
 
 export interface SpParam {
   name: string;
-  type: ISqlType | (() => ISqlType);
+  // Se omite para parametros de tipo tabla (TVP): el objeto sql.Table que se
+  // pasa como `value` ya lleva su propio tipo y definicion de columnas.
+  type?: ISqlType | (() => ISqlType);
   value: unknown;
   output?: boolean;
 }
@@ -48,7 +50,10 @@ export async function executeSp<T = unknown>(
   for (const param of params) {
     assertIdentifier(param.name);
     if (param.output) {
-      request.output(param.name, param.type, param.value);
+      request.output(param.name, param.type as ISqlType | (() => ISqlType), param.value);
+    } else if (param.type === undefined) {
+      // Parametro de tipo tabla (TVP): `value` es un sql.Table ya construido.
+      request.input(param.name, param.value);
     } else {
       request.input(param.name, param.type, param.value);
     }

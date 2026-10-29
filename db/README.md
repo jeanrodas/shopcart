@@ -16,7 +16,10 @@ script es idempotente o pensado para una instancia nueva, segun su rol:
 | `005_SP_Auth.sql` | SPs de autenticacion (RF-01): registro de cliente, consulta por correo/ID, intentos fallidos y lockout, login exitoso, y ciclo de refresh tokens (guardar, rotar con deteccion de reutilizacion, revocar). |
 | `006_SP_Usuarios.sql` | SPs de gestion de usuarios por Administrador: listar (paginado/filtrado), crear, cambiar rol, cambiar estado. |
 | `007_SP_Direcciones.sql` | SPs de direcciones del usuario (ownership validado en el SP): listar, obtener, crear, actualizar, desactivar (baja logica). |
-| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios de prueba y una direccion). Crece con cada modulo; se aplica al final. |
+| `008_VW_Inventario.sql` | Vista `VW_Inventario_Disponible` (Disponible = Existencia - reservas activas), indice `IX_Producto_Nombre` y tipo de tabla `TVP_VarianteAtributo`. |
+| `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02): listar (con conteo de productos activos), crear, actualizar, cambiar estado (baja logica). |
+| `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02): busqueda paginada, detalle, altas/cambios y gestion de imagenes. |
+| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; categorias, productos, variantes e imagenes de M2). Crece con cada modulo; se aplica al final. |
 
 La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
 (catalogo, carrito, pedidos, etc.) agregara sus propios scripts con el siguiente
@@ -35,6 +38,9 @@ sqlcmd -S localhost -U sa -P "<password>" -i 004_Catalogos.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 005_SP_Auth.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 006_SP_Usuarios.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 007_SP_Direcciones.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 008_VW_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 009_SP_Categorias.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
 ```
 
@@ -57,3 +63,13 @@ Los triggers de bitacora leen al autor del cambio con
 `SESSION_CONTEXT(N'IDUsuario')`. El backend no fija el contexto de sesion: solo
 pasa `@IDUsuarioEjecuta` como un parametro mas al ejecutar el SP
 (`request.input`).
+
+## Parametros de tipo tabla (TVP)
+
+El estandar de nomenclatura del reto no define tipos de tabla, asi que el
+proyecto adopta la convencion propia `TVP_<Nombre>`. El unico TVP de M2 es
+`dbo.TVP_VarianteAtributo` (`008_VW_Inventario.sql`), con columnas
+`Nombre NVARCHAR(50)` y `Valor NVARCHAR(100)`; sirve para enviar el conjunto de
+atributos de una variante en una sola llamada a `SP_Catalogo_CrearVariante` /
+`SP_Catalogo_ActualizarVariante`. Como `CREATE TYPE` no admite `OR ALTER`, se
+crea solo si no existe comprobando `sys.table_types`.

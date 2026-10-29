@@ -1,18 +1,70 @@
 {
   "info": {
-    "name": "ShopCart API - M1 (Auth, Usuarios, Direcciones)",
+    "name": "ShopCart API - M1 (Auth, Usuarios, Direcciones) + M2 (Catalogo)",
     "description": "Coleccion de los endpoints del modulo M1 (RF-01). Incluye casos felices y negativos. Variables: baseUrl, accessToken, refreshToken, prevRefreshToken, adminAccessToken, clienteAccessToken, operadorAccessToken, direccionId. Aplicar antes los scripts 001-007 y 099 en SSMS.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "accessToken", "value": "" },
-    { "key": "refreshToken", "value": "" },
-    { "key": "prevRefreshToken", "value": "" },
-    { "key": "adminAccessToken", "value": "" },
-    { "key": "clienteAccessToken", "value": "" },
-    { "key": "operadorAccessToken", "value": "" },
-    { "key": "direccionId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "prevRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "clienteAccessToken",
+      "value": ""
+    },
+    {
+      "key": "operadorAccessToken",
+      "value": ""
+    },
+    {
+      "key": "direccionId",
+      "value": ""
+    },
+    {
+      "key": "categoriaId",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": ""
+    },
+    {
+      "key": "varianteId",
+      "value": ""
+    },
+    {
+      "key": "imagenId",
+      "value": ""
+    },
+    {
+      "key": "otroProductoId",
+      "value": ""
+    },
+    {
+      "key": "productoInactivoId",
+      "value": ""
+    },
+    {
+      "key": "sufijo",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -36,8 +88,24 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/registro", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "registro"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "registro"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"correo\": \"nuevo@shopcart.local\",\n  \"contrasena\": \"Cliente123!\",\n  \"nombre\": \"Nuevo Cliente\"\n}"
@@ -63,9 +131,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
           }
         },
         {
@@ -87,9 +174,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+            }
           }
         },
         {
@@ -109,9 +215,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
           }
         },
         {
@@ -141,26 +266,80 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
-            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
           }
         },
         {
           "name": "GET /auth/yo",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/yo", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "yo"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/yo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "yo"
+              ]
+            }
           }
         },
         {
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] },
-            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
           }
         }
       ]
@@ -172,16 +351,39 @@
           "name": "Listar usuarios",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/usuarios?pagina=1&tamanoPagina=20&orden=Nombre&direccion=ASC",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "usuarios"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios"
+              ],
               "query": [
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "20" },
-                { "key": "orden", "value": "Nombre" },
-                { "key": "direccion", "value": "ASC" }
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                },
+                {
+                  "key": "orden",
+                  "value": "Nombre"
+                },
+                {
+                  "key": "direccion",
+                  "value": "ASC"
+                }
               ]
             }
           }
@@ -191,10 +393,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"correo\": \"operador2@shopcart.local\",\n  \"contrasena\": \"Operador123!\",\n  \"nombre\": \"Segundo Operador\",\n  \"idRol\": 2\n}"
@@ -206,11 +424,32 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/usuarios/4/rol", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios", "4", "rol"] },
-            "body": { "mode": "raw", "raw": "{\n  \"idRol\": 3\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios/4/rol",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios",
+                "4",
+                "rol"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idRol\": 3\n}"
+            }
           }
         },
         {
@@ -218,11 +457,32 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/usuarios/2/estado", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios", "2", "estado"] },
-            "body": { "mode": "raw", "raw": "{\n  \"activo\": false\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios/2/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios",
+                "2",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}"
+            }
           }
         }
       ]
@@ -234,8 +494,23 @@
           "name": "Listar mis direcciones",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ]
+            }
           }
         },
         {
@@ -256,10 +531,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alias\": \"Oficina\",\n  \"nombreReceptor\": \"Cliente ShopCart\",\n  \"telefono\": \"+502 5555-1111\",\n  \"linea1\": \"5a Avenida 10-20 Zona 10\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\",\n  \"codigoPostal\": \"01010\",\n  \"referencia\": \"Edificio de oficinas, piso 3\"\n}"
@@ -270,8 +561,24 @@
           "name": "Obtener direccion",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones",
+                "{{direccionId}}"
+              ]
+            }
           }
         },
         {
@@ -279,10 +586,27 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones",
+                "{{direccionId}}"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alias\": \"Oficina principal\",\n  \"nombreReceptor\": \"Cliente ShopCart\",\n  \"telefono\": \"+502 5555-2222\",\n  \"linea1\": \"5a Avenida 10-20 Zona 10\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\",\n  \"codigoPostal\": \"01010\",\n  \"referencia\": \"Recepcion piso 3\"\n}"
@@ -293,8 +617,24 @@
           "name": "Desactivar direccion (baja logica)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "{{direccionId}}"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones/{{direccionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones",
+                "{{direccionId}}"
+              ]
+            }
           }
         }
       ]
@@ -319,9 +659,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
-            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{prevRefreshToken}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{prevRefreshToken}}\"\n}"
+            }
           }
         },
         {
@@ -341,8 +700,23 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "v1", "usuarios"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios"
+              ]
+            }
           }
         },
         {
@@ -362,8 +736,24 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/direcciones/1", "host": ["{{baseUrl}}"], "path": ["api", "v1", "direcciones", "1"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones",
+                "1"
+              ]
+            }
           }
         },
         {
@@ -383,9 +773,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
           }
         },
         {
@@ -409,10 +818,1158 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}"
+            }
           }
+        }
+      ]
+    },
+    {
+      "name": "M2 Catalogo",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sufijo', Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login operador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar productos (publico) y capturar IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?orden=Nombre&direccion=ASC&pagina=1&tamanoPagina=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "orden",
+                  "value": "Nombre"
+                },
+                {
+                  "key": "direccion",
+                  "value": "ASC"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('devuelve filas y total', () => { pm.expect(j).to.have.property('filas'); pm.expect(j).to.have.property('total'); });",
+                  "const filas = j.filas || [];",
+                  "pm.test('hay al menos un producto', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (pm.response.code === 200 && filas.length) {",
+                  "  pm.collectionVariables.set('productoId', filas[0].IDProducto);",
+                  "  pm.collectionVariables.set('categoriaId', filas[0].IDCategoria);",
+                  "  pm.collectionVariables.set('otroProductoId', filas[0].IDProducto);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar categorias (publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "categorias"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 categorias', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('solo activas (sin Descontinuados)', () => { const n = pm.response.json().map(c => c.Nombre); pm.expect(n).to.not.include('Descontinuados'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalle producto (publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('estructura producto/variantes/imagenes', () => { pm.expect(j).to.have.property('producto'); pm.expect(j).to.have.property('variantes'); pm.expect(j).to.have.property('imagenes'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /productos con token Operador (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?incluirInactivos=true&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 lectura operador', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalle producto (admin, incluirInactivos)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}?incluirInactivos=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 detalle admin', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear categoria (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Prueba {{sufijo}}\",\n  \"descripcion\": \"Categoria creada por Postman\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 categoria creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDCategoria) pm.collectionVariables.set('categoriaId', j.IDCategoria);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear producto (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idCategoria\": \"{{categoriaId}}\",\n  \"nombre\": \"Producto Prueba {{sufijo}}\",\n  \"descripcion\": \"Creado por Postman\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable categoriaId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"categoriaId\");",
+                  "  pm.expect(_v, \"variable categoriaId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 producto creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDProducto) pm.collectionVariables.set('productoId', j.IDProducto);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar producto (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idCategoria\": \"{{categoriaId}}\",\n  \"nombre\": \"Producto Prueba {{sufijo}} (editado)\",\n  \"descripcion\": \"Editado por Postman\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable categoriaId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"categoriaId\");",
+                  "  pm.expect(_v, \"variable categoriaId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 producto actualizado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear variante (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/variantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "variantes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-{{sufijo}}-M\",\n  \"precio\": 199.99,\n  \"atributos\": [\n    {\n      \"nombre\": \"Viscosidad\",\n      \"valor\": \"5W-30\"\n    },\n    {\n      \"nombre\": \"Presentacion\",\n      \"valor\": \"1 Cuarto\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 variante creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.variante && j.variante.IDVariante) pm.collectionVariables.set('varianteId', j.variante.IDVariante);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear variante SKU duplicado (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/variantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "variantes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-{{sufijo}}-M\",\n  \"precio\": 150,\n  \"atributos\": [\n    {\n      \"nombre\": \"Viscosidad\",\n      \"valor\": \"20W-50\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 conflicto por SKU', () => pm.expect(pm.response.code).to.eql(409));",
+                  "pm.test('code CONFLICT', () => pm.expect(pm.response.json().code).to.eql('CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear variante precio 0 (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/variantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "variantes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-{{sufijo}}-P0\",\n  \"precio\": 0,\n  \"atributos\": []\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 precio invalido', () => pm.expect(pm.response.code).to.eql(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar imagen (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/imagenes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "imagenes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://picsum.photos/seed/prueba-{{sufijo}}/600/600\",\n  \"orden\": 0,\n  \"esPrincipal\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 imagen agregada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDProductoImagen) pm.collectionVariables.set('imagenId', j.IDProductoImagen);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Marcar imagen principal (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/imagenes/{{imagenId}}/principal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "imagenes",
+                "{{imagenId}}",
+                "principal"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable imagenId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"imagenId\");",
+                  "  pm.expect(_v, \"variable imagenId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 marcada principal', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar imagen de otro producto (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{otroProductoId}}/imagenes/{{imagenId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{otroProductoId}}",
+                "imagenes",
+                "{{imagenId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable otroProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"otroProductoId\");",
+                  "  pm.expect(_v, \"variable otroProductoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable imagenId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"imagenId\");",
+                  "  pm.expect(_v, \"variable imagenId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 no pertenece al producto', () => pm.expect(pm.response.code).to.eql(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar variante (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/variantes/{{varianteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "variantes",
+                "{{varianteId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-{{sufijo}}-M\",\n  \"precio\": 210.5,\n  \"atributos\": [\n    {\n      \"nombre\": \"Viscosidad\",\n      \"valor\": \"10W-40\"\n    },\n    {\n      \"nombre\": \"Presentacion\",\n      \"valor\": \"1 Galon\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable varianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"varianteId\");",
+                  "  pm.expect(_v, \"variable varianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 variante actualizada', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /productos con token Operador (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idCategoria\": \"{{categoriaId}}\",\n  \"nombre\": \"No permitido {{sufijo}}\",\n  \"descripcion\": \"Operador no crea\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable categoriaId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"categoriaId\");",
+                  "  pm.expect(_v, \"variable categoriaId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 prohibido para operador', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambiar estado producto -> inactivo (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoId\");",
+                  "  pm.expect(_v, \"variable productoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 estado cambiado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('incluye TieneVentas', () => pm.expect(pm.response.json()).to.have.property('TieneVentas'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar inactivos (admin) y capturar productoInactivoId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?incluirInactivos=true&pagina=1&tamanoPagina=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const inactivo = filas.find(p => p.Activo === false);",
+                  "pm.test('hay al menos un producto inactivo', () => pm.expect(inactivo, 'producto inactivo').to.not.be.undefined);",
+                  "if (pm.response.code === 200 && inactivo) pm.collectionVariables.set('productoInactivoId', inactivo.IDProducto);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Producto inactivo por ruta publica (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{productoInactivoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{productoInactivoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable productoInactivoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"productoInactivoId\");",
+                  "  pm.expect(_v, \"variable productoInactivoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 oculto en tienda', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('code NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

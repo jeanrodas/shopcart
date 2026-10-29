@@ -92,13 +92,19 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `005_SP_Auth.sql` | SPs de autenticacion (registro, login, refresh tokens). |
 | `006_SP_Usuarios.sql` | SPs de gestion de usuarios (Administrador). |
 | `007_SP_Direcciones.sql` | SPs de direcciones del usuario. |
-| `099_Semillas.sql` | Datos de ejemplo (usuarios de prueba y direccion). Se aplica al final. |
+| `008_VW_Inventario.sql` | Vista de inventario disponible, indice de busqueda y TVP de atributos. |
+| `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02). |
+| `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02). |
+| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1 y catalogo de M2). Se aplica al final. |
 
 ```bash
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/005_SP_Auth.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/006_SP_Usuarios.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/007_SP_Direcciones.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/008_VW_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/009_SP_Categorias.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -155,6 +161,55 @@ incluso desde `dbo` o un SP.
 - **JWT access token** firmado con `JWT_ACCESS_SECRET`, payload
   `{ sub, rol, nombre }`; el middleware `authenticate` adjunta `req.usuario` y
   `authorize(...roles)` restringe por rol.
+
+### Catalogo de productos (M2, RF-02)
+
+- **SKU, precio y existencia pertenecen a la variante.** El producto no tiene
+  SKU: agrupa variantes. Un producto sin variantes activas no es vendible ni
+  visible en tienda.
+- **Baja logica siempre** (`Activo = 0`) para categorias, productos y variantes,
+  incluso con ventas asociadas: `PedidoDetalle` y el kardex referencian la
+  variante, asi que un borrado fisico romperia el historial. `CambiarEstadoProducto`
+  devuelve `TieneVentas` como dato informativo. Las imagenes si se borran
+  fisicamente (no las referencia nada).
+- **El catalogo nunca escribe `Variante.Existencia`.** La variante nace en 0 y la
+  existencia solo cambia por kardex (M3). Ningun SP de M2 toca esa columna.
+- **Visible en tienda** = `Producto.Activo = 1` AND `Categoria.Activo = 1` AND al
+  menos una variante activa. Desactivar un producto no cambia el `Activo` de sus
+  variantes.
+- **Disponibilidad** via `VW_Inventario_Disponible`: `Disponible = Existencia -`
+  reservas activas no vencidas.
+- **Busqueda sin SQL dinamico.** Filtros opcionales con el patron
+  `(@Param IS NULL OR columna = @Param)`, `LIKE` con `CONCAT(N'%', @Texto, N'%')`,
+  orden por lista blanca con expresiones `CASE` (nunca columna interpolada) y
+  `OPTION (RECOMPILE)` para que el plan se ajuste a los filtros efectivos.
+- **TVP para atributos.** Los atributos de variante se envian como un parametro de
+  tipo tabla `dbo.TVP_VarianteAtributo` (objeto `sql.Table` de mssql) en una sola
+  llamada; cero SQL en TypeScript.
+- **Imagenes solo por URL** (no se suben binarios). Una imagen principal por
+  producto, garantizada dentro del SP en una transaccion.
+- **Lectura del catalogo:** publica sin token (`/catalogo/...`, siempre
+  `IncluirInactivos = 0`), o de administracion para Administrador y Operador
+  (acepta `incluirInactivos`). La **escritura** es exclusiva del Administrador.
+- **404 uniforme** para un producto inexistente o inactivo en la ruta publica: la
+  misma respuesta en ambos casos, para no revelar el catalogo oculto.
+
+## Pruebas con Postman
+
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1 y M2.
+
+1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
+   variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
+   requests capturan solos). Ajuste `baseUrl` si la API no corre en
+   `http://localhost:3000`.
+2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
+   **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo**.
+3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
+   puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
+   los scripts `001`-`010` y `099` en SQL Server.
+
+> El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
+> "Login x11" conviene reiniciar la API o esperar la ventana configurada.
 
 ## Diagrama ER
 
