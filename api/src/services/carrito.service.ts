@@ -23,17 +23,50 @@ interface CabeceraRow {
   CantidadUnidades: number;
 }
 
-interface CarritoResultado {
+/** Fila del tercer recordset de SP_Carrito_Obtener (cupon aplicado, M5). */
+interface CuponRow {
+  IDCupon: number;
+  Codigo: string;
+  TipoDescuento: string;
+  Valor: number;
+  Categoria: string | null;
+  BaseElegible: number;
+  Descuento: number;
+  Valido: boolean;
+  Causa: string | null;
+}
+
+/** Cupon aplicado al carrito, con el detalle del descuento recalculado al mostrar. */
+export interface CuponAplicado {
+  IDCupon: number;
+  Codigo: string;
+  TipoDescuento: string;
+  Valor: number;
+  Categoria: string | null;
+  descuento: {
+    baseElegible: number;
+    descuento: number;
+    valido: boolean;
+    causa: string | null;
+  };
+}
+
+export interface CarritoResultado {
   carrito: unknown;
   lineas: unknown[];
-  cupon: null;
+  cupon: CuponAplicado | null;
   cartToken?: string;
 }
 
-/** Arma la respuesta del carrito a partir de los recordsets de los SPs. */
-function ensamblar(recordsets: unknown[][], cartToken?: string): CarritoResultado {
+/**
+ * Arma la respuesta del carrito a partir de los recordsets de SP_Carrito_Obtener
+ * (cabecera + totales, lineas y cupon). La exporta el servicio de cupones (M5),
+ * cuyos SPs devuelven exactamente los mismos tres recordsets.
+ */
+export function ensamblarCarrito(recordsets: unknown[][], cartToken?: string): CarritoResultado {
   const cab = (recordsets[0]?.[0] ?? null) as CabeceraRow | null;
   const lineas = (recordsets[1] ?? []) as unknown[];
+  const cuponRow = (recordsets[2]?.[0] ?? null) as CuponRow | null;
 
   let carrito: unknown = null;
   if (cab) {
@@ -63,7 +96,23 @@ function ensamblar(recordsets: unknown[][], cartToken?: string): CarritoResultad
     };
   }
 
-  const resultado: CarritoResultado = { carrito, lineas, cupon: null };
+  const cupon: CuponAplicado | null = cuponRow
+    ? {
+        IDCupon: cuponRow.IDCupon,
+        Codigo: cuponRow.Codigo,
+        TipoDescuento: cuponRow.TipoDescuento,
+        Valor: cuponRow.Valor,
+        Categoria: cuponRow.Categoria,
+        descuento: {
+          baseElegible: cuponRow.BaseElegible,
+          descuento: cuponRow.Descuento,
+          valido: Boolean(cuponRow.Valido),
+          causa: cuponRow.Causa,
+        },
+      }
+    : null;
+
+  const resultado: CarritoResultado = { carrito, lineas, cupon };
   if (cartToken) {
     resultado.cartToken = cartToken;
   }
@@ -80,7 +129,7 @@ export async function obtener(id: CartIdentity): Promise<CarritoResultado> {
     { name: 'IDUsuario', type: sql.Int, value: id.idUsuario ?? null },
     { name: 'TokenInvitado', type: sql.UniqueIdentifier, value: id.tokenInvitado ?? null },
   ]);
-  return ensamblar(result.recordsets as unknown[][]);
+  return ensamblarCarrito(result.recordsets as unknown[][]);
 }
 
 export async function agregarItem(
@@ -110,7 +159,7 @@ export async function agregarItem(
   }
 
   const result = await executeSp('SP_Carrito_AgregarItem', params);
-  return ensamblar(result.recordsets as unknown[][], tokenGenerado);
+  return ensamblarCarrito(result.recordsets as unknown[][], tokenGenerado);
 }
 
 export async function actualizarItem(
@@ -125,7 +174,7 @@ export async function actualizarItem(
     { name: 'Cantidad', type: sql.Int, value: cantidad },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actor(id) },
   ]);
-  return ensamblar(result.recordsets as unknown[][]);
+  return ensamblarCarrito(result.recordsets as unknown[][]);
 }
 
 export async function eliminarItem(id: CartIdentity, idVariante: number): Promise<CarritoResultado> {
@@ -135,7 +184,7 @@ export async function eliminarItem(id: CartIdentity, idVariante: number): Promis
     { name: 'IDVariante', type: sql.Int, value: idVariante },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actor(id) },
   ]);
-  return ensamblar(result.recordsets as unknown[][]);
+  return ensamblarCarrito(result.recordsets as unknown[][]);
 }
 
 export async function vaciar(id: CartIdentity): Promise<CarritoResultado> {
@@ -144,5 +193,5 @@ export async function vaciar(id: CartIdentity): Promise<CarritoResultado> {
     { name: 'TokenInvitado', type: sql.UniqueIdentifier, value: id.tokenInvitado ?? null },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actor(id) },
   ]);
-  return ensamblar(result.recordsets as unknown[][]);
+  return ensamblarCarrito(result.recordsets as unknown[][]);
 }

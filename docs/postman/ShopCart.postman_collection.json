@@ -72,7 +72,16 @@
     {
       "key": "existenciaInicial",
       "value": ""
-    }
+    },
+    { "key": "m5CatLubId", "value": "" },
+    { "key": "m5ProductoLubId", "value": "" },
+    { "key": "m5VarianteLubId", "value": "" },
+    { "key": "m5PrecioLub", "value": "" },
+    { "key": "m5DisponibleLub", "value": "" },
+    { "key": "m5Cantidad", "value": "" },
+    { "key": "m5Subtotal", "value": "" },
+    { "key": "m5Sufijo", "value": "" },
+    { "key": "m5AgotadoId", "value": "" }
   ],
   "item": [
     {
@@ -3230,6 +3239,518 @@
                 ]
               }
             }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M5 Cupones",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Setup: Login operador",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Setup: Login cliente",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Setup: capturar categoria Lubricantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/catalogo/categorias", "host": ["{{baseUrl}}"], "path": ["api", "v1", "catalogo", "categorias"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = [];",
+              "try { j = pm.response.json(); } catch (e) { j = []; }",
+              "pm.test('200 categorias', () => pm.expect(pm.response.code).to.eql(200));",
+              "const cat = (Array.isArray(j) ? j : []).find(c => c.Nombre === 'Lubricantes');",
+              "pm.test('existe categoria Lubricantes', () => pm.expect(cat, 'Lubricantes').to.not.be.undefined);",
+              "if (cat) pm.collectionVariables.set('m5CatLubId', cat.IDCategoria);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Setup: buscar producto de Lubricantes disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?idCategoria={{m5CatLubId}}&soloDisponibles=true&pagina=1&tamanoPagina=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "catalogo", "productos"],
+              "query": [
+                { "key": "idCategoria", "value": "{{m5CatLubId}}" },
+                { "key": "soloDisponibles", "value": "true" },
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "50" }
+              ]
+            }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.test('variable m5CatLubId no vacia', function () {",
+              "  const _v = pm.collectionVariables.get('m5CatLubId');",
+              "  pm.expect(_v, 'm5CatLubId vacia').to.not.be.oneOf([undefined, null, '']);",
+              "});"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+              "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
+              "pm.test('hay producto de lubricantes disponible', () => pm.expect(filas.length).to.be.above(0));",
+              "if (filas.length) pm.collectionVariables.set('m5ProductoLubId', filas[0].IDProducto);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Setup: capturar variante de Lubricantes (mayor precio)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m5ProductoLubId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "catalogo", "productos", "{{m5ProductoLubId}}"] }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.test('variable m5ProductoLubId no vacia', function () {",
+              "  const _v = pm.collectionVariables.get('m5ProductoLubId');",
+              "  pm.expect(_v, 'm5ProductoLubId vacia').to.not.be.oneOf([undefined, null, '']);",
+              "});"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+              "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
+              "vars.sort((a, b) => Number(b.Precio) - Number(a.Precio));",
+              "pm.test('hay variante de lubricantes disponible', () => pm.expect(vars.length).to.be.above(0));",
+              "if (vars.length) {",
+              "  pm.collectionVariables.set('m5VarianteLubId', vars[0].IDVariante);",
+              "  pm.collectionVariables.set('m5PrecioLub', Number(vars[0].Precio));",
+              "  pm.collectionVariables.set('m5DisponibleLub', Number(vars[0].Disponible));",
+              "}"
+            ] } }
+          ]
+        },
+        {
+          "name": "Prep: vaciar carrito del cliente",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 carrito vaciado', () => pm.expect(pm.response.code).to.eql(200));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Prep: agregar lubricante (supera Q300)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "items"] },
+            "body": { "mode": "raw", "raw": "{\n  \"idVariante\": {{m5VarianteLubId}},\n  \"cantidad\": {{m5Cantidad}}\n}" }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const precio = Number(pm.collectionVariables.get('m5PrecioLub'));",
+              "const disp = Number(pm.collectionVariables.get('m5DisponibleLub'));",
+              "let qty = Math.ceil(301 / precio);",
+              "if (!isFinite(qty) || qty < 1) qty = 1;",
+              "if (qty > disp) qty = disp;",
+              "pm.collectionVariables.set('m5Cantidad', qty);"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('201 lubricante agregado', () => pm.expect(pm.response.code).to.eql(201));",
+              "const s = Number(j.carrito && j.carrito.totales ? j.carrito.totales.Subtotal : 0);",
+              "pm.collectionVariables.set('m5Subtotal', s);",
+              "pm.test('subtotal supera el monto minimo (Q300)', () => pm.expect(s).to.be.at.least(300));"
+            ] } }
+          ]
+        },
+        {
+          "name": "PROMO10: 10% sobre el subtotal (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PROMO10\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
+              "const s = Number(pm.collectionVariables.get('m5Subtotal'));",
+              "const tot = (j.carrito && j.carrito.totales) || {};",
+              "const expDesc = Math.round(s * 0.10 * 100) / 100;",
+              "pm.test('codigo PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('PROMO10'));",
+              "pm.test('cupon valido', () => pm.expect(j.cupon && j.cupon.descuento && j.cupon.descuento.valido).to.eql(true));",
+              "pm.test('descuento = round(subtotal*0.10,2)', () => pm.expect(Number(tot.Descuento)).to.eql(expDesc));",
+              "pm.test('total = subtotal - descuento', () => pm.expect(Number(tot.Total)).to.eql(Math.round((s - expDesc) * 100) / 100));"
+            ] } }
+          ]
+        },
+        {
+          "name": "LUB50: Q50 fijos sobre Lubricantes (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"LUB50\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
+              "pm.test('codigo LUB50 reemplaza a PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));",
+              "const tot = (j.carrito && j.carrito.totales) || {};",
+              "pm.test('descuento = 50 (menor entre Valor y base)', () => pm.expect(Number(tot.Descuento)).to.eql(50));"
+            ] } }
+          ]
+        },
+        {
+          "name": "VENCIDO: cupon fuera de vigencia (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"VENCIDO\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+              "pm.test('mensaje contiene vencido', () => pm.expect((j.message || '').toLowerCase()).to.include('vencido'));"
+            ] } }
+          ]
+        },
+        {
+          "name": "FUTURO: cupon aun no vigente (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"FUTURO\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+              "pm.test('mensaje contiene vigente', () => pm.expect((j.message || '').toLowerCase()).to.include('vigente'));"
+            ] } }
+          ]
+        },
+        {
+          "name": "AGOTADO: cupon sin usos disponibles (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"AGOTADO\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+              "pm.test('mensaje contiene agotado', () => pm.expect((j.message || '').toLowerCase()).to.include('agotado'));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Codigo inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"NO-EXISTE-123\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('404 cupon invalido', () => pm.expect(pm.response.code).to.eql(404));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Invitado: aplicar cupon sin sesion (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PROMO10\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('401 inicie sesion', () => pm.expect(pm.response.code).to.eql(401));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Quitar cupon del carrito (200, descuento 0)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 cupon quitado', () => pm.expect(pm.response.code).to.eql(200));",
+              "pm.test('sin cupon', () => pm.expect(j.cupon).to.eql(null));",
+              "const tot = (j.carrito && j.carrito.totales) || {};",
+              "pm.test('descuento 0', () => pm.expect(Number(tot.Descuento)).to.eql(0));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: crear cupon con sufijo (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('m5Sufijo', String(Date.now()).slice(-6));"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('201 cupon creado', () => pm.expect(pm.response.code).to.eql(201));",
+              "pm.test('codigo normalizado a mayusculas', () => pm.expect(j.Codigo).to.eql('TEST-' + pm.collectionVariables.get('m5Sufijo')));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: crear con mismo codigo (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('409 codigo duplicado', () => pm.expect(pm.response.code).to.eql(409));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: porcentaje 150 invalido (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"BAD-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 150,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('400 validacion', () => pm.expect(pm.response.code).to.eql(400));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: capturar cupon AGOTADO",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones?texto=AGOTADO&pagina=1&tamanoPagina=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cupones"],
+              "query": [
+                { "key": "texto", "value": "AGOTADO" },
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+              "const cup = (j.filas || []).find(c => c.Codigo === 'AGOTADO');",
+              "pm.test('existe cupon AGOTADO', () => pm.expect(cup, 'AGOTADO').to.not.be.undefined);",
+              "if (cup) pm.collectionVariables.set('m5AgotadoId', cup.IDCupon);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: actualizar cupon con usos cambiando Valor (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/cupones/{{m5AgotadoId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones", "{{m5AgotadoId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"AGOTADO\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 9,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.test('variable m5AgotadoId no vacia', function () {",
+              "  const _v = pm.collectionVariables.get('m5AgotadoId');",
+              "  pm.expect(_v, 'm5AgotadoId vacia').to.not.be.oneOf([undefined, null, '']);",
+              "});"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('409 cupon con usos', () => pm.expect(pm.response.code).to.eql(409));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Admin: listar cupones (200)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones?pagina=1&tamanoPagina=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cupones"],
+              "query": [
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+              "pm.test('hay cupones sembrados', () => pm.expect((j.filas || []).length).to.be.above(0));",
+              "pm.test('total es numero', () => pm.expect(j.total).to.be.a('number'));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Operador: crear cupon prohibido (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{operadorAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"OPE-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('403 solo administrador', () => pm.expect(pm.response.code).to.eql(403));"
+            ] } }
+          ]
+        },
+        {
+          "name": "Cierre: dejar LUB50 aplicado (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"LUB50\"\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) { j = {}; }",
+              "pm.test('200 LUB50 aplicado para M6', () => pm.expect(pm.response.code).to.eql(200));",
+              "pm.test('carrito queda con LUB50', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));"
+            ] } }
           ]
         }
       ]

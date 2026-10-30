@@ -299,8 +299,69 @@ const carritoSchema = {
       },
     },
     lineas: { type: 'array', items: carritoLineaSchema },
-    cupon: { type: 'object', nullable: true, example: null },
+    cupon: {
+      type: 'object',
+      nullable: true,
+      description:
+        'Cupon aplicado (M5). null si el carrito no tiene cupon. El descuento se ' +
+        'recalcula al mostrar: si el cupon dejo de ser valido, descuento.valido = false, ' +
+        'descuento.causa explica el motivo y descuento.descuento = 0.',
+      properties: {
+        IDCupon: { type: 'integer', example: 1 },
+        Codigo: { type: 'string', example: 'PROMO10' },
+        TipoDescuento: { type: 'string', enum: ['PORCENTAJE', 'MONTO'], example: 'PORCENTAJE' },
+        Valor: { type: 'number', example: 10.0 },
+        Categoria: { type: 'string', nullable: true, example: null },
+        descuento: {
+          type: 'object',
+          properties: {
+            baseElegible: { type: 'number', example: 960.0 },
+            descuento: { type: 'number', example: 96.0 },
+            valido: { type: 'boolean', example: true },
+            causa: { type: 'string', nullable: true, example: null },
+          },
+        },
+      },
+    },
     cartToken: { type: 'string', description: 'Solo al crear el carrito de invitado', example: '11111111-1111-1111-1111-111111111111' },
+  },
+};
+
+const cuponSchema = {
+  type: 'object',
+  properties: {
+    IDCupon: { type: 'integer', example: 1 },
+    Codigo: { type: 'string', example: 'PROMO10' },
+    TipoDescuento: { type: 'string', enum: ['PORCENTAJE', 'MONTO'], example: 'PORCENTAJE' },
+    Valor: { type: 'number', example: 10.0 },
+    IDCategoria: { type: 'integer', nullable: true, example: null },
+    Categoria: { type: 'string', nullable: true, example: null },
+    MontoMinimo: { type: 'number', example: 0.0 },
+    FechaInicio: { type: 'string', format: 'date-time' },
+    FechaFin: { type: 'string', format: 'date-time' },
+    LimiteUsosTotal: { type: 'integer', nullable: true, example: null },
+    LimiteUsosPorCliente: { type: 'integer', nullable: true, example: null },
+    UsosActuales: { type: 'integer', example: 0 },
+    Activo: { type: 'boolean', example: true },
+    FechaCreacion: { type: 'string', format: 'date-time' },
+    FechaActualizacion: { type: 'string', format: 'date-time', nullable: true },
+    UsosRegistrados: { type: 'integer', description: 'Conteo real en CuponUso', example: 0 },
+  },
+};
+
+const cuponBody = {
+  type: 'object',
+  required: ['codigo', 'tipoDescuento', 'valor', 'fechaInicio', 'fechaFin'],
+  properties: {
+    codigo: { type: 'string', minLength: 3, maxLength: 30, example: 'PROMO10', description: 'Letras, numeros y guion; se normaliza a mayusculas' },
+    tipoDescuento: { type: 'string', enum: ['PORCENTAJE', 'MONTO'], example: 'PORCENTAJE' },
+    valor: { type: 'number', example: 10.0, description: 'Si es PORCENTAJE, <= 100' },
+    idCategoria: { type: 'integer', nullable: true, example: null, description: 'Limita la base elegible a esa categoria' },
+    montoMinimo: { type: 'number', example: 0.0, default: 0 },
+    fechaInicio: { type: 'string', format: 'date-time' },
+    fechaFin: { type: 'string', format: 'date-time', description: 'Posterior a fechaInicio' },
+    limiteUsosTotal: { type: 'integer', nullable: true, example: null },
+    limiteUsosPorCliente: { type: 'integer', nullable: true, example: null },
   },
 };
 
@@ -328,6 +389,7 @@ export const openapiDocument = {
     { name: 'Imagenes', description: 'Imagenes de producto (Administrador)' },
     { name: 'Inventario', description: 'Existencias, movimientos y kardex (Operador/Administrador)' },
     { name: 'Carrito', description: 'Carrito de compras del cliente o del invitado (RF-04)' },
+    { name: 'Cupones', description: 'Cupones y promociones: gestion (Administrador) y aplicacion al carrito (Cliente) (RF-05)' },
   ],
   components: {
     securitySchemes: {
@@ -362,6 +424,7 @@ export const openapiDocument = {
       Consistencia: consistenciaSchema,
       CarritoLinea: carritoLineaSchema,
       Carrito: carritoSchema,
+      Cupon: cuponSchema,
     },
   },
   paths: {
@@ -1341,6 +1404,147 @@ export const openapiDocument = {
           '403': errRef,
           '404': errRef,
           '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/carrito/cupon': {
+      post: {
+        tags: ['Cupones'],
+        summary: 'Aplicar un cupon al carrito (solo Cliente autenticado)',
+        description:
+          'Valida el codigo contra el carrito activo del cliente y lo guarda (un solo ' +
+          'cupon por carrito: reemplaza el anterior). Invitado -> 401. Carrito vacio, ' +
+          'cupon vencido/agotado/sin monto minimo/no aplica -> 422. Cupon inexistente -> 404.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['codigo'],
+            properties: { codigo: { type: 'string', example: 'PROMO10' } },
+          }),
+        },
+        responses: {
+          '200': { description: 'Carrito con el cupon aplicado', ...jsonBody(carritoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '422': errRef,
+        },
+      },
+      delete: {
+        tags: ['Cupones'],
+        summary: 'Quitar el cupon del carrito (solo Cliente autenticado)',
+        description: 'Sin error si el carrito no tenia cupon. Invitado -> 401.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Carrito sin cupon (descuento 0)', ...jsonBody(carritoSchema) },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/cupones': {
+      get: {
+        tags: ['Cupones'],
+        summary: 'Listar cupones (Administrador)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'LIKE sobre el codigo' },
+          { name: 'activo', in: 'query', schema: { type: 'boolean' } },
+          { name: 'soloVigentes', in: 'query', schema: { type: 'boolean', default: false } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de cupones',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: { type: 'array', items: cuponSchema },
+                total: { type: 'integer', example: 6 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+      post: {
+        tags: ['Cupones'],
+        summary: 'Crear un cupon (Administrador)',
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, ...jsonBody(cuponBody) },
+        responses: {
+          '201': { description: 'Cupon creado', ...jsonBody(cuponSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/cupones/{id}': {
+      get: {
+        tags: ['Cupones'],
+        summary: 'Obtener un cupon (Administrador)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': { description: 'Cupon', ...jsonBody(cuponSchema) },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+      put: {
+        tags: ['Cupones'],
+        summary: 'Actualizar un cupon (Administrador)',
+        description:
+          'Un cupon con usos (CuponUso o UsosActuales > 0) no puede cambiar codigo, tipo, ' +
+          'valor ni categoria -> 409. Nunca modifica UsosActuales.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: { required: true, ...jsonBody(cuponBody) },
+        responses: {
+          '200': { description: 'Cupon actualizado', ...jsonBody(cuponSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/cupones/{id}/estado': {
+      patch: {
+        tags: ['Cupones'],
+        summary: 'Activar o desactivar un cupon (Administrador)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['activo'],
+            properties: { activo: { type: 'boolean', example: false } },
+          }),
+        },
+        responses: {
+          '200': { description: 'Cupon actualizado', ...jsonBody(cuponSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
         },
       },
     },

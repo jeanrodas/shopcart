@@ -1,0 +1,27 @@
+import { Router, type RequestHandler } from 'express';
+import { validate } from '../middlewares/validate.js';
+import { authenticate } from '../middlewares/authenticate.js';
+import { authorize } from '../middlewares/authorize.js';
+import { ROLES } from '../config/roles.js';
+import { idParamSchema } from '../schemas/common.schema.js';
+import { estadoSchema } from '../schemas/catalogo.schema.js';
+import { cuponSchema, listarCuponesSchema } from '../schemas/cupones.schema.js';
+import * as c from '../controllers/cupones.controller.js';
+
+const router = Router();
+
+// Gestion de cupones: exclusiva de Administrador.
+const admin: RequestHandler[] = [authenticate, authorize(ROLES.Administrador)];
+
+router.get('/', ...admin, validate({ query: listarCuponesSchema }), c.getCupones);
+router.get('/:id', ...admin, validate({ params: idParamSchema }), c.getCupon);
+router.post('/', ...admin, validate({ body: cuponSchema }), c.postCupon);
+router.put('/:id', ...admin, validate({ params: idParamSchema, body: cuponSchema }), c.putCupon);
+router.patch(
+  '/:id/estado',
+  ...admin,
+  validate({ params: idParamSchema, body: estadoSchema }),
+  c.patchCuponEstado,
+);
+
+export default router;

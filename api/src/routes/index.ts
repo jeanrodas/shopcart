@@ -6,6 +6,7 @@ import direccionesRoutes from './direcciones.routes.js';
 import catalogoRoutes from './catalogo.routes.js';
 import inventarioRoutes from './inventario.routes.js';
 import carritoRoutes from './carrito.routes.js';
+import cuponesRoutes from './cupones.routes.js';
 
 const router = Router();
 
@@ -22,6 +23,8 @@ apiV1.use('/', catalogoRoutes);
 apiV1.use('/inventario', inventarioRoutes);
 // Carrito de compras (RF-04): cliente autenticado o invitado por X-Cart-Token.
 apiV1.use('/carrito', carritoRoutes);
+// Cupones y promociones (RF-05): gestion por Administrador.
+apiV1.use('/cupones', cuponesRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;

@@ -96,8 +96,10 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02). |
 | `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02). |
 | `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03). |
-| `012_SP_Carrito.sql` | Funcion de totales y SPs del carrito de compras (RF-04). |
-| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3 y carritos de M4). Se aplica al final. |
+| `012_SP_Carrito.sql` | Funcion de totales y SPs del carrito de compras (RF-04). En M5 la funcion de totales pasa a descontar el cupon, por eso se reaplica despues de `014`. |
+| `013_Migracion_CarritoCupon.sql` | Migracion posterior al `001`: agrega `Carrito.IDCupon` y su FK para recordar el cupon aplicado antes del checkout (RF-05). |
+| `014_SP_Cupones.sql` | Funciones (`FU_Cupones_CalculoDescuento`, `FU_Cupones_Estado`) y SPs de cupones: validar/aplicar/quitar y CRUD de administracion (RF-05). |
+| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
 
 ```bash
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
@@ -108,6 +110,12 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/008_VW_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/009_SP_Categorias.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
+# M5: la migracion y los cupones van ANTES de reaplicar 012, porque
+# FU_Carrito_CalcularTotales (en 012) usa las funciones de cupon de 014 y la
+# columna Carrito.IDCupon de 013 (una funcion en linea exige que lo referenciado
+# exista al crearse). Orden M5: 013 -> 014 -> 012 -> 099.
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/013_Migracion_CarritoCupon.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/014_SP_Cupones.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/012_SP_Carrito.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
@@ -288,9 +296,54 @@ incluso desde `dbo` o un SP.
   semillas el carrito de invitado nace con la fecha retrasada 3 dias (unico lugar donde
   se toca esa fecha a mano, y solo para datos de prueba).
 
+### Cupones y promociones (M5, RF-05)
+
+- **Migracion 013, no cambios en el 001.** El modelo base no se toca. `Carrito.IDCupon`
+  (nullable, con FK a `Cupon`) se agrega en `013_Migracion_CarritoCupon.sql` para que el
+  carrito recuerde el cupon aplicado **antes** del checkout. La migracion es idempotente
+  (`COL_LENGTH` / `sys.foreign_keys`) y usa `GO` para que la columna exista antes de
+  referenciarla. Orden de aplicacion de M5: **013 -> 014 -> 012 (se reaplica) -> 099**,
+  porque `FU_Carrito_CalcularTotales` (012) depende de las funciones de cupon (014) y de
+  la columna (013): una funcion en linea exige que lo referenciado exista al crearse.
+- **Aplicar no es consumir.** M5 solo **valida y guarda** `Carrito.IDCupon`; nunca toca
+  `Cupon.UsosActuales` ni inserta en `CuponUso`. El **consumo** de un uso es del checkout
+  (M6): dentro de su transaccion, con `UPDATE Cupon SET UsosActuales = UsosActuales + 1
+  WHERE ... AND (LimiteUsosTotal IS NULL OR UsosActuales < LimiteUsosTotal)` validando
+  `@@ROWCOUNT`, con el `CHECK` de tabla como ultima defensa. Orden de bloqueo del
+  checkout: `Carrito` -> `Variante` -> `Reserva` -> `Cupon`.
+- **Cupones solo con sesion.** Son exclusivos del Cliente autenticado. En
+  `POST`/`DELETE /carrito/cupon` el controlador exige `req.carrito.idUsuario`; un invitado
+  recibe **401 `Inicie sesion para aplicar cupones`** antes de tocar la base.
+- **Base elegible y formulas.** La base elegible es el subtotal de las lineas cuya
+  `Producto.IDCategoria` coincide con `Cupon.IDCategoria` (si el cupon tiene categoria) o
+  el subtotal completo. `PORCENTAJE -> ROUND(base * Valor / 100, 2)`; `MONTO -> el menor
+  entre Valor y base`. El descuento nunca supera el `Subtotal`. Todo en `DECIMAL(18,2)` y
+  calculado en SQL (`FU_Cupones_CalculoDescuento`); el backend no calcula montos.
+- **Monto minimo contra el subtotal.** El `MontoMinimo` se compara contra el `Subtotal`
+  completo del carrito (no contra la base elegible).
+- **Validez en orden con mensaje propio.** `FU_Cupones_Estado` evalua y devuelve la
+  primera causa que falla: (1) no existe o inactivo -> **404 `Cupon invalido`**; (2) aun
+  no vigente, (3) vencido, (4) agotado, (5) limite por cliente alcanzado, (6) no alcanza
+  el monto minimo (`... de Q X (faltan Q Y)`), (7) con categoria y base elegible 0 -> todas
+  **422**. El codigo se normaliza con `UPPER(TRIM(...))`.
+- **Re-validacion al mostrar.** `GET /carrito` recalcula el cupon guardado: si ya no
+  cumple 1-7, `Descuento = 0` y el objeto `cupon.descuento` informa `valido: false` y la
+  `causa`; **no** lanza error. `FU_Carrito_CalcularTotales` solo descuenta cuando el cupon
+  sigue siendo valido.
+- **Un cupon por carrito.** Aplicar uno reemplaza el anterior (`UPDATE Carrito SET
+  IDCupon`). `DELETE /carrito/cupon` lo quita (sin error si no habia).
+- **Cupon con usos congelado.** Un cupon con usos (`CuponUso` o `UsosActuales > 0`) no
+  puede cambiar `Codigo`, `TipoDescuento`, `Valor` ni `IDCategoria` (**409**); si solo
+  cambian fechas o limites, se permite. `SP_Cupones_Actualizar` nunca escribe
+  `UsosActuales`.
+- **Respuesta del carrito.** El servicio arma `cupon` desde el tercer recordset de
+  `SP_Carrito_Obtener` como `{ IDCupon, Codigo, TipoDescuento, Valor, Categoria, descuento:
+  { baseElegible, descuento, valido, causa } }` (o `null`). El `Descuento` del cupon ya
+  esta reflejado en `carrito.totales`.
+
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3 y M4.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4 y M5.
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -298,11 +351,14 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3 y 
    `http://localhost:3000`.
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
-   **M3 Inventario** -> **M4 Carrito**.
+   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   los scripts `001`-`012` y `099` en SQL Server. La carpeta **M4 Carrito** toma el
+   los scripts `001`-`014` y `099` en SQL Server (en el orden del bloque anterior:
+   `013` y `014` antes de reaplicar `012`). La carpeta **M4 Carrito** toma el
    `idVariante` y el disponible del catalogo publico (sin IDs fijos) y es repetible.
+   La carpeta **M5 Cupones** prepara el carrito del cliente con una variante de
+   Lubricantes y deja `LUB50` aplicado al terminar (M6 lo usara).
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.

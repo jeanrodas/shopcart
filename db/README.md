@@ -20,12 +20,19 @@ script es idempotente o pensado para una instancia nueva, segun su rol:
 | `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02): listar (con conteo de productos activos), crear, actualizar, cambiar estado (baja logica). |
 | `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02): busqueda paginada, detalle, altas/cambios y gestion de imagenes. |
 | `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03): registrar movimiento (unico que escribe Existencia), listar existencias, listar kardex y verificar consistencia. |
-| `012_SP_Carrito.sql` | Carrito de compras (RF-04): `FU_Carrito_CalcularTotales` (totales e IVA en linea) y SPs obtener, agregar, actualizar, eliminar, vaciar y fusionar. El carrito solo lee el disponible (no reserva existencia). |
-| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP). Crece con cada modulo; se aplica al final. |
+| `012_SP_Carrito.sql` | Carrito de compras (RF-04): `FU_Carrito_CalcularTotales` (totales e IVA en linea) y SPs obtener, agregar, actualizar, eliminar, vaciar y fusionar. El carrito solo lee el disponible (no reserva existencia). En M5 la funcion de totales descuenta el cupon vigente, por lo que se **reaplica despues de `014`**. |
+| `013_Migracion_CarritoCupon.sql` | Migracion posterior al `001` (RF-05): agrega `Carrito.IDCupon` (nullable) y la FK `FK_Carrito_Cupon`, para que el carrito recuerde el cupon aplicado antes del checkout. Idempotente. |
+| `014_SP_Cupones.sql` | Cupones (RF-05): `FU_Cupones_CalculoDescuento` y `FU_Cupones_Estado` (en linea) y SPs validar, aplicar/quitar al carrito y CRUD de administracion (listar, obtener, crear, actualizar, cambiar estado). No consume usos (eso es del checkout, M6). |
+| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP; cupones de M5). Crece con cada modulo; se aplica al final. |
 
 La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
 (catalogo, carrito, pedidos, etc.) agregara sus propios scripts con el siguiente
 numero disponible. **No se reutilizan ni reordenan numeros ya publicados.**
+
+> **Excepcion de orden en M5.** `012` se **reaplica despues** de `013` y `014`:
+> `FU_Carrito_CalcularTotales` (en `012`) usa las funciones de cupon de `014` y la
+> columna `Carrito.IDCupon` de `013`, y una funcion en linea exige que lo
+> referenciado exista al momento de crearse. Orden de M5: **013 -> 014 -> 012 -> 099**.
 
 ## Como aplicarlos
 
@@ -44,6 +51,9 @@ sqlcmd -S localhost -U sa -P "<password>" -i 008_VW_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 009_SP_Categorias.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
+# M5 (RF-05): 013 y 014 antes de reaplicar 012 (dependencia de funciones/columna).
+sqlcmd -S localhost -U sa -P "<password>" -i 013_Migracion_CarritoCupon.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 014_SP_Cupones.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 012_SP_Carrito.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
 ```

@@ -36,13 +36,16 @@ GO
    Se invoca SOLO desde SPs del carrito, nunca desde el backend.
      TotalLinea     = ROUND(Precio * Cantidad, 2)
      Subtotal       = SUM(TotalLinea)
-     Descuento      = 0.00 en M4 (M5 lo sustituye por el descuento del cupon)
-     Total          = Subtotal - Descuento
+     Descuento      = descuento del cupon guardado en Carrito.IDCupon, SOLO si sigue
+                      siendo valido (FU_Cupones_Estado.Valido = 1); si no, 0.00. El
+                      calculo lo hace FU_Cupones_CalculoDescuento (M5, RF-05).
+     Total          = Subtotal - Descuento (nunca < 0)
      PorcentajeIVA  = Parametro IVA_PORCENTAJE (TRY_CAST, default 12), DECIMAL(5,2)
      BaseImponible  = ROUND(Total / (1 + IVA/100), 2)   (IVA incluido en el precio)
      IVA            = Total - BaseImponible
    Todos los montos DECIMAL(18,2). Si el carrito no tiene lineas (o @IDCarrito es
    NULL) devuelve ceros con el porcentaje de IVA vigente.
+   Dependencia: usa FU_Cupones_* (014), por eso 014 se aplica antes de reaplicar 012.
    ------------------------------------------------------------ */
 CREATE OR ALTER FUNCTION dbo.FU_Carrito_CalcularTotales (@IDCarrito INT)
 RETURNS TABLE
@@ -64,18 +67,40 @@ RETURN
     ),
     Param AS (
         SELECT CAST(ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'IVA_PORCENTAJE') AS DECIMAL(5,2)), 12) AS DECIMAL(5,2)) AS PorcentajeIVA
+    ),
+    Cup AS (
+        /* Descuento del cupon guardado en el carrito, solo si sigue siendo valido.
+           Se recalcula al momento: un cupon vencido/agotado deja de descontar. */
+        SELECT CAST(ISNULL((
+                   SELECT cd.Descuento
+                   FROM dbo.Carrito c
+                   CROSS APPLY dbo.FU_Cupones_Estado(c.IDCarrito, c.IDCupon, c.IDUsuario) e
+                   CROSS APPLY dbo.FU_Cupones_CalculoDescuento(c.IDCarrito, c.IDCupon) cd
+                   WHERE c.IDCarrito = @IDCarrito AND c.IDCupon IS NOT NULL AND e.Valido = 1
+               ), 0) AS DECIMAL(18,2)) AS Descuento
+    ),
+    Calc AS (
+        SELECT a.Subtotal,
+               cup.Descuento,
+               p.PorcentajeIVA,
+               a.CantidadLineas,
+               a.CantidadUnidades,
+               CAST(CASE WHEN a.Subtotal - cup.Descuento < 0 THEN 0
+                         ELSE a.Subtotal - cup.Descuento END AS DECIMAL(18,2)) AS Total
+        FROM Agg a
+        CROSS JOIN Param p
+        CROSS JOIN Cup cup
     )
     SELECT
-        a.Subtotal,
-        CAST(0.00 AS DECIMAL(18,2))                                                    AS Descuento,
-        CAST(a.Subtotal - 0.00 AS DECIMAL(18,2))                                       AS Total,
-        p.PorcentajeIVA,
-        CAST(ROUND((a.Subtotal - 0.00) / (1 + p.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS BaseImponible,
-        CAST((a.Subtotal - 0.00) - ROUND((a.Subtotal - 0.00) / (1 + p.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS IVA,
-        a.CantidadLineas,
-        a.CantidadUnidades
-    FROM Agg a
-    CROSS JOIN Param p
+        Subtotal,
+        Descuento,
+        Total,
+        PorcentajeIVA,
+        CAST(ROUND(Total / (1 + PorcentajeIVA / 100), 2) AS DECIMAL(18,2))          AS BaseImponible,
+        CAST(Total - ROUND(Total / (1 + PorcentajeIVA / 100), 2) AS DECIMAL(18,2))  AS IVA,
+        CantidadLineas,
+        CantidadUnidades
+    FROM Calc
 );
 GO
 
@@ -89,7 +114,9 @@ GO
      1) cabecera: IDCarrito (NULL si no existe), TokenInvitado, Estado,
         FechaUltimaActividad + columnas de FU_Carrito_CalcularTotales (siempre 1 fila).
      2) lineas del carrito con precio vigente, disponible, VarianteActiva y Advertencia.
-     3) vacio reservado para M5 (cupon): columnas IDCupon, Codigo sin filas.
+     3) cupon aplicado (M5): si Carrito.IDCupon no es NULL, una fila con IDCupon,
+        Codigo, TipoDescuento, Valor, Categoria, BaseElegible, Descuento (0 si ya no
+        es valido), Valido y Causa (re-validacion al mostrar). Sin cupon: sin filas.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Carrito_Obtener
     @IDUsuario      INT              = NULL,
@@ -152,9 +179,23 @@ BEGIN
     WHERE cd.IDCarrito = @IDCarrito
     ORDER BY cd.IDCarritoDetalle;
 
-    /* 3) Cupon aplicado (M5). Por ahora siempre vacio. */
-    SELECT CAST(NULL AS INT) AS IDCupon, CAST(NULL AS NVARCHAR(30)) AS Codigo
-    WHERE 1 = 0;
+    /* 3) Cupon aplicado (M5). Si el carrito tiene IDCupon, se devuelve su estado y el
+          descuento recalculado al momento: Valido = 0 + Causa si ya no aplica
+          (Descuento = 0 en ese caso). Sin cupon, sin filas -> el backend expone null. */
+    SELECT
+        c.IDCupon,
+        calc.Codigo,
+        calc.TipoDescuento,
+        calc.Valor,
+        calc.Categoria,
+        calc.BaseElegible,
+        CAST(CASE WHEN e.Valido = 1 THEN calc.Descuento ELSE 0.00 END AS DECIMAL(18,2)) AS Descuento,
+        e.Valido,
+        e.Causa
+    FROM dbo.Carrito c
+    CROSS APPLY dbo.FU_Cupones_Estado(c.IDCarrito, c.IDCupon, c.IDUsuario) e
+    CROSS APPLY dbo.FU_Cupones_CalculoDescuento(c.IDCarrito, c.IDCupon) calc
+    WHERE c.IDCarrito = @IDCarrito AND c.IDCupon IS NOT NULL;
 END
 GO
 

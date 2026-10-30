@@ -310,3 +310,46 @@ BEGIN
     END
 END
 GO
+
+/* ============================================================
+   M5 - Cupones y promociones (RF-05)
+   Catalogo de cupones de ejemplo que cubren cada rama de validacion. En semillas
+   es aceptable el INSERT directo en Cupon (los SPs de cupon validan contra un
+   carrito; aqui solo se crean definiciones). Idempotente: por Codigo.
+   El cupon AGOTADO se siembra YA CONSUMIDO (UsosActuales = 1 con LimiteUsosTotal 1)
+   solo para probar la causa 'agotado'; el consumo real de usos es del checkout (M6).
+   ============================================================ */
+
+DECLARE @IDCatLub INT = (SELECT IDCategoria FROM dbo.Categoria WHERE Nombre = N'Lubricantes');
+DECLARE @AhoraCup DATETIME2(0) = SYSUTCDATETIME();
+
+/* PROMO10: 10% sin categoria, vigente ~1 anio, sin limites. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'PROMO10')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'PROMO10', N'PORCENTAJE', 10.00, NULL, 0.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), NULL, NULL);
+
+/* LUB50: Q50 fijos sobre Lubricantes, con monto minimo Q300, vigente. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'LUB50')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'LUB50', N'MONTO', 50.00, @IDCatLub, 300.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), NULL, NULL);
+
+/* VENCIDO: 20% cuya vigencia termino ayer. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'VENCIDO')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'VENCIDO', N'PORCENTAJE', 20.00, NULL, 0.00, DATEADD(DAY, -30, @AhoraCup), DATEADD(DAY, -1, @AhoraCup), NULL, NULL);
+
+/* FUTURO: 15% que entra en vigencia dentro de 30 dias. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'FUTURO')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'FUTURO', N'PORCENTAJE', 15.00, NULL, 0.00, DATEADD(DAY, 30, @AhoraCup), DATEADD(DAY, 60, @AhoraCup), NULL, NULL);
+
+/* UNAVEZ: Q25 fijos, limite de un uso por cliente, vigente. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'UNAVEZ')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'UNAVEZ', N'MONTO', 25.00, NULL, 0.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), NULL, 1);
+
+/* AGOTADO: 5%, limite total de un uso, ya consumido (UsosActuales = 1). Solo pruebas. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'AGOTADO')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente, UsosActuales)
+    VALUES (N'AGOTADO', N'PORCENTAJE', 5.00, NULL, 0.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), 1, NULL, 1);
+GO
