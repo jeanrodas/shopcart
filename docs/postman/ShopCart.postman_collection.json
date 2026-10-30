@@ -2626,6 +2626,613 @@
           ]
         }
       ]
+    },
+    {
+      "name": "M4 Carrito",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login operador",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Catalogo: buscar producto disponible (publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?soloDisponibles=true&pagina=1&tamanoPagina=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "catalogo", "productos"],
+              "query": [
+                { "key": "soloDisponibles", "value": "true" },
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "50" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
+                  "pm.test('hay producto con disponible', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (filas.length) pm.collectionVariables.set('m4ProductoId', filas[0].IDProducto);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Catalogo: detalle y capturar variante disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m4ProductoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "catalogo", "productos", "{{m4ProductoId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m4ProductoId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m4ProductoId');",
+                  "  pm.expect(_v, 'm4ProductoId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const vars = (j.variantes || []).filter(v => v.Activo === true && v.Disponible >= 2);",
+                  "pm.test('hay variante con disponible >= 2', () => pm.expect(vars.length).to.be.above(0));",
+                  "if (vars.length) {",
+                  "  pm.collectionVariables.set('m4VarianteId', vars[0].IDVariante);",
+                  "  pm.collectionVariables.set('m4Disponible', vars[0].Disponible);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: buscar producto inactivo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?incluirInactivos=true&pagina=1&tamanoPagina=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "productos"],
+              "query": [
+                { "key": "incluirInactivos", "value": "true" },
+                { "key": "pagina", "value": "1" },
+                { "key": "tamanoPagina", "value": "100" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const inactivo = (j.filas || []).find(p => p.Activo === false);",
+                  "pm.test('hay producto inactivo', () => pm.expect(inactivo, 'producto inactivo').to.not.be.undefined);",
+                  "if (inactivo) pm.collectionVariables.set('m4ProductoInactivoId', inactivo.IDProducto);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: detalle y capturar variante inactiva",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{m4ProductoInactivoId}}?incluirInactivos=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "productos", "{{m4ProductoInactivoId}}"],
+              "query": [{ "key": "incluirInactivos", "value": "true" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m4ProductoInactivoId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m4ProductoInactivoId');",
+                  "  pm.expect(_v, 'm4ProductoInactivoId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 detalle admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const inact = (j.variantes || []).find(v => v.Activo === false);",
+                  "pm.test('hay variante inactiva', () => pm.expect(inact, 'variante inactiva').to.not.be.undefined);",
+                  "if (inact) pm.collectionVariables.set('m4VarianteInactivaId', inact.IDVariante);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: agregar sin header (201 + X-Cart-Token)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m4VarianteId}},\n  \"cantidad\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m4VarianteId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m4VarianteId');",
+                  "  pm.expect(_v, 'm4VarianteId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 item agregado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('devuelve cartToken en el cuerpo', () => pm.expect(j.cartToken, 'cartToken').to.be.a('string'));",
+                  "pm.test('devuelve X-Cart-Token en el header', () => pm.expect(pm.response.headers.get('X-Cart-Token')).to.be.a('string'));",
+                  "if (j.cartToken) pm.collectionVariables.set('m4CartToken', j.cartToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: GET carrito con header (200, 1 linea, totales)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Cart-Token", "value": "{{m4CartToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 carrito', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('una linea', () => pm.expect((j.lineas || []).length).to.eql(1));",
+                  "const t = (j.carrito && j.carrito.totales) || {};",
+                  "pm.test('Total = Subtotal (sin descuento en M4)', () => pm.expect(t.Total).to.eql(t.Subtotal));",
+                  "pm.test('BaseImponible + IVA = Total', () => pm.expect(Number((t.BaseImponible + t.IVA).toFixed(2))).to.eql(t.Total));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: agregar mas que el disponible (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m4VarianteId}},\n  \"cantidad\": {{m4Exceso}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const disp = Number(pm.collectionVariables.get('m4Disponible'));",
+                  "pm.collectionVariables.set('m4Exceso', disp + 5);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 disponible insuficiente', () => pm.expect(pm.response.code).to.eql(409));",
+                  "pm.test('code CONFLICT', () => pm.expect(pm.response.json().code).to.eql('CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: PUT cantidad 2 (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items/{{m4VarianteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items", "{{m4VarianteId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 actualizado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const idv = Number(pm.collectionVariables.get('m4VarianteId'));",
+                  "const linea = (j.lineas || []).find(l => l.IDVariante === idv);",
+                  "pm.test('cantidad fijada en 2', () => pm.expect(linea && linea.Cantidad).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: header con UUID inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cart-Token", "value": "99999999-9999-4999-8999-999999999999" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m4VarianteId}},\n  \"cantidad\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 carrito no encontrado', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('code NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));",
+                  "pm.test('mensaje Carrito no encontrado', () => pm.expect(pm.response.json().message).to.include('Carrito no encontrado'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador: GET carrito (403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operadorAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 prohibido para operador', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente: login con X-Cart-Token (200, carritoFusionado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('carritoFusionado presente', () => pm.expect(j.carritoFusionado, 'carritoFusionado').to.not.be.oneOf([undefined, null]));",
+                  "pm.test('carritoFusionado.lineas >= 1', () => pm.expect(j.carritoFusionado.lineas).to.be.at.least(1));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente: GET carrito (200, incluye linea fusionada)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 carrito cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const idv = Number(pm.collectionVariables.get('m4VarianteId'));",
+                  "const linea = (j.lineas || []).find(l => l.IDVariante === idv);",
+                  "pm.test('incluye la linea fusionada', () => pm.expect(linea, 'linea fusionada').to.not.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente: agregar variante inactiva (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m4VarianteInactivaId}},\n  \"cantidad\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m4VarianteInactivaId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m4VarianteInactivaId');",
+                  "  pm.expect(_v, 'm4VarianteInactivaId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 variante no disponible', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('code UNPROCESSABLE_ENTITY', () => pm.expect(pm.response.json().code).to.eql('UNPROCESSABLE_ENTITY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente: eliminar la linea fusionada (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items/{{m4VarianteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito", "items", "{{m4VarianteId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 linea eliminada', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const idv = Number(pm.collectionVariables.get('m4VarianteId'));",
+                  "const linea = (j.lineas || []).find(l => l.IDVariante === idv);",
+                  "pm.test('la linea ya no esta', () => pm.expect(linea).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente: vaciar carrito (200, 0 lineas)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 vaciado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('0 lineas', () => pm.expect((j.lineas || []).length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitado: GET carrito sin nada (200 vacio)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "carrito"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 carrito vacio', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('sin carrito (IDCarrito null)', () => pm.expect(j.carrito && j.carrito.IDCarrito).to.eql(null));",
+                  "pm.test('0 lineas', () => pm.expect((j.lineas || []).length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

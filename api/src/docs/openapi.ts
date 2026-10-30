@@ -58,6 +58,34 @@ const sesionResponse = {
   },
 };
 
+const carritoFusionadoSchema = {
+  type: 'object',
+  nullable: true,
+  properties: {
+    lineas: { type: 'integer', description: 'Cantidad de lineas del carrito tras fusionar', example: 2 },
+    advertencias: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          IDVariante: { type: 'integer', example: 2 },
+          SKU: { type: 'string', example: 'LUB-SIN-5W30-GAL' },
+          CantidadSolicitada: { type: 'integer', example: 8 },
+          CantidadFinal: { type: 'integer', example: 5 },
+          Motivo: { type: 'string', example: 'Cantidad ajustada al disponible (5)' },
+        },
+      },
+    },
+  },
+};
+
+const sesionConCarrito = {
+  allOf: [
+    sesionResponse,
+    { type: 'object', properties: { carritoFusionado: carritoFusionadoSchema } },
+  ],
+};
+
 const categoriaSchema = {
   type: 'object',
   properties: {
@@ -226,6 +254,56 @@ const consistenciaSchema = {
   },
 };
 
+const carritoLineaSchema = {
+  type: 'object',
+  properties: {
+    IDCarritoDetalle: { type: 'integer', example: 10 },
+    IDVariante: { type: 'integer', example: 2 },
+    SKU: { type: 'string', example: 'LUB-SIN-5W30-GAL' },
+    IDProducto: { type: 'integer', example: 1 },
+    Producto: { type: 'string', example: 'Aceite Sintetico Motor' },
+    Categoria: { type: 'string', example: 'Lubricantes' },
+    ImagenPrincipal: { type: 'string', nullable: true, example: 'https://picsum.photos/seed/LUB-SIN/600/600' },
+    Cantidad: { type: 'integer', example: 2 },
+    PrecioUnitario: { type: 'number', example: 320.0 },
+    TotalLinea: { type: 'number', example: 640.0 },
+    Disponible: { type: 'integer', example: 5 },
+    VarianteActiva: { type: 'boolean', example: true },
+    Advertencia: { type: 'string', nullable: true, example: null },
+  },
+};
+
+const carritoSchema = {
+  type: 'object',
+  properties: {
+    carrito: {
+      type: 'object',
+      properties: {
+        IDCarrito: { type: 'integer', nullable: true, example: 1 },
+        TokenInvitado: { type: 'string', nullable: true, example: null },
+        Estado: { type: 'string', nullable: true, example: 'Activo' },
+        FechaUltimaActividad: { type: 'string', format: 'date-time', nullable: true },
+        totales: {
+          type: 'object',
+          properties: {
+            Subtotal: { type: 'number', example: 960.0 },
+            Descuento: { type: 'number', example: 0.0 },
+            Total: { type: 'number', example: 960.0 },
+            PorcentajeIVA: { type: 'number', example: 12.0 },
+            BaseImponible: { type: 'number', example: 857.14 },
+            IVA: { type: 'number', example: 102.86 },
+            CantidadLineas: { type: 'integer', example: 2 },
+            CantidadUnidades: { type: 'integer', example: 3 },
+          },
+        },
+      },
+    },
+    lineas: { type: 'array', items: carritoLineaSchema },
+    cupon: { type: 'object', nullable: true, example: null },
+    cartToken: { type: 'string', description: 'Solo al crear el carrito de invitado', example: '11111111-1111-1111-1111-111111111111' },
+  },
+};
+
 const errRef = { $ref: '#/components/responses/Error' };
 
 const jsonBody = (schema: unknown) => ({ content: { 'application/json': { schema } } });
@@ -249,10 +327,20 @@ export const openapiDocument = {
     { name: 'Variantes', description: 'Gestion de variantes (Administrador)' },
     { name: 'Imagenes', description: 'Imagenes de producto (Administrador)' },
     { name: 'Inventario', description: 'Existencias, movimientos y kardex (Operador/Administrador)' },
+    { name: 'Carrito', description: 'Carrito de compras del cliente o del invitado (RF-04)' },
   ],
   components: {
     securitySchemes: {
       bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      cartToken: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-Cart-Token',
+        description:
+          'Token (UUID) del carrito de invitado. Opcional: si no hay Bearer y no se ' +
+          'envia, el primer POST /carrito/items crea el carrito y devuelve el token ' +
+          'en el header y en el cuerpo (cartToken). Se ignora si hay Bearer de Cliente.',
+      },
     },
     responses: {
       Error: {
@@ -272,6 +360,8 @@ export const openapiDocument = {
       MovimientoKardex: movimientoKardexSchema,
       Existencia: existenciaSchema,
       Consistencia: consistenciaSchema,
+      CarritoLinea: carritoLineaSchema,
+      Carrito: carritoSchema,
     },
   },
   paths: {
@@ -307,6 +397,13 @@ export const openapiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Registro de cliente',
+        description:
+          'Acepta el header opcional X-Cart-Token (UUID). Si viene, tras registrar se ' +
+          'fusiona el carrito de invitado en el del nuevo usuario y la respuesta incluye ' +
+          'carritoFusionado; si no, carritoFusionado es null.',
+        parameters: [
+          { name: 'X-Cart-Token', in: 'header', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
         requestBody: {
           required: true,
           ...jsonBody({
@@ -320,7 +417,7 @@ export const openapiDocument = {
           }),
         },
         responses: {
-          '201': { description: 'Cliente registrado', ...jsonBody(sesionResponse) },
+          '201': { description: 'Cliente registrado', ...jsonBody(sesionConCarrito) },
           '400': errRef,
           '409': errRef,
           '429': errRef,
@@ -332,6 +429,13 @@ export const openapiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Inicio de sesion',
+        description:
+          'Acepta el header opcional X-Cart-Token (UUID). Si viene, tras autenticar se ' +
+          'fusiona el carrito de invitado en el del usuario (topando cada cantidad al ' +
+          'disponible) y la respuesta incluye carritoFusionado; si no, es null.',
+        parameters: [
+          { name: 'X-Cart-Token', in: 'header', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
         requestBody: {
           required: true,
           ...jsonBody({
@@ -344,7 +448,7 @@ export const openapiDocument = {
           }),
         },
         responses: {
-          '200': { description: 'Sesion iniciada', ...jsonBody(sesionResponse) },
+          '200': { description: 'Sesion iniciada', ...jsonBody(sesionConCarrito) },
           '400': errRef,
           '401': errRef,
           '429': errRef,
@@ -1127,6 +1231,116 @@ export const openapiDocument = {
           '200': { description: 'Resultado de la auditoria', ...jsonBody(consistenciaSchema) },
           '401': errRef,
           '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/carrito': {
+      get: {
+        tags: ['Carrito'],
+        summary: 'Obtener el carrito activo (cliente autenticado o invitado por token)',
+        description:
+          'Cliente: su carrito activo (Bearer de Cliente). Invitado: carrito del header ' +
+          'X-Cart-Token. Sin identidad ni header responde 200 con un carrito vacio sin ' +
+          'crear nada. Operador/Administrador reciben 403.',
+        security: [{ bearerAuth: [] }, { cartToken: [] }, {}],
+        responses: {
+          '200': { description: 'Carrito con lineas y totales', ...jsonBody(carritoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+      delete: {
+        tags: ['Carrito'],
+        summary: 'Vaciar el carrito (elimina todas las lineas; sigue activo)',
+        security: [{ bearerAuth: [] }, { cartToken: [] }, {}],
+        responses: {
+          '200': { description: 'Carrito vaciado', ...jsonBody(carritoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/carrito/items': {
+      post: {
+        tags: ['Carrito'],
+        summary: 'Agregar un item al carrito (suma a la cantidad existente)',
+        description:
+          'Invitado sin token: crea el carrito y devuelve el token en el header ' +
+          'X-Cart-Token y en el cuerpo (cartToken). Responde 201.',
+        security: [{ bearerAuth: [] }, { cartToken: [] }, {}],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idVariante', 'cantidad'],
+            properties: {
+              idVariante: { type: 'integer', example: 2 },
+              cantidad: { type: 'integer', minimum: 1, maximum: 1000, example: 2 },
+            },
+          }),
+        },
+        responses: {
+          '201': {
+            description: 'Item agregado',
+            headers: {
+              'X-Cart-Token': {
+                description: 'Token del carrito de invitado (solo al crearlo)',
+                schema: { type: 'string', format: 'uuid' },
+              },
+            },
+            ...jsonBody(carritoSchema),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/carrito/items/{idVariante}': {
+      put: {
+        tags: ['Carrito'],
+        summary: 'Fijar la cantidad de una linea (no suma)',
+        security: [{ bearerAuth: [] }, { cartToken: [] }, {}],
+        parameters: [{ name: 'idVariante', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['cantidad'],
+            properties: { cantidad: { type: 'integer', minimum: 1, maximum: 1000, example: 2 } },
+          }),
+        },
+        responses: {
+          '200': { description: 'Cantidad actualizada', ...jsonBody(carritoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
+        },
+      },
+      delete: {
+        tags: ['Carrito'],
+        summary: 'Eliminar una linea del carrito',
+        security: [{ bearerAuth: [] }, { cartToken: [] }, {}],
+        parameters: [{ name: 'idVariante', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': { description: 'Linea eliminada', ...jsonBody(carritoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
         },
       },
     },

@@ -13,7 +13,15 @@ const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(
+  cors({
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    // X-Cart-Token viaja en peticiones y respuestas del carrito de invitado.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Cart-Token', 'X-Request-Id'],
+    exposedHeaders: ['X-Cart-Token', 'X-Request-Id'],
+  }),
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(requestContext);
 

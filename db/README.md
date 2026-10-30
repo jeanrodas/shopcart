@@ -20,7 +20,8 @@ script es idempotente o pensado para una instancia nueva, segun su rol:
 | `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02): listar (con conteo de productos activos), crear, actualizar, cambiar estado (baja logica). |
 | `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02): busqueda paginada, detalle, altas/cambios y gestion de imagenes. |
 | `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03): registrar movimiento (unico que escribe Existencia), listar existencias, listar kardex y verificar consistencia. |
-| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP). Crece con cada modulo; se aplica al final. |
+| `012_SP_Carrito.sql` | Carrito de compras (RF-04): `FU_Carrito_CalcularTotales` (totales e IVA en linea) y SPs obtener, agregar, actualizar, eliminar, vaciar y fusionar. El carrito solo lee el disponible (no reserva existencia). |
+| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP). Crece con cada modulo; se aplica al final. |
 
 La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
 (catalogo, carrito, pedidos, etc.) agregara sus propios scripts con el siguiente
@@ -43,6 +44,7 @@ sqlcmd -S localhost -U sa -P "<password>" -i 008_VW_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 009_SP_Categorias.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 012_SP_Carrito.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
 ```
 

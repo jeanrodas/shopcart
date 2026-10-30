@@ -248,3 +248,65 @@ BEGIN
     DEALLOCATE cur_inventario;
 END
 GO
+
+/* ============================================================
+   M4 - Carrito de compras (RF-04)
+   Un carrito activo del cliente de prueba con 2 lineas y un carrito de invitado
+   con token fijo con 1 linea. Ambos se crean via SP_Carrito_AgregarItem (nunca
+   con INSERT directo en CarritoDetalle), de modo que respetan la validacion de
+   disponible. El carrito NO reserva existencia ni toca Variante/Kardex.
+   Idempotente: por usuario (no crea si el cliente ya tiene carrito activo) y por
+   token (no crea si el token ya existe).
+   ============================================================ */
+
+/* Carrito activo del cliente de prueba (2 lineas). Las cantidades caben en el
+   disponible sembrado por la seccion M3. */
+DECLARE @IDCliente INT = (SELECT IDUsuario FROM dbo.Usuario WHERE Correo = N'cliente@shopcart.local');
+
+IF @IDCliente IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM dbo.Carrito WHERE IDUsuario = @IDCliente AND Estado = N'Activo')
+BEGIN
+    DECLARE @IDVar1 INT = (SELECT IDVariante FROM dbo.Variante WHERE SKU = N'LUB-SIN-5W30-GAL');
+    DECLARE @IDVar2 INT = (SELECT IDVariante FROM dbo.Variante WHERE SKU = N'ADI-ULT-CONC-1L');
+
+    IF @IDVar1 IS NOT NULL
+        EXEC dbo.SP_Carrito_AgregarItem
+             @IDUsuario        = @IDCliente,
+             @IDVariante       = @IDVar1,
+             @Cantidad         = 2,
+             @IDUsuarioEjecuta = @IDCliente;
+
+    IF @IDVar2 IS NOT NULL
+        EXEC dbo.SP_Carrito_AgregarItem
+             @IDUsuario        = @IDCliente,
+             @IDVariante       = @IDVar2,
+             @Cantidad         = 1,
+             @IDUsuarioEjecuta = @IDCliente;
+END
+GO
+
+/* Carrito de invitado con TokenInvitado fijo (1 linea). Se envejece la actividad
+   3 dias para ejercitar el abandono (estado derivado de M9). */
+DECLARE @TokenInvitadoSeed UNIQUEIDENTIFIER = N'11111111-1111-1111-1111-111111111111';
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Carrito WHERE TokenInvitado = @TokenInvitadoSeed)
+BEGIN
+    DECLARE @IDVarInvitado INT = (SELECT IDVariante FROM dbo.Variante WHERE SKU = N'CON-AGU-1L-SF');
+
+    IF @IDVarInvitado IS NOT NULL
+    BEGIN
+        EXEC dbo.SP_Carrito_AgregarItem
+             @TokenInvitado    = @TokenInvitadoSeed,
+             @IDVariante       = @IDVarInvitado,
+             @Cantidad         = 1,
+             @IDUsuarioEjecuta = NULL,
+             @CrearSiNoExiste  = 1;
+
+        /* Aceptable SOLO en semillas: ningun SP de M4 modifica la fecha a mano.
+           Retrasamos la ultima actividad 3 dias para datos de prueba de abandono. */
+        UPDATE dbo.Carrito
+           SET FechaUltimaActividad = DATEADD(DAY, -3, SYSUTCDATETIME())
+         WHERE TokenInvitado = @TokenInvitadoSeed;
+    END
+END
+GO

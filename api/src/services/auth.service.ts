@@ -33,6 +33,11 @@ interface SesionResponse {
   usuario: { id: number; correo: string; nombre: string; rol: string };
 }
 
+interface CarritoFusionado {
+  lineas: number;
+  advertencias: unknown[];
+}
+
 function sha256Hex(valor: string): string {
   return createHash('sha256').update(valor).digest('hex');
 }
@@ -84,26 +89,52 @@ async function emitirParGuardando(u: UsuarioTokenData, ip: string | null): Promi
   return respuestaSesion(u, accessToken, refreshToken);
 }
 
+/**
+ * Fusiona el carrito de invitado (X-Cart-Token) en el del usuario tras
+ * autenticar. Si no llega token devuelve null; si el token no existe o su
+ * carrito no esta activo, el SP no falla y devuelve 0 lineas.
+ */
+async function fusionarCarritoInvitado(
+  idUsuario: number,
+  tokenInvitado: string | null,
+): Promise<CarritoFusionado | null> {
+  if (!tokenInvitado) {
+    return null;
+  }
+  const result = await executeSp('SP_Carrito_Fusionar', [
+    { name: 'TokenInvitado', type: sql.UniqueIdentifier, value: tokenInvitado },
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  const advertencias = (result.recordsets[0] ?? []) as unknown[];
+  const lineas = (result.recordsets[1] ?? []).length;
+  return { lineas, advertencias };
+}
+
 export async function registro(
   correo: string,
   contrasena: string,
   nombre: string,
   ip: string | null,
-): Promise<SesionResponse> {
+  tokenInvitado: string | null = null,
+): Promise<SesionResponse & { carritoFusionado: CarritoFusionado | null }> {
   const hash = await bcrypt.hash(contrasena, BCRYPT_COST);
   const result = await executeSp<UsuarioTokenData>('SP_Auth_RegistrarCliente', [
     { name: 'Correo', type: sql.NVarChar(255), value: correo },
     { name: 'HashContrasena', type: sql.NVarChar(255), value: hash },
     { name: 'Nombre', type: sql.NVarChar(150), value: nombre },
   ]);
-  return emitirParGuardando(result.recordset[0], ip);
+  const usuario = result.recordset[0];
+  const sesion = await emitirParGuardando(usuario, ip);
+  const carritoFusionado = await fusionarCarritoInvitado(usuario.IDUsuario, tokenInvitado);
+  return { ...sesion, carritoFusionado };
 }
 
 export async function login(
   correo: string,
   contrasena: string,
   ip: string | null,
-): Promise<SesionResponse> {
+  tokenInvitado: string | null = null,
+): Promise<SesionResponse & { carritoFusionado: CarritoFusionado | null }> {
   const result = await executeSp<UsuarioLogin>('SP_Auth_ObtenerUsuarioPorCorreo', [
     { name: 'Correo', type: sql.NVarChar(255), value: correo },
   ]);
@@ -135,7 +166,9 @@ export async function login(
     { name: 'IDUsuario', type: sql.Int, value: u.IDUsuario },
   ]);
 
-  return emitirParGuardando(u, ip);
+  const sesion = await emitirParGuardando(u, ip);
+  const carritoFusionado = await fusionarCarritoInvitado(u.IDUsuario, tokenInvitado);
+  return { ...sesion, carritoFusionado };
 }
 
 export async function refresh(refreshToken: string, ip: string | null): Promise<SesionResponse> {

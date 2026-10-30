@@ -96,7 +96,8 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02). |
 | `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02). |
 | `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03). |
-| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2 y carga inicial de inventario de M3). Se aplica al final. |
+| `012_SP_Carrito.sql` | Funcion de totales y SPs del carrito de compras (RF-04). |
+| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3 y carritos de M4). Se aplica al final. |
 
 ```bash
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
@@ -107,6 +108,7 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/008_VW_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/009_SP_Categorias.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/010_SP_Catalogo.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/012_SP_Carrito.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -229,9 +231,66 @@ incluso desde `dbo` o un SP.
   nunca hace `UPDATE` directo, de modo que la existencia sembrada tambien respeta el
   invariante.
 
+### Carrito de compras (M4, RF-04)
+
+- **El carrito no lleva ID en la URL.** Se identifica SIEMPRE por la identidad: el
+  cliente autenticado usa su carrito `Activo` (se crea si no existe); el invitado usa
+  el header `X-Cart-Token` (UUID). El middleware `cartIdentity` resuelve `req.carrito`
+  y nunca se acepta un ID de carrito del cliente. Rutas: `GET /carrito`,
+  `POST /carrito/items`, `PUT/DELETE /carrito/items/:idVariante`, `DELETE /carrito`.
+- **Invitado por token UUID.** Si un invitado no envia header, el primer
+  `POST /carrito/items` crea el carrito y la API devuelve el token en el header
+  `X-Cart-Token` y en el cuerpo (`cartToken`). `GET /carrito` sin identidad ni header
+  responde 200 con un carrito vacio sin crear nada.
+- **Solo el servidor acuna tokens.** Un cliente no puede inventar un `X-Cart-Token`
+  para materializar un carrito: el carrito de invitado se crea unicamente cuando el
+  backend genera el UUID (`randomUUID`) en el primer `POST /carrito/items` sin header.
+  `SP_Carrito_AgregarItem` recibe `@CrearSiNoExiste` y el servicio lo envia en 1 solo
+  en ese caso; con un token desconocido las escrituras (`POST`/`PUT`/`DELETE` de item y
+  `DELETE /carrito`) responden **404 `Carrito no encontrado`**. `GET /carrito` con un
+  token desconocido sigue respondiendo 200 con el carrito vacio (sin error), para no
+  filtrar la existencia de carritos.
+- **Operador y Administrador no tienen carrito.** Cualquier ruta de `/carrito`
+  responde 403 para esos roles; el carrito es exclusivo del rol Cliente. Si llegan
+  Bearer de Cliente y `X-Cart-Token` a la vez, se ignora el header (manda la identidad).
+- **Fusion en login/registro.** `POST /auth/login` y `POST /auth/registro` aceptan el
+  header opcional `X-Cart-Token`; tras autenticar, el servicio llama a
+  `SP_Carrito_Fusionar`. Si el token no existe o su carrito no esta `Activo`, no es
+  error (se ignora). Las lineas del invitado se suman al carrito del usuario (creandolo
+  si no existe) **topando cada cantidad al disponible**; el carrito invitado queda
+  `Convertido`. La respuesta incluye `carritoFusionado: { lineas, advertencias }` o
+  `null`.
+- **Validacion suave de disponible; la reserva es del checkout.** El carrito nunca
+  reserva existencia ni toca `Variante.Existencia`, `Kardex` ni `Reserva`: solo valida
+  que la cantidad de la linea sea `<= Disponible` (`Existencia - reservas activas no
+  vencidas`) en el momento de agregar/modificar. La reserva real ocurre en el checkout
+  (M6). Por eso `GET /carrito` marca cada linea con `Advertencia` (sin existencia o no
+  disponible) en vez de rechazarla: el disponible pudo cambiar despues de agregarla.
+- **Regla de bloqueo heredada de M3.** Todo SP que lee el disponible para decidir una
+  escritura bloquea primero la fila de `dbo.Variante` con `WITH (UPDLOCK, HOLDLOCK)`
+  dentro de la transaccion y despues consulta `Reserva`. La fusion bloquea las variantes
+  en orden de `IDVariante` para evitar deadlocks.
+- **Totales y desglose de IVA en SQL con `DECIMAL(18,2)`.** `FU_Carrito_CalcularTotales`
+  (funcion en linea, invocada solo desde SPs) calcula `TotalLinea = ROUND(Precio *
+  Cantidad, 2)`, `Subtotal`, `Total = Subtotal - Descuento`, y el IVA incluido en el
+  precio: `BaseImponible = ROUND(Total / (1 + IVA/100), 2)`, `IVA = Total -
+  BaseImponible`. El `PorcentajeIVA` sale del parametro `IVA_PORCENTAJE` (default 12).
+  El backend nunca calcula montos.
+- **Descuento = 0 en M4.** `Descuento` siempre es `0.00`; la funcion lo deja marcado
+  para que **M5 (cupones)** lo sustituya. El cupon del carrito se resuelve en M5 con un
+  script de migracion (no se agregaron columnas en M4).
+- **Precio vigente en el carrito, congelado en el pedido.** Las lineas usan
+  `Variante.Precio` actual; el precio se congela recien al crear el pedido (M6).
+- **Limites.** Cantidad por linea entre 1 y 1000; maximo 50 lineas por carrito (la
+  linea 51 responde 422). `PUT` fija la cantidad (no suma); `POST` suma a la existente.
+- **Abandono como estado derivado (M9).** Cada escritura actualiza
+  `FechaUltimaActividad`; el estado `Abandonado` lo derivara un proceso de M9. En las
+  semillas el carrito de invitado nace con la fecha retrasada 3 dias (unico lugar donde
+  se toca esa fecha a mano, y solo para datos de prueba).
+
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1 y M2.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3 y M4.
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -239,10 +298,11 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1 y M2.
    `http://localhost:3000`.
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
-   **M3 Inventario**.
+   **M3 Inventario** -> **M4 Carrito**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   los scripts `001`-`010` y `099` en SQL Server.
+   los scripts `001`-`012` y `099` en SQL Server. La carpeta **M4 Carrito** toma el
+   `idVariante` y el disponible del catalogo publico (sin IDs fijos) y es repetible.
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.

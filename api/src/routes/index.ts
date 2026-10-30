@@ -5,6 +5,7 @@ import usuariosRoutes from './usuarios.routes.js';
 import direccionesRoutes from './direcciones.routes.js';
 import catalogoRoutes from './catalogo.routes.js';
 import inventarioRoutes from './inventario.routes.js';
+import carritoRoutes from './carrito.routes.js';
 
 const router = Router();
 
@@ -19,6 +20,8 @@ apiV1.use('/direcciones', direccionesRoutes);
 apiV1.use('/', catalogoRoutes);
 // Inventario y kardex (RF-03).
 apiV1.use('/inventario', inventarioRoutes);
+// Carrito de compras (RF-04): cliente autenticado o invitado por X-Cart-Token.
+apiV1.use('/carrito', carritoRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;
