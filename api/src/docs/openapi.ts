@@ -365,6 +365,118 @@ const cuponBody = {
   },
 };
 
+const checkoutResumenSchema = {
+  type: 'object',
+  properties: {
+    resumen: {
+      type: 'object',
+      nullable: true,
+      description: 'null cuando el carrito esta vacio',
+      properties: {
+        IDCarrito: { type: 'integer', example: 7 },
+        IDDireccion: { type: 'integer', nullable: true, example: 3 },
+        DireccionTexto: { type: 'string', nullable: true, example: 'Cliente ShopCart, +502 5555-0000, 1a Calle 2-34 Zona 1, Guatemala, Guatemala' },
+        totales: {
+          type: 'object',
+          properties: {
+            Subtotal: { type: 'number', example: 350.0 },
+            Descuento: { type: 'number', example: 50.0 },
+            Total: { type: 'number', example: 300.0 },
+            PorcentajeIVA: { type: 'number', example: 12.0 },
+            BaseImponible: { type: 'number', example: 267.86 },
+            IVA: { type: 'number', example: 32.14 },
+            CantidadLineas: { type: 'integer', example: 1 },
+            CantidadUnidades: { type: 'integer', example: 1 },
+          },
+        },
+        CostoEnvio: { type: 'number', example: 0.0 },
+        TotalConEnvio: { type: 'number', example: 300.0 },
+        ExpiraEn: { type: 'string', format: 'date-time', nullable: true },
+        Minutos: { type: 'integer', example: 15 },
+        ReservaActiva: { type: 'boolean', example: true, description: 'Solo en GET /checkout/resumen' },
+      },
+    },
+    lineas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          IDVariante: { type: 'integer', example: 2 },
+          SKU: { type: 'string', example: 'LUB-SIN-5W30-GAL' },
+          Cantidad: { type: 'integer', example: 1 },
+          FechaExpira: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  },
+};
+
+const pedidoLineaSchema = {
+  type: 'object',
+  properties: {
+    IDPedidoDetalle: { type: 'integer', example: 10 },
+    IDVariante: { type: 'integer', example: 2 },
+    SKU: { type: 'string', example: 'LUB-SIN-5W30-GAL' },
+    NombreProducto: { type: 'string', example: 'Aceite sintetico 5W30' },
+    DescripcionVariante: { type: 'string', nullable: true, example: 'Presentacion: Galon' },
+    IDCategoria: { type: 'integer', example: 4 },
+    Cantidad: { type: 'integer', example: 1 },
+    PrecioUnitario: { type: 'number', example: 350.0 },
+    DescuentoLinea: { type: 'number', example: 50.0 },
+    TotalLinea: { type: 'number', example: 300.0 },
+  },
+};
+
+const pagoResultadoSchema = {
+  type: 'object',
+  properties: {
+    aprobado: { type: 'boolean', example: true },
+    replay: { type: 'boolean', example: false, description: 'true si se devolvio un resultado previo (idempotencia)' },
+    pago: {
+      type: 'object',
+      properties: {
+        IDPago: { type: 'integer', example: 5 },
+        Estado: { type: 'string', enum: ['Aprobado', 'Rechazado'], example: 'Aprobado' },
+        MensajeResultado: { type: 'string', nullable: true, example: 'Pago aprobado (simulado)' },
+        ClaveIdempotencia: { type: 'string', example: 'c0ffee00-1234-4567-89ab-cdef01234567' },
+        Monto: { type: 'number', nullable: true, example: 300.0 },
+      },
+    },
+    pedido: {
+      type: 'object',
+      nullable: true,
+      description: 'null cuando el pago fue rechazado',
+      properties: {
+        IDPedido: { type: 'integer', example: 1 },
+        NumeroPedido: { type: 'string', example: 'SC-000001' },
+        estado: {
+          type: 'object',
+          properties: {
+            codigo: { type: 'string', example: 'PAGADO' },
+            nombre: { type: 'string', example: 'Pagado' },
+          },
+        },
+        FechaCreacion: { type: 'string', format: 'date-time' },
+        DireccionEntrega: { type: 'string', example: 'Cliente ShopCart, +502 5555-0000, 1a Calle 2-34 Zona 1, Guatemala, Guatemala' },
+        totales: {
+          type: 'object',
+          properties: {
+            Subtotal: { type: 'number', example: 350.0 },
+            Descuento: { type: 'number', example: 50.0 },
+            CostoEnvio: { type: 'number', example: 0.0 },
+            Total: { type: 'number', example: 300.0 },
+            BaseImponible: { type: 'number', example: 267.86 },
+            IVA: { type: 'number', example: 32.14 },
+            PorcentajeIVA: { type: 'number', example: 12.0 },
+          },
+        },
+        cupon: { type: 'string', nullable: true, example: 'LUB50' },
+      },
+    },
+    lineas: { type: 'array', items: pedidoLineaSchema },
+  },
+};
+
 const errRef = { $ref: '#/components/responses/Error' };
 
 const jsonBody = (schema: unknown) => ({ content: { 'application/json': { schema } } });
@@ -390,6 +502,7 @@ export const openapiDocument = {
     { name: 'Inventario', description: 'Existencias, movimientos y kardex (Operador/Administrador)' },
     { name: 'Carrito', description: 'Carrito de compras del cliente o del invitado (RF-04)' },
     { name: 'Cupones', description: 'Cupones y promociones: gestion (Administrador) y aplicacion al carrito (Cliente) (RF-05)' },
+    { name: 'Checkout', description: 'Checkout y pago: reserva de existencia, pago simulado idempotente y creacion de pedido (RF-06)' },
   ],
   components: {
     securitySchemes: {
@@ -425,6 +538,9 @@ export const openapiDocument = {
       CarritoLinea: carritoLineaSchema,
       Carrito: carritoSchema,
       Cupon: cuponSchema,
+      CheckoutResumen: checkoutResumenSchema,
+      PagoResultado: pagoResultadoSchema,
+      PedidoLinea: pedidoLineaSchema,
     },
   },
   paths: {
@@ -1545,6 +1661,114 @@ export const openapiDocument = {
           '401': errRef,
           '403': errRef,
           '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/checkout/iniciar': {
+      post: {
+        tags: ['Checkout'],
+        summary: 'Iniciar checkout: reservar existencia (solo Cliente)',
+        description:
+          'Valida carrito, direccion y cupon, reserva existencia por RESERVA_MINUTOS y ' +
+          'devuelve el resumen. Reiniciable: vuelve a reservar. Carrito vacio o cupon no ' +
+          'valido -> 422; direccion inexistente/inactiva -> 404; direccion de otro usuario ' +
+          '-> 403; existencia insuficiente -> 409.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idDireccion'],
+            properties: { idDireccion: { type: 'integer', example: 3 } },
+          }),
+        },
+        responses: {
+          '201': { description: 'Existencia reservada', ...jsonBody(checkoutResumenSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/checkout/resumen': {
+      get: {
+        tags: ['Checkout'],
+        summary: 'Resumen de checkout sin escribir (solo Cliente)',
+        description: 'Mismo formato que iniciar, mas ReservaActiva. Carrito vacio -> resumen null.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Resumen de checkout', ...jsonBody(checkoutResumenSchema) },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/checkout/pagar': {
+      post: {
+        tags: ['Checkout'],
+        summary: 'Pagar (simulado) y crear el pedido (solo Cliente)',
+        description:
+          'Idempotente por el header Idempotency-Key (UNIQUE en el pago). Primera vez y ' +
+          'replay devuelven el MISMO cuerpo y el MISMO codigo: 201 si aprobado, 402 si ' +
+          'rechazado. Exige reserva vigente (si vencio -> 409). Clave en uso por otro ' +
+          'usuario -> 409. Carrito vacio -> 422.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'Idempotency-Key',
+            in: 'header',
+            required: true,
+            schema: { type: 'string', minLength: 16, maxLength: 100, pattern: '^[A-Za-z0-9_-]+$' },
+            description: 'Clave de idempotencia del intento de pago (16-100, [A-Za-z0-9_-]).',
+          },
+        ],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idDireccion', 'metodoPago'],
+            properties: {
+              idDireccion: { type: 'integer', example: 3 },
+              metodoPago: { type: 'string', enum: ['TARJETA', 'TRANSFERENCIA', 'EFECTIVO'], example: 'TARJETA' },
+              simularResultado: { type: 'string', enum: ['APROBADO', 'RECHAZADO'], default: 'APROBADO' },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Pago aprobado y pedido creado', ...jsonBody(pagoResultadoSchema) },
+          '402': { description: 'Pago rechazado (simulado); no se creo pedido', ...jsonBody(pagoResultadoSchema) },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/checkout/reservas/liberar': {
+      post: {
+        tags: ['Checkout'],
+        summary: 'Liberar reservas vencidas (Administrador)',
+        description: 'Ejecuta manualmente lo mismo que el job periodico.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Reservas liberadas',
+            ...jsonBody({
+              type: 'object',
+              properties: { liberadas: { type: 'integer', example: 0 } },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
         },
       },
     },

@@ -93,6 +93,10 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'LOGIN_BLOQUEO_MINUTOS
 IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO')
     INSERT dbo.Parametro (Clave, Valor, Descripcion)
     VALUES (N'STOCK_MINIMO', N'5', N'Umbral de disponible para marcar bajo stock');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'RESERVA_JOB_SEGUNDOS')
+    INSERT dbo.Parametro (Clave, Valor, Descripcion)
+    VALUES (N'RESERVA_JOB_SEGUNDOS', N'60', N'Intervalo del job de liberacion de reservas vencidas');
 GO
 
 /* ------------------------------------------------------------

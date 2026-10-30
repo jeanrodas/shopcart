@@ -73,15 +73,74 @@
       "key": "existenciaInicial",
       "value": ""
     },
-    { "key": "m5CatLubId", "value": "" },
-    { "key": "m5ProductoLubId", "value": "" },
-    { "key": "m5VarianteLubId", "value": "" },
-    { "key": "m5PrecioLub", "value": "" },
-    { "key": "m5DisponibleLub", "value": "" },
-    { "key": "m5Cantidad", "value": "" },
-    { "key": "m5Subtotal", "value": "" },
-    { "key": "m5Sufijo", "value": "" },
-    { "key": "m5AgotadoId", "value": "" }
+    {
+      "key": "m5CatLubId",
+      "value": ""
+    },
+    {
+      "key": "m5ProductoLubId",
+      "value": ""
+    },
+    {
+      "key": "m5VarianteLubId",
+      "value": ""
+    },
+    {
+      "key": "m5PrecioLub",
+      "value": ""
+    },
+    {
+      "key": "m5DisponibleLub",
+      "value": ""
+    },
+    {
+      "key": "m5Cantidad",
+      "value": ""
+    },
+    {
+      "key": "m5Subtotal",
+      "value": ""
+    },
+    {
+      "key": "m5Sufijo",
+      "value": ""
+    },
+    {
+      "key": "m5AgotadoId",
+      "value": ""
+    },
+    {
+      "key": "m6ProductoId",
+      "value": ""
+    },
+    {
+      "key": "m6VarianteId",
+      "value": ""
+    },
+    {
+      "key": "m6PrecioV",
+      "value": ""
+    },
+    {
+      "key": "m6DisponibleV",
+      "value": ""
+    },
+    {
+      "key": "m6DireccionId",
+      "value": ""
+    },
+    {
+      "key": "m6NumeroPedido",
+      "value": ""
+    },
+    {
+      "key": "m6K1",
+      "value": ""
+    },
+    {
+      "key": "m6K2",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -2643,11 +2702,23 @@
           "name": "Setup: Login admin",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2673,11 +2744,23 @@
           "name": "Setup: Login operador",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2706,12 +2789,28 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/catalogo/productos?soloDisponibles=true&pagina=1&tamanoPagina=50",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "catalogo", "productos"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
               "query": [
-                { "key": "soloDisponibles", "value": "true" },
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "50" }
+                {
+                  "key": "soloDisponibles",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
               ]
             }
           },
@@ -2739,8 +2838,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m4ProductoId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "catalogo", "productos", "{{m4ProductoId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{m4ProductoId}}"
+              ]
             }
           },
           "event": [
@@ -2779,15 +2886,35 @@
           "name": "Admin: buscar producto inactivo",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/productos?incluirInactivos=true&pagina=1&tamanoPagina=100",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "productos"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
               "query": [
-                { "key": "incluirInactivos", "value": "true" },
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "100" }
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "100"
+                }
               ]
             }
           },
@@ -2812,12 +2939,29 @@
           "name": "Admin: detalle y capturar variante inactiva",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/productos/{{m4ProductoInactivoId}}?incluirInactivos=true",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "productos", "{{m4ProductoInactivoId}}"],
-              "query": [{ "key": "incluirInactivos", "value": "true" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{m4ProductoInactivoId}}"
+              ],
+              "query": [
+                {
+                  "key": "incluirInactivos",
+                  "value": "true"
+                }
+              ]
             }
           },
           "event": [
@@ -2853,11 +2997,23 @@
           "name": "Invitado: agregar sin header (201 + X-Cart-Token)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2897,11 +3053,22 @@
           "name": "Invitado: GET carrito con header (200, 1 linea, totales)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "X-Cart-Token", "value": "{{m4CartToken}}" }],
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{m4CartToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
             }
           },
           "event": [
@@ -2927,13 +3094,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Cart-Token",
+                "value": "{{m4CartToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2968,13 +3148,27 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Cart-Token",
+                "value": "{{m4CartToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items/{{m4VarianteId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items", "{{m4VarianteId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items",
+                "{{m4VarianteId}}"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -3003,13 +3197,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Cart-Token", "value": "99999999-9999-4999-8999-999999999999" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Cart-Token",
+                "value": "99999999-9999-4999-8999-999999999999"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -3034,11 +3241,22 @@
           "name": "Operador: GET carrito (403)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{operadorAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
             }
           },
           "event": [
@@ -3059,13 +3277,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Cart-Token", "value": "{{m4CartToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Cart-Token",
+                "value": "{{m4CartToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -3093,11 +3324,22 @@
           "name": "Cliente: GET carrito (200, incluye linea fusionada)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
             }
           },
           "event": [
@@ -3122,13 +3364,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -3164,11 +3419,24 @@
           "name": "Cliente: eliminar la linea fusionada (200)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito/items/{{m4VarianteId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito", "items", "{{m4VarianteId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items",
+                "{{m4VarianteId}}"
+              ]
             }
           },
           "event": [
@@ -3192,11 +3460,22 @@
           "name": "Cliente: vaciar carrito (200, 0 lineas)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
             }
           },
           "event": [
@@ -3221,8 +3500,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/carrito",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "carrito"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
             }
           },
           "event": [
@@ -3250,51 +3535,126 @@
           "name": "Setup: Login admin",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
-              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Setup: Login operador",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
-              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Setup: Login cliente",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
-              "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3302,17 +3662,34 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/catalogo/categorias", "host": ["{{baseUrl}}"], "path": ["api", "v1", "catalogo", "categorias"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "categorias"
+              ]
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = [];",
-              "try { j = pm.response.json(); } catch (e) { j = []; }",
-              "pm.test('200 categorias', () => pm.expect(pm.response.code).to.eql(200));",
-              "const cat = (Array.isArray(j) ? j : []).find(c => c.Nombre === 'Lubricantes');",
-              "pm.test('existe categoria Lubricantes', () => pm.expect(cat, 'Lubricantes').to.not.be.undefined);",
-              "if (cat) pm.collectionVariables.set('m5CatLubId', cat.IDCategoria);"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = [];",
+                  "try { j = pm.response.json(); } catch (e) { j = []; }",
+                  "pm.test('200 categorias', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const cat = (Array.isArray(j) ? j : []).find(c => c.Nombre === 'Lubricantes');",
+                  "pm.test('existe categoria Lubricantes', () => pm.expect(cat, 'Lubricantes').to.not.be.undefined);",
+                  "if (cat) pm.collectionVariables.set('m5CatLubId', cat.IDCategoria);"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3322,31 +3699,62 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/catalogo/productos?idCategoria={{m5CatLubId}}&soloDisponibles=true&pagina=1&tamanoPagina=50",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "catalogo", "productos"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
               "query": [
-                { "key": "idCategoria", "value": "{{m5CatLubId}}" },
-                { "key": "soloDisponibles", "value": "true" },
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "50" }
+                {
+                  "key": "idCategoria",
+                  "value": "{{m5CatLubId}}"
+                },
+                {
+                  "key": "soloDisponibles",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
               ]
             }
           },
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "pm.test('variable m5CatLubId no vacia', function () {",
-              "  const _v = pm.collectionVariables.get('m5CatLubId');",
-              "  pm.expect(_v, 'm5CatLubId vacia').to.not.be.oneOf([undefined, null, '']);",
-              "});"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
-              "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
-              "pm.test('hay producto de lubricantes disponible', () => pm.expect(filas.length).to.be.above(0));",
-              "if (filas.length) pm.collectionVariables.set('m5ProductoLubId', filas[0].IDProducto);"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m5CatLubId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m5CatLubId');",
+                  "  pm.expect(_v, 'm5CatLubId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
+                  "pm.test('hay producto de lubricantes disponible', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (filas.length) pm.collectionVariables.set('m5ProductoLubId', filas[0].IDProducto);"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3354,41 +3762,86 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m5ProductoLubId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "catalogo", "productos", "{{m5ProductoLubId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m5ProductoLubId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{m5ProductoLubId}}"
+              ]
+            }
           },
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "pm.test('variable m5ProductoLubId no vacia', function () {",
-              "  const _v = pm.collectionVariables.get('m5ProductoLubId');",
-              "  pm.expect(_v, 'm5ProductoLubId vacia').to.not.be.oneOf([undefined, null, '']);",
-              "});"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
-              "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
-              "vars.sort((a, b) => Number(b.Precio) - Number(a.Precio));",
-              "pm.test('hay variante de lubricantes disponible', () => pm.expect(vars.length).to.be.above(0));",
-              "if (vars.length) {",
-              "  pm.collectionVariables.set('m5VarianteLubId', vars[0].IDVariante);",
-              "  pm.collectionVariables.set('m5PrecioLub', Number(vars[0].Precio));",
-              "  pm.collectionVariables.set('m5DisponibleLub', Number(vars[0].Disponible));",
-              "}"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m5ProductoLubId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m5ProductoLubId');",
+                  "  pm.expect(_v, 'm5ProductoLubId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
+                  "vars.sort((a, b) => Number(b.Precio) - Number(a.Precio));",
+                  "pm.test('hay variante de lubricantes disponible', () => pm.expect(vars.length).to.be.above(0));",
+                  "if (vars.length) {",
+                  "  pm.collectionVariables.set('m5VarianteLubId', vars[0].IDVariante);",
+                  "  pm.collectionVariables.set('m5PrecioLub', Number(vars[0].Precio));",
+                  "  pm.collectionVariables.set('m5DisponibleLub', Number(vars[0].Disponible));",
+                  "}"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Prep: vaciar carrito del cliente",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('200 carrito vaciado', () => pm.expect(pm.response.code).to.eql(200));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 carrito vaciado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3396,29 +3849,61 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "items"] },
-            "body": { "mode": "raw", "raw": "{\n  \"idVariante\": {{m5VarianteLubId}},\n  \"cantidad\": {{m5Cantidad}}\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m5VarianteLubId}},\n  \"cantidad\": {{m5Cantidad}}\n}"
+            }
           },
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "const precio = Number(pm.collectionVariables.get('m5PrecioLub'));",
-              "const disp = Number(pm.collectionVariables.get('m5DisponibleLub'));",
-              "let qty = Math.ceil(301 / precio);",
-              "if (!isFinite(qty) || qty < 1) qty = 1;",
-              "if (qty > disp) qty = disp;",
-              "pm.collectionVariables.set('m5Cantidad', qty);"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('201 lubricante agregado', () => pm.expect(pm.response.code).to.eql(201));",
-              "const s = Number(j.carrito && j.carrito.totales ? j.carrito.totales.Subtotal : 0);",
-              "pm.collectionVariables.set('m5Subtotal', s);",
-              "pm.test('subtotal supera el monto minimo (Q300)', () => pm.expect(s).to.be.at.least(300));"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const precio = Number(pm.collectionVariables.get('m5PrecioLub'));",
+                  "const disp = Number(pm.collectionVariables.get('m5DisponibleLub'));",
+                  "let qty = Math.ceil(301 / precio);",
+                  "if (!isFinite(qty) || qty < 1) qty = 1;",
+                  "if (qty > disp) qty = disp;",
+                  "pm.collectionVariables.set('m5Cantidad', qty);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 lubricante agregado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "const s = Number(j.carrito && j.carrito.totales ? j.carrito.totales.Subtotal : 0);",
+                  "pm.collectionVariables.set('m5Subtotal', s);",
+                  "pm.test('subtotal supera el monto minimo (Q300)', () => pm.expect(s).to.be.at.least(300));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3426,25 +3911,51 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PROMO10\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PROMO10\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
-              "const s = Number(pm.collectionVariables.get('m5Subtotal'));",
-              "const tot = (j.carrito && j.carrito.totales) || {};",
-              "const expDesc = Math.round(s * 0.10 * 100) / 100;",
-              "pm.test('codigo PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('PROMO10'));",
-              "pm.test('cupon valido', () => pm.expect(j.cupon && j.cupon.descuento && j.cupon.descuento.valido).to.eql(true));",
-              "pm.test('descuento = round(subtotal*0.10,2)', () => pm.expect(Number(tot.Descuento)).to.eql(expDesc));",
-              "pm.test('total = subtotal - descuento', () => pm.expect(Number(tot.Total)).to.eql(Math.round((s - expDesc) * 100) / 100));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const s = Number(pm.collectionVariables.get('m5Subtotal'));",
+                  "const tot = (j.carrito && j.carrito.totales) || {};",
+                  "const expDesc = Math.round(s * 0.10 * 100) / 100;",
+                  "pm.test('codigo PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('PROMO10'));",
+                  "pm.test('cupon valido', () => pm.expect(j.cupon && j.cupon.descuento && j.cupon.descuento.valido).to.eql(true));",
+                  "pm.test('descuento = round(subtotal*0.10,2)', () => pm.expect(Number(tot.Descuento)).to.eql(expDesc));",
+                  "pm.test('total = subtotal - descuento', () => pm.expect(Number(tot.Total)).to.eql(Math.round((s - expDesc) * 100) / 100));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3452,21 +3963,47 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"LUB50\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"LUB50\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
-              "pm.test('codigo LUB50 reemplaza a PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));",
-              "const tot = (j.carrito && j.carrito.totales) || {};",
-              "pm.test('descuento = 50 (menor entre Valor y base)', () => pm.expect(Number(tot.Descuento)).to.eql(50));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('codigo LUB50 reemplaza a PROMO10', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));",
+                  "const tot = (j.carrito && j.carrito.totales) || {};",
+                  "pm.test('descuento = 50 (menor entre Valor y base)', () => pm.expect(Number(tot.Descuento)).to.eql(50));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3474,19 +4011,45 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"VENCIDO\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"VENCIDO\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
-              "pm.test('mensaje contiene vencido', () => pm.expect((j.message || '').toLowerCase()).to.include('vencido'));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('mensaje contiene vencido', () => pm.expect((j.message || '').toLowerCase()).to.include('vencido'));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3494,19 +4057,45 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"FUTURO\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"FUTURO\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
-              "pm.test('mensaje contiene vigente', () => pm.expect((j.message || '').toLowerCase()).to.include('vigente'));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('mensaje contiene vigente', () => pm.expect((j.message || '').toLowerCase()).to.include('vigente'));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3514,19 +4103,45 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"AGOTADO\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"AGOTADO\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
-              "pm.test('mensaje contiene agotado', () => pm.expect((j.message || '').toLowerCase()).to.include('agotado'));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('422 no procesable', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('mensaje contiene agotado', () => pm.expect((j.message || '').toLowerCase()).to.include('agotado'));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3534,52 +4149,125 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"NO-EXISTE-123\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"NO-EXISTE-123\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('404 cupon invalido', () => pm.expect(pm.response.code).to.eql(404));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('404 cupon invalido', () => pm.expect(pm.response.code).to.eql(404));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Invitado: aplicar cupon sin sesion (401)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PROMO10\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PROMO10\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('401 inicie sesion', () => pm.expect(pm.response.code).to.eql(401));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('401 inicie sesion', () => pm.expect(pm.response.code).to.eql(401));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Quitar cupon del carrito (200, descuento 0)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 cupon quitado', () => pm.expect(pm.response.code).to.eql(200));",
-              "pm.test('sin cupon', () => pm.expect(j.cupon).to.eql(null));",
-              "const tot = (j.carrito && j.carrito.totales) || {};",
-              "pm.test('descuento 0', () => pm.expect(Number(tot.Descuento)).to.eql(0));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 cupon quitado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('sin cupon', () => pm.expect(j.cupon).to.eql(null));",
+                  "const tot = (j.carrito && j.carrito.totales) || {};",
+                  "pm.test('descuento 0', () => pm.expect(Number(tot.Descuento)).to.eql(0));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3587,22 +4275,53 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}"
+            }
           },
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "pm.collectionVariables.set('m5Sufijo', String(Date.now()).slice(-6));"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('201 cupon creado', () => pm.expect(pm.response.code).to.eql(201));",
-              "pm.test('codigo normalizado a mayusculas', () => pm.expect(j.Codigo).to.eql('TEST-' + pm.collectionVariables.get('m5Sufijo')));"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('m5Sufijo', String(Date.now()).slice(-6));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 cupon creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('codigo normalizado a mayusculas', () => pm.expect(j.Codigo).to.eql('TEST-' + pm.collectionVariables.get('m5Sufijo')));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3610,16 +4329,41 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TEST-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('409 codigo duplicado', () => pm.expect(pm.response.code).to.eql(409));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 codigo duplicado', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3627,43 +4371,94 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"BAD-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 150,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"BAD-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 150,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('400 validacion', () => pm.expect(pm.response.code).to.eql(400));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 validacion', () => pm.expect(pm.response.code).to.eql(400));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Admin: capturar cupon AGOTADO",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cupones?texto=AGOTADO&pagina=1&tamanoPagina=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cupones"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ],
               "query": [
-                { "key": "texto", "value": "AGOTADO" },
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "20" }
+                {
+                  "key": "texto",
+                  "value": "AGOTADO"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                }
               ]
             }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
-              "const cup = (j.filas || []).find(c => c.Codigo === 'AGOTADO');",
-              "pm.test('existe cupon AGOTADO', () => pm.expect(cup, 'AGOTADO').to.not.be.undefined);",
-              "if (cup) pm.collectionVariables.set('m5AgotadoId', cup.IDCupon);"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const cup = (j.filas || []).find(c => c.Codigo === 'AGOTADO');",
+                  "pm.test('existe cupon AGOTADO', () => pm.expect(cup, 'AGOTADO').to.not.be.undefined);",
+                  "if (cup) pm.collectionVariables.set('m5AgotadoId', cup.IDCupon);"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3671,49 +4466,104 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/cupones/{{m5AgotadoId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones", "{{m5AgotadoId}}"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"AGOTADO\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 9,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones/{{m5AgotadoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones",
+                "{{m5AgotadoId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"AGOTADO\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 9,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}"
+            }
           },
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "pm.test('variable m5AgotadoId no vacia', function () {",
-              "  const _v = pm.collectionVariables.get('m5AgotadoId');",
-              "  pm.expect(_v, 'm5AgotadoId vacia').to.not.be.oneOf([undefined, null, '']);",
-              "});"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('409 cupon con usos', () => pm.expect(pm.response.code).to.eql(409));"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m5AgotadoId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m5AgotadoId');",
+                  "  pm.expect(_v, 'm5AgotadoId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('409 cupon con usos', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Admin: listar cupones (200)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cupones?pagina=1&tamanoPagina=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cupones"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ],
               "query": [
-                { "key": "pagina", "value": "1" },
-                { "key": "tamanoPagina", "value": "20" }
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                }
               ]
             }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
-              "pm.test('hay cupones sembrados', () => pm.expect((j.filas || []).length).to.be.above(0));",
-              "pm.test('total es numero', () => pm.expect(j.total).to.be.a('number'));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('hay cupones sembrados', () => pm.expect((j.filas || []).length).to.be.above(0));",
+                  "pm.test('total es numero', () => pm.expect(j.total).to.be.a('number'));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3721,16 +4571,41 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{operadorAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/cupones", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cupones"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"OPE-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"OPE-{{m5Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('403 solo administrador', () => pm.expect(pm.response.code).to.eql(403));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 solo administrador', () => pm.expect(pm.response.code).to.eql(403));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -3738,19 +4613,855 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/carrito/cupon", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carrito", "cupon"] },
-            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"LUB50\"\n}" }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"LUB50\"\n}"
+            }
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "let j = {};",
-              "try { j = pm.response.json(); } catch (e) { j = {}; }",
-              "pm.test('200 LUB50 aplicado para M6', () => pm.expect(pm.response.code).to.eql(200));",
-              "pm.test('carrito queda con LUB50', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 LUB50 aplicado para M6', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('carrito queda con LUB50', () => pm.expect(j.cupon && j.cupon.Codigo).to.eql('LUB50'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M6 Checkout",
+      "description": "Checkout y pago (RF-06). Repetible y sin IDs fijos: toma un producto/variante disponible del catalogo publico y una direccion del cliente. Prueba checkout en dos pasos, pago sin Idempotency-Key (400), rechazado (402), aprobado (201) y replay (201, replay true). Requiere scripts 001-016 y 099. Las claves K1/K2 se generan con {{$guid}}.",
+      "item": [
+        {
+          "name": "Setup: Login cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('clienteAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login operador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('operadorAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('adminAccessToken', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: buscar producto disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?soloDisponibles=true&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "soloDisponibles",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
+                  "pm.test('hay producto disponible', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (filas.length) pm.collectionVariables.set('m6ProductoId', filas[0].IDProducto);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: capturar variante disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m6ProductoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{m6ProductoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable m6ProductoId no vacia', function () {",
+                  "  const _v = pm.collectionVariables.get('m6ProductoId');",
+                  "  pm.expect(_v, 'm6ProductoId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
+                  "vars.sort((a, b) => Number(b.Disponible) - Number(a.Disponible));",
+                  "pm.test('hay variante disponible', () => pm.expect(vars.length).to.be.above(0));",
+                  "if (vars.length) {",
+                  "  pm.collectionVariables.set('m6VarianteId', vars[0].IDVariante);",
+                  "  pm.collectionVariables.set('m6PrecioV', Number(vars[0].Precio));",
+                  "  pm.collectionVariables.set('m6DisponibleV', Number(vars[0].Disponible));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: capturar direccion del cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = [];",
+                  "try { j = pm.response.json(); } catch (e) { j = []; }",
+                  "pm.test('200 direcciones', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const lista = Array.isArray(j) ? j : [];",
+                  "pm.test('el cliente tiene al menos una direccion (si no, cree una)', () => pm.expect(lista.length).to.be.above(0));",
+                  "if (lista.length) pm.collectionVariables.set('m6DireccionId', lista[0].IDDireccion);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prep: vaciar carrito del cliente",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 carrito vaciado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prep: quitar cupon",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 cupon quitado (sin error si no habia)', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prep: agregar variante disponible (cantidad 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m6VarianteId}},\n  \"cantidad\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 variante agregada', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar checkout (201, ExpiraEn)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 checkout iniciado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('resumen con ExpiraEn', () => pm.expect(j.resumen && j.resumen.ExpiraEn).to.not.be.oneOf([undefined, null]));",
+                  "pm.test('hay lineas reservadas', () => pm.expect((j.lineas || []).length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resumen de checkout (200, ReservaActiva true)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/resumen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "resumen"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 resumen', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ReservaActiva true', () => pm.expect(j.resumen && j.resumen.ReservaActiva).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagar sin Idempotency-Key (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('400 falta Idempotency-Key', () => pm.expect(pm.response.code).to.eql(400));",
+                  "pm.test('code IDEMPOTENCY_KEY_REQUIRED', () => pm.expect(j.code).to.eql('IDEMPOTENCY_KEY_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagar RECHAZADO con clave K1 (402, pedido null)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m6K1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"RECHAZADO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('m6K1', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('402 pago rechazado', () => pm.expect(pm.response.code).to.eql(402));",
+                  "pm.test('no aprobado', () => pm.expect(j.aprobado).to.eql(false));",
+                  "pm.test('pedido null', () => pm.expect(j.pedido).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagar APROBADO con clave K2 (201, SC-)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m6K2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('m6K2', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('aprobado true', () => pm.expect(j.aprobado).to.eql(true));",
+                  "pm.test('NumeroPedido con prefijo SC-', () => pm.expect(String(j.pedido && j.pedido.NumeroPedido)).to.match(/^SC-/));",
+                  "pm.test('lineas[0].DescuentoLinea definido', () => pm.expect(j.lineas && j.lineas[0] && j.lineas[0].DescuentoLinea).to.not.be.oneOf([undefined, null]));",
+                  "if (j.pedido && j.pedido.NumeroPedido) pm.collectionVariables.set('m6NumeroPedido', j.pedido.NumeroPedido);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repetir pago con K2 (201, replay true, mismo NumeroPedido)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m6K2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 replay', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('replay true', () => pm.expect(j.replay).to.eql(true));",
+                  "pm.test('mismo NumeroPedido', () => pm.expect(j.pedido && j.pedido.NumeroPedido).to.eql(pm.collectionVariables.get('m6NumeroPedido')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Carrito tras pagar (vacio; el anterior quedo Convertido)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 carrito', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('sin lineas', () => pm.expect((j.lineas || []).length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operador: checkout/iniciar prohibido (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{operadorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m6DireccionId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 solo cliente', () => pm.expect(pm.response.code).to.eql(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin: liberar reservas vencidas (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/reservas/liberar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "reservas",
+                "liberar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 liberar reservas', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('liberadas numerico', () => pm.expect(j.liberadas).to.be.a('number'));"
+                ]
+              }
+            }
           ]
         }
       ]

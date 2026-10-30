@@ -35,6 +35,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES: z.string().min(1).default('7d'),
 
   RESERVA_MINUTOS: z.coerce.number().int().positive().default(15),
+  RESERVA_JOB_SEGUNDOS: z.coerce.number().int().positive().default(60),
   CARRITO_ABANDONO_HORAS: z.coerce.number().int().positive().default(24),
   IVA_PORCENTAJE: z.coerce.number().nonnegative().default(12),
 

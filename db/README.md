@@ -23,6 +23,9 @@ script es idempotente o pensado para una instancia nueva, segun su rol:
 | `012_SP_Carrito.sql` | Carrito de compras (RF-04): `FU_Carrito_CalcularTotales` (totales e IVA en linea) y SPs obtener, agregar, actualizar, eliminar, vaciar y fusionar. El carrito solo lee el disponible (no reserva existencia). En M5 la funcion de totales descuenta el cupon vigente, por lo que se **reaplica despues de `014`**. |
 | `013_Migracion_CarritoCupon.sql` | Migracion posterior al `001` (RF-05): agrega `Carrito.IDCupon` (nullable) y la FK `FK_Carrito_Cupon`, para que el carrito recuerde el cupon aplicado antes del checkout. Idempotente. |
 | `014_SP_Cupones.sql` | Cupones (RF-05): `FU_Cupones_CalculoDescuento` y `FU_Cupones_Estado` (en linea) y SPs validar, aplicar/quitar al carrito y CRUD de administracion (listar, obtener, crear, actualizar, cambiar estado). No consume usos (eso es del checkout, M6). |
+| `015_Catalogo_EstadosPedido.sql` | Estados de pedido (`EstadoPedido`) y transiciones permitidas (`TransicionEstadoPedido`) que gobiernan el ciclo de vida del pedido (RF-06, base de RF-07). Idempotente por codigo y por par origen/destino. |
+| `016_SP_Checkout.sql` | Checkout y pago (RF-06): `SP_Inventario_ReservarExistencia` (interno), `SP_Checkout_Iniciar`, `SP_Checkout_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente con replay) y `SP_Checkout_LiberarReservasVencidas` (job). Usa `SP_Inventario_RegistrarMovimiento` (`@OrigenInterno = 1`) para el kardex. |
+| `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001` (RF-06): reemplaza `UQ_Carrito_TokenInvitado` (UNIQUE admite un solo NULL, rompia el segundo carrito de usuario) por el indice unico filtrado `UX_Carrito_TokenInvitado ... WHERE TokenInvitado IS NOT NULL`. Idempotente. |
 | `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP; cupones de M5). Crece con cada modulo; se aplica al final. |
 
 La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
@@ -33,6 +36,14 @@ numero disponible. **No se reutilizan ni reordenan numeros ya publicados.**
 > `FU_Carrito_CalcularTotales` (en `012`) usa las funciones de cupon de `014` y la
 > columna `Carrito.IDCupon` de `013`, y una funcion en linea exige que lo
 > referenciado exista al momento de crearse. Orden de M5: **013 -> 014 -> 012 -> 099**.
+>
+> **M6.** Se **reaplican `004`** (agrega el parametro `RESERVA_JOB_SEGUNDOS`) y **`011`**
+> (agrega el parametro `@SinResultado` a `SP_Inventario_RegistrarMovimiento`), y luego se
+> aplican `015` y `016`. `016` usa `FU_Carrito_CalcularTotales`/`FU_Cupones_Estado`
+> (012/014), `SP_Inventario_RegistrarMovimiento` (011) y los estados de `015`, todos ya
+> presentes. Tambien se aplica `017`, migracion de modelo que corrige la unicidad
+> del token de invitado (ver tabla). Orden de M6:
+> **004 -> 011 -> 015 -> 016 -> 017 -> 099 (si cambio)**.
 
 ## Como aplicarlos
 
@@ -55,6 +66,12 @@ sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 013_Migracion_CarritoCupon.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 014_SP_Cupones.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 012_SP_Carrito.sql
+# M6 (RF-06): reaplicar 004 (nuevo parametro) y 011 (@SinResultado), luego estados y checkout.
+sqlcmd -S localhost -U sa -P "<password>" -i 004_Catalogos.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 015_Catalogo_EstadosPedido.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 016_SP_Checkout.sql
+sqlcmd -S localhost -U sa -P "<password>" -i 017_Migracion_CarritoTokenUnico.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
 ```
 

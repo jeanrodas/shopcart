@@ -517,9 +517,10 @@ GO
 
 /* ------------------------------------------------------------
    SP_Carrito_Vaciar
-   Elimina todas las lineas; el carrito sigue Activo. Un usuario sin carrito
-   activo devuelve el carrito vacio sin crear nada; un token de invitado
-   desconocido es 50404.
+   Elimina todas las lineas y quita el cupon (IDCupon = NULL): un carrito vacio
+   no conserva cupon. El carrito sigue Activo. Un usuario sin carrito activo
+   devuelve el carrito vacio sin crear nada; un token de invitado desconocido es
+   50404.
    Parametros: @IDUsuario o @TokenInvitado, @IDUsuarioEjecuta.
    Errores: 50400 identidad invalida; 50404 token de invitado desconocido;
      50409 carrito no activo.
@@ -568,8 +569,10 @@ BEGIN
 
             DELETE dbo.CarritoDetalle WHERE IDCarrito = @IDCarrito;
 
+            -- Un carrito vacio no conserva cupon.
             UPDATE dbo.Carrito
-               SET FechaUltimaActividad = SYSUTCDATETIME()
+               SET IDCupon = NULL,
+                   FechaUltimaActividad = SYSUTCDATETIME()
              WHERE IDCarrito = @IDCarrito;
         END
 

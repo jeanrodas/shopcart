@@ -1,6 +1,7 @@
 import { env } from './config/env.js';
 import app from './app.js';
 import { getPool, closePool } from './config/db.js';
+import { iniciarJobReservas, detenerJobReservas } from './jobs/liberarReservas.js';
 
 async function main(): Promise<void> {
   // Valida la conexion a la BD antes de empezar a escuchar.
@@ -10,8 +11,12 @@ async function main(): Promise<void> {
     console.log(`[server] ShopCart API escuchando en el puerto ${env.PORT} (${env.NODE_ENV})`);
   });
 
+  // Job de liberacion de reservas vencidas (arranca tras escuchar).
+  iniciarJobReservas();
+
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`[server] ${signal} recibido, cerrando...`);
+    detenerJobReservas();
     server.close();
     await closePool();
     process.exit(0);

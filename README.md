@@ -99,6 +99,9 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `012_SP_Carrito.sql` | Funcion de totales y SPs del carrito de compras (RF-04). En M5 la funcion de totales pasa a descontar el cupon, por eso se reaplica despues de `014`. |
 | `013_Migracion_CarritoCupon.sql` | Migracion posterior al `001`: agrega `Carrito.IDCupon` y su FK para recordar el cupon aplicado antes del checkout (RF-05). |
 | `014_SP_Cupones.sql` | Funciones (`FU_Cupones_CalculoDescuento`, `FU_Cupones_Estado`) y SPs de cupones: validar/aplicar/quitar y CRUD de administracion (RF-05). |
+| `015_Catalogo_EstadosPedido.sql` | Estados de pedido y transiciones permitidas; base del ciclo de vida (RF-06, RF-07). Idempotente. |
+| `016_SP_Checkout.sql` | Reserva de existencia, checkout en dos pasos, pago simulado idempotente y creacion de pedido (RF-06): `SP_Inventario_ReservarExistencia`, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido`, `SP_Checkout_LiberarReservasVencidas`. |
+| `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001`: cambia la unicidad del token de invitado a un indice unico filtrado para tolerar multiples NULL (RF-06). |
 | `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
 
 ```bash
@@ -117,6 +120,12 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/013_Migracion_CarritoCupon.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/014_SP_Cupones.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/012_SP_Carrito.sql
+# M6: reaplicar 004 (RESERVA_JOB_SEGUNDOS) y 011 (@SinResultado), luego estados y checkout.
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/015_Catalogo_EstadosPedido.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/016_SP_Checkout.sql
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/017_Migracion_CarritoTokenUnico.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -331,7 +340,9 @@ incluso desde `dbo` o un SP.
   `causa`; **no** lanza error. `FU_Carrito_CalcularTotales` solo descuenta cuando el cupon
   sigue siendo valido.
 - **Un cupon por carrito.** Aplicar uno reemplaza el anterior (`UPDATE Carrito SET
-  IDCupon`). `DELETE /carrito/cupon` lo quita (sin error si no habia).
+  IDCupon`). `DELETE /carrito/cupon` lo quita (sin error si no habia). Vaciar el carrito
+  (`DELETE /carrito`) tambien quita el cupon: `SP_Carrito_Vaciar` pone `IDCupon = NULL`
+  porque un carrito vacio no conserva cupon.
 - **Cupon con usos congelado.** Un cupon con usos (`CuponUso` o `UsosActuales > 0`) no
   puede cambiar `Codigo`, `TipoDescuento`, `Valor` ni `IDCategoria` (**409**); si solo
   cambian fechas o limites, se permite. `SP_Cupones_Actualizar` nunca escribe
@@ -341,9 +352,100 @@ incluso desde `dbo` o un SP.
   { baseElegible, descuento, valido, causa } }` (o `null`). El `Descuento` del cupon ya
   esta reflejado en `carrito.totales`.
 
+### Checkout y pago (M6, RF-06)
+
+- **Dos pasos: reservar y luego pagar.** `POST /checkout/iniciar` **reserva** existencia
+  por `RESERVA_MINUTOS` (parametro, default 15) y devuelve un resumen con totales y costo
+  de envio; `POST /checkout/pagar` **cobra** (pago simulado) y, si aprueba, crea el pedido.
+  Separar reserva de pago evita vender mas unidades de las que hay cuando varios clientes
+  compiten por el ultimo stock.
+- **Iniciar es reiniciable.** Vuelve a reservar: libera las reservas `Activa` del propio
+  carrito y crea nuevas. Reintentar el checkout nunca acumula reservas duplicadas.
+- **Pagar exige reserva vigente.** `SP_Pedidos_CrearPedido` verifica que **todas** las
+  lineas tengan `Reserva` `Activa`, `FechaExpira > ahora` y la misma cantidad; si no,
+  **409 `La reserva vencio o no existe; inicie el checkout de nuevo`**. Asi la reserva es
+  el "boleto" que garantiza el stock entre los dos pasos.
+- **Idempotencia en la base.** El header `Idempotency-Key` (16-100, `[A-Za-z0-9_-]`) se
+  guarda como `Pago.ClaveIdempotencia` con `UNIQUE`. El SP bloquea el carrito
+  (`UPDLOCK, HOLDLOCK`) y busca el pago por clave **dentro** del lock: si ya existe y es del
+  mismo usuario, hace **replay** y devuelve exactamente el mismo resultado (sin tocar nada);
+  si es de otro usuario, **409 `Clave de idempotencia en uso`**. El `UNIQUE` es la ultima
+  defensa ante una carrera. Dos `pagar` con la misma clave devuelven el mismo
+  `NumeroPedido` y el mismo codigo HTTP; uno trae `replay: true`.
+- **Pago simulado y 402.** `simularResultado` (`APROBADO` por defecto) decide el desenlace.
+  Aprobado responde **201** (se creo el pedido); rechazado responde **402 Payment
+  Required** (semantica HTTP del pago que no prospera), registra el `Pago` `Rechazado`,
+  **no** crea pedido y **deja las reservas intactas** para poder reintentar. En replay se
+  repite el mismo codigo (201 o 402), deducido de `aprobado`.
+- **Orden exacto de la transaccion aprobada.** (0) pre-bloquear las variantes del carrito
+  en `IDVariante` ascendente, (1) consumir reservas (`Estado = 'Consumida'`), (2) crear
+  `Pedido`, (3) `PedidoDetalle`, (4) un `SP_Inventario_RegistrarMovimiento` `SALIDA_VENTA`
+  por linea, (5) uso del cupon, (6) `Pago` aprobado, (7) `Carrito` `Convertido`, (8)
+  historial de estado. **Las reservas se consumen ANTES del kardex** porque
+  `SP_Inventario_RegistrarMovimiento` descuenta del disponible las reservas activas; si
+  siguieran `Activa`, la salida de venta de la misma cantidad se bloquearia a si misma.
+- **Orden de bloqueo anti-deadlock.** `Carrito (UPDLOCK, HOLDLOCK)` -> `Variante
+  (UPDLOCK, HOLDLOCK, IDVariante ascendente)` -> `Reserva` -> `Cupon (UPDLOCK)`. En la rama
+  aprobada se **pre-bloquean** primero todas las variantes del carrito en `IDVariante`
+  ascendente (un `SELECT ... WITH (UPDLOCK, HOLDLOCK)` por cada una) y solo despues se
+  consumen las reservas y se registra el kardex. El pre-bloqueo es necesario: sin el, entre
+  consumir la reserva (que la quita del disponible) y registrar la salida de venta, otro
+  carrito podria reservar esa unidad y el pago fallaria. Con el, el orden se cumple de forma
+  literal y las variantes quedan retenidas hasta el `COMMIT`.
+- **SPs anidados.** `SP_Inventario_RegistrarMovimiento` abre su propio `BEGIN TRAN/COMMIT`
+  dentro de la transaccion de `CrearPedido` (el commit interno solo decrementa
+  `@@TRANCOUNT`). Un `THROW` interno ya hizo `ROLLBACK` de todo y relanza; el `CATCH`
+  exterior encuentra `@@TRANCOUNT = 0` y solo relanza. Se le pasa `@SinResultado = 1` para
+  que **no** devuelva un result set por cada movimiento y asi no contaminar la salida.
+- **Snapshot y prorrateo del descuento.** El pedido guarda un snapshot inmutable: `SKU`,
+  `NombreProducto`, `DescripcionVariante` (`STRING_AGG` de los atributos), `IDCategoria`,
+  `PrecioUnitario` y el `DescuentoLinea` **prorrateado**. Por linea elegible,
+  `DescuentoLinea = ROUND(Descuento * TotalLineaBruta / BaseElegible, 2)`; la ultima linea
+  elegible (mayor `IDVariante`) absorbe el redondeo para que `SUM(DescuentoLinea) =
+  Descuento` al centavo; las no elegibles van en 0. `TotalLinea = bruto - DescuentoLinea`.
+- **Numero de pedido legible.** `NumeroPedido = 'SC-' + FORMAT(NEXT VALUE FOR
+  SEQ_Pedido_Numero, '000000')` (p.ej. `SC-000001`), con `UNIQUE`.
+- **Estados y ciclo de vida.** `015` siembra `EstadoPedido` y `TransicionEstadoPedido`.
+  El pedido nace en `PAGADO` y avanza por transiciones permitidas (las aplicara M7):
+
+  ```mermaid
+  stateDiagram-v2
+      [*] --> PAGADO: pago aprobado
+      PAGADO --> EN_PREPARACION: Operador
+      EN_PREPARACION --> DESPACHADO: Operador
+      DESPACHADO --> ENTREGADO: Operador
+      PAGADO --> CANCELADO: Cliente u Operador
+      EN_PREPARACION --> CANCELADO: Cliente u Operador
+      ENTREGADO --> DEVUELTO: Operador
+      CANCELADO --> [*]
+      DEVUELTO --> [*]
+  ```
+
+- **Liberacion de reservas por job + consulta.** `SP_Checkout_LiberarReservasVencidas`
+  marca `Liberada` toda reserva `Activa` vencida (sin `session context`: actor nulo). El
+  job `jobs/liberarReservas.ts` lo llama cada `RESERVA_JOB_SEGUNDOS` (default 60), loguea
+  solo si libero algo y nunca tumba el proceso (errores capturados); arranca tras escuchar
+  y se detiene en el apagado. El Administrador puede dispararlo a mano con
+  `POST /checkout/reservas/liberar`. El disponible se lee en vivo de
+  `VW_Inventario_Disponible` (existencia - reservas activas no vencidas).
+- **Prueba de concurrencia.** `api/tests/concurrencia.mjs` (Node 24 puro, solo HTTP) crea
+  una variante con **1 unidad**, registra 10 clientes que compiten y verifica: 10
+  `iniciar` en paralelo -> **1x201 / 9x409**; dos `pagar` del ganador con la misma clave ->
+  ambos **201**, mismo `NumeroPedido`, uno con `replay`; `GET /inventario/consistencia` ->
+  `consistente: true`; un perdedor reintenta -> **409**. Se corre con la API arriba:
+  `BASE_URL=http://localhost:3000 npm run test:concurrencia` (sale con codigo 1 si algun
+  escenario falla). Registra 10 clientes + login admin, asi que conviene correr la API con
+  `RATE_LIMIT_AUTH_MAX` alto (p.ej. 100); con el default (10) el limitador devuelve 429.
+- **Correccion de modelo: unicidad del token de invitado.** En SQL Server un `UNIQUE`
+  admite un solo NULL, asi que el `UQ_Carrito_TokenInvitado UNIQUE (TokenInvitado)` original
+  dejaba crear un unico carrito de usuario (token NULL) y el segundo fallaba con error 2627.
+  Corregido en la migracion `017` reemplazandolo por el indice unico filtrado
+  `UX_Carrito_TokenInvitado ... WHERE TokenInvitado IS NOT NULL`: la unicidad aplica solo a
+  tokens reales y los NULL quedan sin restringir (misma tecnica que `UX_Carrito_UsuarioActivo`).
+
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4 y M5.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5 y M6.
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -351,14 +453,17 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    `http://localhost:3000`.
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
-   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones**.
+   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   los scripts `001`-`014` y `099` en SQL Server (en el orden del bloque anterior:
-   `013` y `014` antes de reaplicar `012`). La carpeta **M4 Carrito** toma el
-   `idVariante` y el disponible del catalogo publico (sin IDs fijos) y es repetible.
-   La carpeta **M5 Cupones** prepara el carrito del cliente con una variante de
-   Lubricantes y deja `LUB50` aplicado al terminar (M6 lo usara).
+   los scripts `001`-`016` y `099` en SQL Server (en el orden del bloque anterior:
+   `013`/`014` antes de reaplicar `012`, y `004`/`015`/`016` para M6). La carpeta
+   **M4 Carrito** toma el `idVariante` y el disponible del catalogo publico (sin IDs
+   fijos) y es repetible. La carpeta **M5 Cupones** prepara el carrito del cliente con
+   una variante de Lubricantes y deja `LUB50` aplicado al terminar. La carpeta
+   **M6 Checkout** prepara su propio carrito, inicia el checkout, prueba el pago sin
+   `Idempotency-Key` (400), un pago rechazado (402), uno aprobado (201) y su replay
+   (201, `replay: true`), y genera las claves de idempotencia con `{{$guid}}`.
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.

@@ -34,7 +34,10 @@ GO
    Parametros:
      @IDVariante, @CodigoTipo, @Cantidad (>0), @Motivo (3-300),
      @IDPedido (NULL salvo movimientos internos de pedido),
-     @OrigenInterno (1 solo desde SPs de pedidos), @IDUsuarioEjecuta.
+     @OrigenInterno (1 solo desde SPs de pedidos), @IDUsuarioEjecuta,
+     @SinResultado (1 omite el SELECT final: lo usan los SPs de pedido que llaman a
+       este SP en un bucle y no quieren recibir un result set por cada movimiento;
+       el backend nunca lo envia).
    Errores:
      50400 tipo invalido / cantidad invalida / motivo invalido;
      50403 tipo reservado al sistema (SALIDA_VENTA/DEVOLUCION/CANCELACION con
@@ -50,7 +53,8 @@ CREATE OR ALTER PROCEDURE dbo.SP_Inventario_RegistrarMovimiento
     @Motivo           NVARCHAR(300),
     @IDPedido         INT = NULL,
     @OrigenInterno    BIT = 0,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    @SinResultado     BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -122,13 +126,14 @@ BEGIN
         THROW;
     END CATCH
 
-    SELECT k.IDKardex, k.IDVariante, k.IDTipoMovimientoInventario,
-           t.Codigo AS CodigoTipo, t.Nombre AS NombreTipo, t.Signo,
-           k.Cantidad, k.ExistenciaResultante, k.Motivo, k.IDUsuario, k.IDPedido, k.Fecha,
-           @Nueva AS Existencia, @Reservado AS Reservado, (@Nueva - @Reservado) AS Disponible
-    FROM dbo.Kardex k
-    INNER JOIN dbo.TipoMovimientoInventario t ON t.IDTipoMovimientoInventario = k.IDTipoMovimientoInventario
-    WHERE k.IDKardex = @NuevoKardex;
+    IF @SinResultado = 0
+        SELECT k.IDKardex, k.IDVariante, k.IDTipoMovimientoInventario,
+               t.Codigo AS CodigoTipo, t.Nombre AS NombreTipo, t.Signo,
+               k.Cantidad, k.ExistenciaResultante, k.Motivo, k.IDUsuario, k.IDPedido, k.Fecha,
+               @Nueva AS Existencia, @Reservado AS Reservado, (@Nueva - @Reservado) AS Disponible
+        FROM dbo.Kardex k
+        INNER JOIN dbo.TipoMovimientoInventario t ON t.IDTipoMovimientoInventario = k.IDTipoMovimientoInventario
+        WHERE k.IDKardex = @NuevoKardex;
 END
 GO
 

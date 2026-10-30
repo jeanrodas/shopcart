@@ -18,7 +18,7 @@ app.use(
     origin: env.CORS_ORIGIN,
     credentials: true,
     // X-Cart-Token viaja en peticiones y respuestas del carrito de invitado.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Cart-Token', 'X-Request-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Cart-Token', 'X-Request-Id', 'Idempotency-Key'],
     exposedHeaders: ['X-Cart-Token', 'X-Request-Id'],
   }),
 );
