@@ -503,6 +503,7 @@ export const openapiDocument = {
     { name: 'Carrito', description: 'Carrito de compras del cliente o del invitado (RF-04)' },
     { name: 'Cupones', description: 'Cupones y promociones: gestion (Administrador) y aplicacion al carrito (Cliente) (RF-05)' },
     { name: 'Checkout', description: 'Checkout y pago: reserva de existencia, pago simulado idempotente y creacion de pedido (RF-06)' },
+    { name: 'Pedidos', description: 'Ciclo de vida del pedido, cancelacion y devoluciones (RF-07)' },
   ],
   components: {
     securitySchemes: {
@@ -1769,6 +1770,176 @@ export const openapiDocument = {
           },
           '401': errRef,
           '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos': {
+      get: {
+        tags: ['Pedidos'],
+        summary: 'Listar pedidos',
+        description:
+          'Cliente: solo sus pedidos (el filtro de cliente se ignora y se fija con el JWT). ' +
+          'Operador/Administrador: todos, con filtros opcionales por estado, cliente, rango de ' +
+          'fechas y texto (NumeroPedido o correo). Orden por fecha de creacion descendente.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'estado', in: 'query', schema: { type: 'string', enum: ['PAGADO', 'EN_PREPARACION', 'DESPACHADO', 'ENTREGADO', 'CANCELADO', 'DEVUELTO'] } },
+          { name: 'idUsuario', in: 'query', schema: { type: 'integer' }, description: 'Solo Operador/Admin; en Cliente se ignora.' },
+          { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'NumeroPedido o correo (LIKE).' },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de pedidos',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: { type: 'array', items: { type: 'object' } },
+                total: { type: 'integer', example: 1 },
+                pagina: { type: 'integer', example: 1 },
+                tamanoPagina: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos/{id}': {
+      get: {
+        tags: ['Pedidos'],
+        summary: 'Obtener un pedido',
+        description:
+          'Cabecera, detalle (con CantidadDevuelta), historial de estados y devoluciones con ' +
+          'sus lineas. Cliente: solo el propio (404 uniforme si es ajeno).',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer', example: 1 } }],
+        responses: {
+          '200': {
+            description: 'Pedido',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                pedido: { type: 'object' },
+                lineas: { type: 'array', items: { $ref: '#/components/schemas/PedidoLinea' } },
+                historial: { type: 'array', items: { type: 'object' } },
+                devoluciones: { type: 'array', items: { type: 'object' } },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos/{id}/estado': {
+      post: {
+        tags: ['Pedidos'],
+        summary: 'Avanzar el estado del pedido (Operador/Administrador)',
+        description:
+          'Aplica una transicion del grafo (015): EN_PREPARACION, DESPACHADO o ENTREGADO. ' +
+          'Transicion no permitida -> 409; rol insuficiente -> 403.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer', example: 1 } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['estado'],
+            properties: {
+              estado: { type: 'string', enum: ['EN_PREPARACION', 'DESPACHADO', 'ENTREGADO'], example: 'EN_PREPARACION' },
+              comentario: { type: 'string', example: 'Preparando el pedido' },
+            },
+          }),
+        },
+        responses: {
+          '200': { description: 'Estado actualizado (devuelve el pedido)' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos/{id}/cancelar': {
+      post: {
+        tags: ['Pedidos'],
+        summary: 'Cancelar el pedido (Cliente dueno / Operador / Administrador)',
+        description:
+          'Solo desde PAGADO o EN_PREPARACION. Repone inventario (CANCELACION) y devuelve el ' +
+          'uso del cupon. El cliente solo puede cancelar su propio pedido.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer', example: 1 } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['motivo'],
+            properties: { motivo: { type: 'string', example: 'El cliente ya no lo necesita' } },
+          }),
+        },
+        responses: {
+          '200': { description: 'Pedido cancelado (devuelve el pedido)' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos/{id}/devoluciones': {
+      post: {
+        tags: ['Pedidos'],
+        summary: 'Registrar una devolucion (Operador/Administrador)',
+        description:
+          'Solo desde ENTREGADO. Repone inventario (DEVOLUCION) por las lineas devueltas. Si ' +
+          'todas las lineas quedan devueltas por completo, el pedido pasa a DEVUELTO; si es ' +
+          'parcial, sigue ENTREGADO. Cantidad mayor a lo vendido -> 422.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer', example: 1 } }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['motivo', 'lineas'],
+            properties: {
+              motivo: { type: 'string', example: 'Producto defectuoso' },
+              lineas: {
+                type: 'array',
+                minItems: 1,
+                maxItems: 50,
+                items: {
+                  type: 'object',
+                  required: ['idPedidoDetalle', 'cantidad'],
+                  properties: {
+                    idPedidoDetalle: { type: 'integer', example: 10 },
+                    cantidad: { type: 'integer', example: 1 },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        responses: {
+          '201': { description: 'Devolucion registrada (devuelve el pedido y la devolucion creada)' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '409': errRef,
+          '422': errRef,
         },
       },
     },

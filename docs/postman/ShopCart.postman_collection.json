@@ -144,6 +144,58 @@
     {
       "key": "m1UsuarioId",
       "value": ""
+    },
+    {
+      "key": "m7Sufijo",
+      "value": ""
+    },
+    {
+      "key": "m7AdminToken",
+      "value": ""
+    },
+    {
+      "key": "m7OperadorToken",
+      "value": ""
+    },
+    {
+      "key": "m7ProductoId",
+      "value": ""
+    },
+    {
+      "key": "m7VarianteId",
+      "value": ""
+    },
+    {
+      "key": "m7ClienteToken",
+      "value": ""
+    },
+    {
+      "key": "m7ClienteAjenoToken",
+      "value": ""
+    },
+    {
+      "key": "m7DireccionId",
+      "value": ""
+    },
+    {
+      "key": "m7PedidoId",
+      "value": ""
+    },
+    {
+      "key": "m7PedidoDetalleId",
+      "value": ""
+    },
+    {
+      "key": "m7K1",
+      "value": ""
+    },
+    {
+      "key": "m7K2",
+      "value": ""
+    },
+    {
+      "key": "m7Pedido2Id",
+      "value": ""
     }
   ],
   "item": [
@@ -5691,6 +5743,1843 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "M7 Pedidos",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Primer request de M7: sufijo unico y claves de idempotencia de la corrida.",
+                  "const s = Date.now().toString(36);",
+                  "pm.collectionVariables.set('m7Sufijo', s);",
+                  "pm.collectionVariables.set('m7K1', 'm7key-' + s + '-0001');",
+                  "pm.collectionVariables.set('m7K2', 'm7key-' + s + '-0002');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('m7AdminToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: Login operador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('m7OperadorToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: buscar producto activo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('hay un producto', () => pm.expect(j.filas.length).to.be.above(0));",
+                  "if (pm.response.code === 200 && j.filas && j.filas[0]) pm.collectionVariables.set('m7ProductoId', j.filas[0].IDProducto);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?pagina=1&tamanoPagina=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Setup: crear variante con stock (admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7ProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7ProductoId\");",
+                  "  pm.expect(_v, \"variable m7ProductoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Sufijo\");",
+                  "  pm.expect(_v, \"variable m7Sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 variante creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.variante) pm.collectionVariables.set('m7VarianteId', j.variante.IDVariante);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{m7ProductoId}}/variantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{m7ProductoId}}",
+                "variantes"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"PED-{{m7Sufijo}}\",\n  \"precio\": 100.00,\n  \"atributos\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: entrada stock 3 (admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7VarianteId\");",
+                  "  pm.expect(_v, \"variable m7VarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 entrada', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/entradas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "entradas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m7VarianteId}},\n  \"cantidad\": 3,\n  \"motivo\": \"Carga M7 {{m7Sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: registrar cliente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Sufijo\");",
+                  "  pm.expect(_v, \"variable m7Sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 cliente creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.accessToken) pm.collectionVariables.set('m7ClienteToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "registro"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente_ped_{{m7Sufijo}}@shopcart.local\",\n  \"contrasena\": \"Password123\",\n  \"nombre\": \"Cliente Pedidos {{m7Sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: registrar cliente ajeno",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Sufijo\");",
+                  "  pm.expect(_v, \"variable m7Sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 cliente ajeno creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.accessToken) pm.collectionVariables.set('m7ClienteAjenoToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "registro"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente_ajeno_{{m7Sufijo}}@shopcart.local\",\n  \"contrasena\": \"Password123\",\n  \"nombre\": \"Cliente Ajeno {{m7Sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: cliente crea direccion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 direccion creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDDireccion) pm.collectionVariables.set('m7DireccionId', j.IDDireccion);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"Casa\",\n  \"nombreReceptor\": \"Cliente Pedidos\",\n  \"telefono\": \"+502 5555-0000\",\n  \"linea1\": \"1a Calle 2-34 Zona 1\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: cliente agrega 2 al carrito",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7VarianteId\");",
+                  "  pm.expect(_v, \"variable m7VarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 item agregado', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m7VarianteId}},\n  \"cantidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: cliente inicia checkout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7DireccionId\");",
+                  "  pm.expect(_v, \"variable m7DireccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 checkout iniciado', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m7DireccionId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: cliente paga (crea el pedido)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7DireccionId\");",
+                  "  pm.expect(_v, \"variable m7DireccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7K1 no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7K1\");",
+                  "  pm.expect(_v, \"variable m7K1 vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.pedido) pm.collectionVariables.set('m7PedidoId', j.pedido.IDPedido);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m7K1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m7DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente lista sus pedidos",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "const pid = Number(pm.collectionVariables.get('m7PedidoId'));",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('incluye su pedido', () => pm.expect(j.filas.some(p => p.IDPedido === pid)).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Cliente obtiene su pedido (PAGADO)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 obtener', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('estado PAGADO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('PAGADO'));",
+                  "if (pm.response.code === 200 && j.lineas && j.lineas[0]) pm.collectionVariables.set('m7PedidoDetalleId', j.lineas[0].IDPedidoDetalle);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Cliente obtiene pedido ajeno (404)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 pedido ajeno', () => pm.expect(pm.response.code).to.eql(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteAjenoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Operador PAGADO -> EN_PREPARACION (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 estado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ahora EN_PREPARACION', () => pm.expect(j.pedido.EstadoCodigo).to.eql('EN_PREPARACION'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"EN_PREPARACION\",\n  \"comentario\": \"En preparacion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente intenta cambiar estado (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 solo operador/admin', () => pm.expect(pm.response.code).to.eql(403));",
+                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"DESPACHADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador salto EN_PREPARACION -> ENTREGADO (409)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 transicion no permitida', () => pm.expect(pm.response.code).to.eql(409));",
+                  "pm.test('code CONFLICT', () => pm.expect(pm.response.json().code).to.eql('CONFLICT'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador EN_PREPARACION -> DESPACHADO (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 estado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ahora DESPACHADO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('DESPACHADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"DESPACHADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente cancela pedido despachado (409)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 no se puede cancelar despachado', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "cancelar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Ya no lo quiero\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador DESPACHADO -> ENTREGADO (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 estado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ahora ENTREGADO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('ENTREGADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Devolucion 3 de linea vendida 2 (422)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7PedidoDetalleId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoDetalleId\");",
+                  "  pm.expect(_v, \"variable m7PedidoDetalleId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 excede lo vendido', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('code UNPROCESSABLE_ENTITY', () => pm.expect(pm.response.json().code).to.eql('UNPROCESSABLE_ENTITY'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/devoluciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "devoluciones"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Intento invalido\",\n  \"lineas\": [ { \"idPedidoDetalle\": {{m7PedidoDetalleId}}, \"cantidad\": 3 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Devolucion parcial 1 (201, sigue ENTREGADO)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7PedidoDetalleId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoDetalleId\");",
+                  "  pm.expect(_v, \"variable m7PedidoDetalleId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 devolucion parcial', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('sigue ENTREGADO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('ENTREGADO'));",
+                  "pm.test('CantidadDevuelta = 1', () => pm.expect(j.lineas[0].CantidadDevuelta).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/devoluciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "devoluciones"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Una unidad defectuosa\",\n  \"lineas\": [ { \"idPedidoDetalle\": {{m7PedidoDetalleId}}, \"cantidad\": 1 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Devolucion 1 restante (201, DEVUELTO)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoId\");",
+                  "  pm.expect(_v, \"variable m7PedidoId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7PedidoDetalleId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7PedidoDetalleId\");",
+                  "  pm.expect(_v, \"variable m7PedidoDetalleId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 devolucion total', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('ahora DEVUELTO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('DEVUELTO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7PedidoId}}/devoluciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7PedidoId}}",
+                "devoluciones"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Segunda unidad defectuosa\",\n  \"lineas\": [ { \"idPedidoDetalle\": {{m7PedidoDetalleId}}, \"cantidad\": 1 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Existencias de la variante = 3 (operador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Sufijo\");",
+                  "  pm.expect(_v, \"variable m7Sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7VarianteId\");",
+                  "  pm.expect(_v, \"variable m7VarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "const vid = Number(pm.collectionVariables.get('m7VarianteId'));",
+                  "const fila = (j.filas || []).find(f => f.IDVariante === vid);",
+                  "pm.test('200 existencias', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Existencia restaurada a 3', () => pm.expect(fila && fila.Existencia).to.eql(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/existencias?texto=PED-{{m7Sufijo}}&pagina=1&tamanoPagina=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "existencias"
+              ],
+              "query": [
+                {
+                  "key": "texto",
+                  "value": "PED-{{m7Sufijo}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente agrega 1 al carrito (2o pedido)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7VarianteId\");",
+                  "  pm.expect(_v, \"variable m7VarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 item agregado', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m7VarianteId}},\n  \"cantidad\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente inicia checkout (2o pedido)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7DireccionId\");",
+                  "  pm.expect(_v, \"variable m7DireccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 checkout iniciado', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m7DireccionId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente paga (2o pedido)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7DireccionId\");",
+                  "  pm.expect(_v, \"variable m7DireccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7K2 no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7K2\");",
+                  "  pm.expect(_v, \"variable m7K2 vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.pedido) pm.collectionVariables.set('m7Pedido2Id', j.pedido.IDPedido);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m7K2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m7DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente cancela 2o pedido desde PAGADO (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Pedido2Id no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Pedido2Id\");",
+                  "  pm.expect(_v, \"variable m7Pedido2Id vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 cancelado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ahora CANCELADO', () => pm.expect(j.pedido.EstadoCodigo).to.eql('CANCELADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m7Pedido2Id}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m7Pedido2Id}}",
+                "cancelar"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Cancelacion desde PAGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Existencias restauradas a 3 tras cancelar (operador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Sufijo\");",
+                  "  pm.expect(_v, \"variable m7Sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m7VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7VarianteId\");",
+                  "  pm.expect(_v, \"variable m7VarianteId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "const vid = Number(pm.collectionVariables.get('m7VarianteId'));",
+                  "const fila = (j.filas || []).find(f => f.IDVariante === vid);",
+                  "pm.test('200 existencias', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Existencia de nuevo 3 (CANCELACION repuso)', () => pm.expect(fila && fila.Existencia).to.eql(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/existencias?texto=PED-{{m7Sufijo}}&pagina=1&tamanoPagina=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "existencias"
+              ],
+              "query": [
+                {
+                  "key": "texto",
+                  "value": "PED-{{m7Sufijo}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Operador lista filtrando por CANCELADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m7Pedido2Id no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m7Pedido2Id\");",
+                  "  pm.expect(_v, \"variable m7Pedido2Id vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "const pid = Number(pm.collectionVariables.get('m7Pedido2Id'));",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('incluye el 2o pedido cancelado', () => pm.expect(j.filas.some(p => p.IDPedido === pid)).to.be.true);",
+                  "pm.test('todos CANCELADO', () => pm.expect(j.filas.every(p => p.EstadoCodigo === 'CANCELADO')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m7OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos?estado=CANCELADO&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "CANCELADO"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          }
         }
       ]
     }

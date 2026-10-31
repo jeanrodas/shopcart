@@ -8,6 +8,7 @@ import inventarioRoutes from './inventario.routes.js';
 import carritoRoutes from './carrito.routes.js';
 import cuponesRoutes from './cupones.routes.js';
 import checkoutRoutes from './checkout.routes.js';
+import pedidosRoutes from './pedidos.routes.js';
 
 const router = Router();
 
@@ -28,6 +29,8 @@ apiV1.use('/carrito', carritoRoutes);
 apiV1.use('/cupones', cuponesRoutes);
 // Checkout y pago (RF-06): cliente autenticado; liberacion de reservas por Administrador.
 apiV1.use('/checkout', checkoutRoutes);
+// Pedidos, ciclo de vida y devoluciones (RF-07).
+apiV1.use('/pedidos', pedidosRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;

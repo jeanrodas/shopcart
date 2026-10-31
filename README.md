@@ -105,6 +105,7 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `015_Catalogo_EstadosPedido.sql` | Estados de pedido y transiciones permitidas; base del ciclo de vida (RF-06, RF-07). Idempotente. |
 | `016_SP_Checkout.sql` | Reserva de existencia, checkout en dos pasos, pago simulado idempotente y creacion de pedido (RF-06): `SP_Inventario_ReservarExistencia`, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido`, `SP_Checkout_LiberarReservasVencidas`. |
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001`: cambia la unicidad del token de invitado a un indice unico filtrado para tolerar multiples NULL (RF-06). |
+| `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
 
 ```bash
@@ -129,6 +130,8 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/015_Catalogo_EstadosPedido.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/016_SP_Checkout.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/017_Migracion_CarritoTokenUnico.sql
+# M7 (RF-07): pedidos, ciclo de vida y devoluciones.
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/018_SP_Pedidos.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -491,9 +494,68 @@ incluso desde `dbo` o un SP.
   `UX_Carrito_TokenInvitado ... WHERE TokenInvitado IS NOT NULL`: la unicidad aplica solo a
   tokens reales y los NULL quedan sin restringir (misma tecnica que `UX_Carrito_UsuarioActivo`).
 
+### Pedidos y devoluciones (M7, RF-07)
+
+Ciclo de vida del pedido gobernado por el grafo de `dbo.TransicionEstadoPedido` (`015`).
+El pedido nace en `PAGADO` (lo crea el checkout de M6) y solo avanza por transiciones
+permitidas:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PAGADO: pago aprobado (M6)
+    PAGADO --> EN_PREPARACION: Operador / Admin
+    EN_PREPARACION --> DESPACHADO: Operador / Admin
+    DESPACHADO --> ENTREGADO: Operador / Admin
+    PAGADO --> CANCELADO: Cliente dueno / Operador / Admin
+    EN_PREPARACION --> CANCELADO: Cliente dueno / Operador / Admin
+    ENTREGADO --> DEVUELTO: solo via devolucion (Operador / Admin)
+    CANCELADO --> [*]
+    DEVUELTO --> [*]
+```
+
+**Quien puede cada transicion** (lo valida `SP_Pedidos_CambiarEstado` con el rol que le
+pasa la API; el `Administrador` hereda lo del `Operador`):
+
+| Transicion | Cliente (dueno) | Operador | Administrador |
+|------------|:---------------:|:--------:|:-------------:|
+| PAGADO -> EN_PREPARACION | no | si | si |
+| EN_PREPARACION -> DESPACHADO | no | si | si |
+| DESPACHADO -> ENTREGADO | no | si | si |
+| PAGADO -> CANCELADO | si | si | si |
+| EN_PREPARACION -> CANCELADO | si | si | si |
+| ENTREGADO -> DEVUELTO | — (solo via devolucion) | si | si |
+
+- **Cancelacion.** Solo desde `PAGADO` o `EN_PREPARACION`. Por cada linea se registra un
+  movimiento `CANCELACION` (+Cantidad) via `SP_Inventario_RegistrarMovimiento`
+  (`@OrigenInterno = 1`), en `IDVariante` ascendente con las variantes pre-bloqueadas
+  (`UPDLOCK, HOLDLOCK`) antes del bucle, de modo que la existencia se repone. El cliente
+  solo puede cancelar SU pedido (ownership validado en el SP; `404` uniforme si es ajeno).
+- **Devolucion.** Solo desde `ENTREGADO`, por `Operador`/`Administrador`. Las lineas llegan
+  en el TVP `dbo.TVP_DevolucionLinea`. Se valida pertenencia al pedido, cantidad > 0, sin
+  lineas repetidas y `Cantidad + CantidadDevuelta <= Cantidad` vendida (`422` con el SKU en
+  el mensaje). Se inserta `Devolucion` (`MontoReintegrado = Σ MontoLinea`, con
+  `MontoLinea = ROUND(TotalLinea * Cantidad / CantidadVendida, 2)`), se acumula
+  `PedidoDetalle.CantidadDevuelta` y se repone inventario con movimientos `DEVOLUCION`
+  (+Cantidad), mismo patron de pre-bloqueo ascendente. Todo en una sola transaccion.
+- **Respaldo en BD.** El trigger `TR_Pedido_TransicionValida` rechaza (`50409`) cualquier
+  `UPDATE` directo de `Pedido` que cambie el estado a un par no presente en el grafo; no
+  afecta a la creacion ni a updates que no cambian el estado.
+
+Tres decisiones de M7:
+
+- **Cancelar devuelve el uso del cupon.** Si el pedido tenia cupon, al cancelar se hace
+  `UsosActuales - 1` (nunca por debajo de 0) y se borra su fila de `CuponUso`, para que el
+  cliente pueda volver a usarlo. El reembolso del pago es simulado: solo se documenta, no
+  hay tabla de reembolsos.
+- **Las devoluciones las registra Operador/Administrador**, nunca el cliente: evita que el
+  comprador se auto-acredite reintegros. El cliente consulta el estado resultante.
+- **`DEVUELTO` solo cuando TODAS las lineas estan devueltas por completo.** Una devolucion
+  parcial deja el pedido en `ENTREGADO` (con la `CantidadDevuelta` acumulada); solo cuando
+  ninguna linea tiene unidades pendientes el pedido transiciona `ENTREGADO -> DEVUELTO`.
+
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5 y M6.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6 y M7.
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -501,17 +563,21 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    `http://localhost:3000`.
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
-   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout**.
+   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout** ->
+   **M7 Pedidos**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   los scripts `001`-`016` y `099` en SQL Server (en el orden del bloque anterior:
-   `013`/`014` antes de reaplicar `012`, y `004`/`015`/`016` para M6). La carpeta
-   **M4 Carrito** toma el `idVariante` y el disponible del catalogo publico (sin IDs
-   fijos) y es repetible. La carpeta **M5 Cupones** prepara el carrito del cliente con
+   los scripts `001`-`018` y `099` en SQL Server (en el orden del bloque anterior:
+   `013`/`014` antes de reaplicar `012`, y `004`/`015`/`016`/`017` para M6, `018` para M7).
+   La carpeta **M4 Carrito** toma el `idVariante` y el disponible del catalogo publico (sin
+   IDs fijos) y es repetible. La carpeta **M5 Cupones** prepara el carrito del cliente con
    una variante de Lubricantes y deja `LUB50` aplicado al terminar. La carpeta
    **M6 Checkout** prepara su propio carrito, inicia el checkout, prueba el pago sin
    `Idempotency-Key` (400), un pago rechazado (402), uno aprobado (201) y su replay
-   (201, `replay: true`), y genera las claves de idempotencia con `{{$guid}}`.
+   (201, `replay: true`), y genera las claves de idempotencia con `{{$guid}}`. La carpeta
+   **M7 Pedidos** es repetible (sufijo por corrida): crea una variante con stock, un pedido
+   via M6 y recorre todo el ciclo de vida, la cancelacion y las devoluciones (parcial y
+   total), verificando que el inventario se reponga.
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.

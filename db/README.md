@@ -26,6 +26,7 @@ script es idempotente o pensado para una instancia nueva, segun su rol:
 | `015_Catalogo_EstadosPedido.sql` | Estados de pedido (`EstadoPedido`) y transiciones permitidas (`TransicionEstadoPedido`) que gobiernan el ciclo de vida del pedido (RF-06, base de RF-07). Idempotente por codigo y por par origen/destino. |
 | `016_SP_Checkout.sql` | Checkout y pago (RF-06): `SP_Inventario_ReservarExistencia` (interno), `SP_Checkout_Iniciar`, `SP_Checkout_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente con replay) y `SP_Checkout_LiberarReservasVencidas` (job). Usa `SP_Inventario_RegistrarMovimiento` (`@OrigenInterno = 1`) para el kardex. |
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001` (RF-06): reemplaza `UQ_Carrito_TokenInvitado` (UNIQUE admite un solo NULL, rompia el segundo carrito de usuario) por el indice unico filtrado `UX_Carrito_TokenInvitado ... WHERE TokenInvitado IS NOT NULL`. Idempotente. |
+| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): `SP_Pedidos_CambiarEstado` (transiciones del grafo de `015` + cancelacion que repone inventario y devuelve el uso del cupon), `SP_Pedidos_RegistrarDevolucion` (TVP `TVP_DevolucionLinea`; parcial o total), `SP_Pedidos_Obtener`, `SP_Pedidos_Listar` y el trigger `TR_Pedido_TransicionValida`. Usa `SP_Inventario_RegistrarMovimiento` (CANCELACION/DEVOLUCION, `@OrigenInterno = 1`). |
 | `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP; cupones de M5). Crece con cada modulo; se aplica al final. |
 
 La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
@@ -44,6 +45,10 @@ numero disponible. **No se reutilizan ni reordenan numeros ya publicados.**
 > presentes. Tambien se aplica `017`, migracion de modelo que corrige la unicidad
 > del token de invitado (ver tabla). Orden de M6:
 > **004 -> 011 -> 015 -> 016 -> 017 -> 099 (si cambio)**.
+>
+> **M7.** Se aplica `018` (pedidos, ciclo de vida y devoluciones) despues de `017`. Usa
+> los estados de `015`, `SP_Inventario_RegistrarMovimiento` (011) y las tablas de pedido
+> del `001`, todos ya presentes. Orden de M7: **018 -> 099 (si cambio)**.
 
 ## Como aplicarlos
 
@@ -72,6 +77,8 @@ sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 015_Catalogo_EstadosPedido.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 016_SP_Checkout.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 017_Migracion_CarritoTokenUnico.sql
+# M7 (RF-07): pedidos, ciclo de vida y devoluciones.
+sqlcmd -S localhost -U sa -P "<password>" -i 018_SP_Pedidos.sql
 sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
 ```
 
