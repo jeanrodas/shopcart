@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { logger } from '../config/logger.js';
 import { liberarVencidas } from '../services/checkout.service.js';
 
 let timer: NodeJS.Timeout | null = null;
@@ -8,18 +9,18 @@ async function ejecutar(): Promise<void> {
   // Si la corrida anterior sigue viva (p. ej. base lenta), esta se salta para no
   // solaparse.
   if (enEjecucion) {
-    console.log('[job:reservas] corrida anterior en curso; se omite este ciclo');
+    logger.debug('[job:reservas] corrida anterior en curso; se omite este ciclo');
     return;
   }
   enEjecucion = true;
   try {
     const { liberadas } = await liberarVencidas();
     if (liberadas > 0) {
-      console.log(`[job:reservas] ${liberadas} reserva(s) vencida(s) liberada(s)`);
+      logger.info(`[job:reservas] ${liberadas} reserva(s) vencida(s) liberada(s)`);
     }
   } catch (err) {
     // El job nunca tumba el proceso: solo registra el error.
-    console.error('[job:reservas] error al liberar reservas vencidas:', err);
+    logger.error({ err }, '[job:reservas] error al liberar reservas vencidas');
   } finally {
     enEjecucion = false;
   }
@@ -33,7 +34,7 @@ export function iniciarJobReservas(): void {
   timer = setInterval(() => void ejecutar(), env.RESERVA_JOB_SEGUNDOS * 1000);
   // No mantiene vivo el event loop por si solo (apagado limpio).
   timer.unref?.();
-  console.log(`[job:reservas] activo cada ${env.RESERVA_JOB_SEGUNDOS}s`);
+  logger.info(`[job:reservas] activo cada ${env.RESERVA_JOB_SEGUNDOS}s`);
 }
 
 /** Detiene el job (apagado). */

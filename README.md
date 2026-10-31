@@ -62,6 +62,7 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 |----------|-------------|---------|
 | `NODE_ENV` | Entorno de ejecucion | `development` |
 | `PORT` | Puerto HTTP de la API | `3000` |
+| `LOG_LEVEL` | Nivel de log de pino (`trace`..`fatal`, `silent`) | `info` |
 | `DB_SERVER` | Host de SQL Server | `localhost` |
 | `DB_PORT` | Puerto de SQL Server | `1433` |
 | `DB_NAME` | Nombre de la base de datos | `ShopCart` |
@@ -106,6 +107,7 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `016_SP_Checkout.sql` | Reserva de existencia, checkout en dos pasos, pago simulado idempotente y creacion de pedido (RF-06): `SP_Inventario_ReservarExistencia`, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido`, `SP_Checkout_LiberarReservasVencidas`. |
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001`: cambia la unicidad del token de invitado a un indice unico filtrado para tolerar multiples NULL (RF-06). |
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
+| `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
 | `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
 
 ```bash
@@ -132,6 +134,8 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/016_SP_Checkout.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/017_Migracion_CarritoTokenUnico.sql
 # M7 (RF-07): pedidos, ciclo de vida y devoluciones.
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/018_SP_Pedidos.sql
+# M8 (RF-09): bitacora de auditoria (triggers + consulta).
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/019_Bitacora.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -553,9 +557,71 @@ Tres decisiones de M7:
   parcial deja el pedido en `ENTREGADO` (con la `CantidadDevuelta` acumulada); solo cuando
   ninguna linea tiene unidades pendientes el pedido transiciona `ENTREGADO -> DEVUELTO`.
 
+### Bitacora de auditoria (M8, RF-09)
+
+Toda creacion, modificacion o desactivacion en productos, precios, existencias, cupones y
+estados de pedido queda registrada en `dbo.Bitacora` con usuario, fecha, entidad, accion
+(`CREAR` / `MODIFICAR` / `DESACTIVAR`), valor anterior y valor nuevo. La auditoria **no**
+vive en el backend: la producen **triggers** `AFTER` set-based (sin cursores) definidos en
+`019_Bitacora.sql`, de modo que cualquier escritura queda registrada aunque no pase por un
+SP concreto.
+
+| Trigger | Tabla | Modulo | Que registra |
+|---------|-------|--------|--------------|
+| `TR_Producto_Bitacora` | `Producto` | `CATALOGO` | `INSERT` -> `CREAR`; `UPDATE` -> `MODIFICAR`, salvo `Activo 1->0` -> `DESACTIVAR`. |
+| `TR_Variante_Bitacora` | `Variante` | `CATALOGO` | Igual; el JSON incluye el precio (anterior y nuevo). |
+| `TR_Kardex_Bitacora` | `Kardex` | `INVENTARIO` | `INSERT` -> `CREAR`; `ValorNuevo` = JSON del movimiento. |
+| `TR_Cupon_Bitacora` | `Cupon` | `CUPONES` | `CREAR` / `MODIFICAR` / `DESACTIVAR`. |
+| `TR_PedidoHistorialEstado_Bitacora` | `PedidoHistorialEstado` | `PEDIDOS` | `CREAR` (sin estado anterior) o `MODIFICAR`; `IDEntidad = IDPedido`. |
+
+- **Como llega el usuario (SESSION_CONTEXT).** Todo SP que escribe fija, como primera
+  instruccion, `sp_set_session_context @key = N'IDUsuario'` con el `@IDUsuarioEjecuta`. Los
+  triggers lo leen con `TRY_CAST(SESSION_CONTEXT(N'IDUsuario') AS INT)` (queda `NULL` si no
+  hay actor, p. ej. el job de reservas, que ademas no escribe tablas auditadas).
+- **La existencia se audita por Kardex, no por Variante.** `Variante.Existencia` solo la
+  mueve `SP_Inventario_RegistrarMovimiento`, que ademas deja la fila de `Kardex` con su
+  motivo y existencia resultante. Por eso `TR_Variante_Bitacora` **omite** los cambios que
+  solo tocan `Existencia`: duplicarlos en `CATALOGO` seria ruido; la trazabilidad del stock
+  esta completa en `INVENTARIO`. Por la misma razon `TR_Cupon_Bitacora` omite el cambio que
+  solo mueve `UsosActuales` (consumo del checkout o devolucion del uso al cancelar): no es
+  un cambio de gestion del cupon.
+- **JSON de valores.** `ValorAnterior`/`ValorNuevo` son JSON compacto
+  (`FOR JSON PATH, WITHOUT_ARRAY_WRAPPER`) con las columnas de negocio relevantes (excluye
+  `Fecha*` y hashes). La excepcion es `PEDIDOS`, donde se guarda el **codigo** del estado
+  anterior y del nuevo (p. ej. `PAGADO` -> `EN_PREPARACION`).
+- **Inmutabilidad en 3 capas.** (1) `DENY UPDATE, DELETE` a `shopcart_app` (`003`); (2) el
+  trigger `TR_Bitacora_Inmutable` `INSTEAD OF UPDATE, DELETE` lanza `50403` para cualquier
+  principal, incluso `dbo`; (3) ningun SP hace `UPDATE`/`DELETE` sobre `dbo.Bitacora`. Los
+  triggers de auditoria solo hacen `INSERT`.
+- **Consulta (solo Administrador).** `GET /api/v1/bitacora` (`SP_Bitacora_Consultar`) con
+  filtros opcionales (`modulo`, `entidad`, `idEntidad`, `idUsuario`, `accion`, `desde`,
+  `hasta`) y paginacion (`pagina`, `tamano`); devuelve las filas (con el correo/nombre del
+  usuario) y el total, ordenadas por fecha descendente. `GET /api/v1/bitacora/modulos`
+  (`SP_Bitacora_Modulos`) lista los modulos presentes para alimentar el filtro.
+
+## Logs
+
+La API usa [pino](https://getpino.io) (`api/src/config/logger.ts`). El `logger` emite JSON
+en todos los entornos; solo con `NODE_ENV=development` la salida es legible
+(`pino-pretty`). El nivel lo fija `LOG_LEVEL` (default `info`).
+
+- **Una linea por request.** `pino-http` registra metodo, url (sin query string), status,
+  duracion (ms) y `requestId` (el mismo que acuna `requestContext` y viaja en
+  `X-Request-Id`). Se omite `/health`.
+- **Nunca se registran** los headers `Authorization`, `X-Cart-Token` ni `Idempotency-Key`,
+  ni los cuerpos ni la query (los serializadores solo exponen metodo, ruta y status; esos
+  headers ademas estan en la lista de `redact`).
+- **Errores.** El `errorHandler` registra los `5xx` como `error` (con stack) y los `4xx`
+  como `warn` (sin stack), ambos con el `code` y el `requestId`.
+
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6 y M7.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6, M7 y M8.
+
+> Para correr la **coleccion completa** de una sola pasada con el Collection Runner conviene
+> arrancar la API con `RATE_LIMIT_AUTH_MAX=100` y `RATE_LIMIT_CHECKOUT_MAX=100`: con los
+> valores por defecto (10 y 20) los multiples logins y checkouts de las carpetas acumuladas
+> hacen saltar el limitador (`429`).
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -564,7 +630,7 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
    **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout** ->
-   **M7 Pedidos**.
+   **M7 Pedidos** -> **M8 Bitacora**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
    los scripts `001`-`018` y `099` en SQL Server (en el orden del bloque anterior:
@@ -577,7 +643,14 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    (201, `replay: true`), y genera las claves de idempotencia con `{{$guid}}`. La carpeta
    **M7 Pedidos** es repetible (sufijo por corrida): crea una variante con stock, un pedido
    via M6 y recorre todo el ciclo de vida, la cancelacion y las devoluciones (parcial y
-   total), verificando que el inventario se reponga.
+   total), verificando que el inventario se reponga. La carpeta **M8 Bitacora** es repetible
+   (sufijo por corrida): el admin crea producto/variante, cambia el precio y desactiva el
+   producto; crea y desactiva un cupon; el operador registra una entrada de inventario; se
+   corre un pedido completo via checkout y el operador lo avanza a `EN_PREPARACION`. Luego
+   consulta `GET /bitacora` por modulo (`CATALOGO`, `INVENTARIO`, `CUPONES`, `PEDIDOS`),
+   verifica las acciones, el usuario (por correo) y el JSON de valores, que un modulo
+   inexistente responde `200` con 0 filas, que `GET /bitacora/modulos` incluye los cuatro
+   modulos, y que el cliente y el operador reciben `403` al consultar la bitacora.
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.

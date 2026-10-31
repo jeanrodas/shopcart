@@ -504,6 +504,7 @@ export const openapiDocument = {
     { name: 'Cupones', description: 'Cupones y promociones: gestion (Administrador) y aplicacion al carrito (Cliente) (RF-05)' },
     { name: 'Checkout', description: 'Checkout y pago: reserva de existencia, pago simulado idempotente y creacion de pedido (RF-06)' },
     { name: 'Pedidos', description: 'Ciclo de vida del pedido, cancelacion y devoluciones (RF-07)' },
+    { name: 'Bitacora', description: 'Auditoria inmutable: consulta por Administrador con filtro por modulo (RF-09)' },
   ],
   components: {
     securitySchemes: {
@@ -1940,6 +1941,82 @@ export const openapiDocument = {
           '404': errRef,
           '409': errRef,
           '422': errRef,
+        },
+      },
+    },
+
+    '/api/v1/bitacora': {
+      get: {
+        tags: ['Bitacora'],
+        summary: 'Consultar la bitacora de auditoria (Administrador)',
+        description:
+          'Lista las entradas de auditoria (RF-09) con filtros opcionales y paginacion. Cada ' +
+          'entrada trae modulo, entidad, accion, valor anterior/nuevo (JSON para catalogo, ' +
+          'inventario y cupones; codigo de estado para pedidos), usuario y fecha. Solo lectura ' +
+          'e inmutable. Recordsets: filas + total.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'modulo', in: 'query', schema: { type: 'string', example: 'CATALOGO' } },
+          { name: 'entidad', in: 'query', schema: { type: 'string', example: 'Producto' } },
+          { name: 'idEntidad', in: 'query', schema: { type: 'integer' } },
+          { name: 'idUsuario', in: 'query', schema: { type: 'integer' } },
+          { name: 'accion', in: 'query', schema: { type: 'string', enum: ['CREAR', 'MODIFICAR', 'DESACTIVAR'] } },
+          { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de entradas de bitacora',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      IDBitacora: { type: 'integer' },
+                      Modulo: { type: 'string', example: 'CATALOGO' },
+                      Entidad: { type: 'string', example: 'Variante' },
+                      IDEntidad: { type: 'integer' },
+                      Accion: { type: 'string', enum: ['CREAR', 'MODIFICAR', 'DESACTIVAR'] },
+                      ValorAnterior: { type: 'string', nullable: true },
+                      ValorNuevo: { type: 'string', nullable: true },
+                      IDUsuario: { type: 'integer', nullable: true },
+                      UsuarioCorreo: { type: 'string', nullable: true },
+                      UsuarioNombre: { type: 'string', nullable: true },
+                      Fecha: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+                total: { type: 'integer' },
+                pagina: { type: 'integer' },
+                tamano: { type: 'integer' },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/bitacora/modulos': {
+      get: {
+        tags: ['Bitacora'],
+        summary: 'Listar los modulos presentes en la bitacora (Administrador)',
+        description: 'Devuelve la lista distinta de modulos para alimentar el filtro por modulo.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Modulos distintos',
+            ...jsonBody({ type: 'array', items: { type: 'string', example: 'CATALOGO' } }),
+          },
+          '401': errRef,
+          '403': errRef,
         },
       },
     },

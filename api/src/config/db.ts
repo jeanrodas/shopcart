@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { env } from './env.js';
+import { logger } from './logger.js';
 
 const config: sql.config = {
   server: env.DB_SERVER,
@@ -28,7 +29,7 @@ export async function getPool(): Promise<sql.ConnectionPool> {
 
   const candidate = new sql.ConnectionPool(config);
   candidate.on('error', (err: unknown) => {
-    console.error('[db] error en el pool de conexiones:', err);
+    logger.error({ err }, '[db] error en el pool de conexiones');
   });
 
   connecting = candidate
