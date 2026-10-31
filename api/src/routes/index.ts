@@ -9,6 +9,7 @@ import carritoRoutes from './carrito.routes.js';
 import cuponesRoutes from './cupones.routes.js';
 import checkoutRoutes from './checkout.routes.js';
 import pedidosRoutes from './pedidos.routes.js';
+import bitacoraRoutes from './bitacora.routes.js';
 
 const router = Router();
 
@@ -31,6 +32,8 @@ apiV1.use('/cupones', cuponesRoutes);
 apiV1.use('/checkout', checkoutRoutes);
 // Pedidos, ciclo de vida y devoluciones (RF-07).
 apiV1.use('/pedidos', pedidosRoutes);
+// Bitacora de auditoria (RF-09): consulta por Administrador.
+apiV1.use('/bitacora', bitacoraRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;

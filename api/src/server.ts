@@ -1,6 +1,7 @@
 import { env } from './config/env.js';
 import app from './app.js';
 import { getPool, closePool } from './config/db.js';
+import { logger } from './config/logger.js';
 import { iniciarJobReservas, detenerJobReservas } from './jobs/liberarReservas.js';
 
 async function main(): Promise<void> {
@@ -8,14 +9,14 @@ async function main(): Promise<void> {
   await getPool();
 
   const server = app.listen(env.PORT, () => {
-    console.log(`[server] ShopCart API escuchando en el puerto ${env.PORT} (${env.NODE_ENV})`);
+    logger.info(`[server] ShopCart API escuchando en el puerto ${env.PORT} (${env.NODE_ENV})`);
   });
 
   // Job de liberacion de reservas vencidas (arranca tras escuchar).
   iniciarJobReservas();
 
   const shutdown = async (signal: string): Promise<void> => {
-    console.log(`[server] ${signal} recibido, cerrando...`);
+    logger.info(`[server] ${signal} recibido, cerrando...`);
     detenerJobReservas();
     server.close();
     await closePool();
@@ -27,6 +28,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('[server] Fallo al iniciar el servidor:', err);
+  logger.error({ err }, '[server] Fallo al iniciar el servidor');
   process.exit(1);
 });

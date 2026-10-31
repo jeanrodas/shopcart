@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { logger } from './logger.js';
 
 dotenv.config();
 
@@ -68,7 +69,7 @@ if (!parsed.success) {
   const detalles = parsed.error.issues
     .map((issue) => `  - ${issue.path.join('.') || '(raiz)'}: ${issue.message}`)
     .join('\n');
-  console.error(
+  logger.error(
     '\n[config] No se pudo iniciar: variables de entorno invalidas o faltantes.\n' +
       'Copie api/.env.example a api/.env y complete los valores.\n' +
       `Problemas detectados:\n${detalles}\n`,

@@ -196,6 +196,62 @@
     {
       "key": "m7Pedido2Id",
       "value": ""
+    },
+    {
+      "key": "m8Sufijo",
+      "value": ""
+    },
+    {
+      "key": "m8K1",
+      "value": ""
+    },
+    {
+      "key": "m8AdminToken",
+      "value": ""
+    },
+    {
+      "key": "m8OperadorToken",
+      "value": ""
+    },
+    {
+      "key": "m8ClienteToken",
+      "value": ""
+    },
+    {
+      "key": "m8CategoriaId",
+      "value": ""
+    },
+    {
+      "key": "m8ProductoId",
+      "value": ""
+    },
+    {
+      "key": "m8VarianteId",
+      "value": ""
+    },
+    {
+      "key": "m8CuponId",
+      "value": ""
+    },
+    {
+      "key": "m8KardexId",
+      "value": ""
+    },
+    {
+      "key": "m8DireccionId",
+      "value": ""
+    },
+    {
+      "key": "m8PedProductoId",
+      "value": ""
+    },
+    {
+      "key": "m8PedVarianteId",
+      "value": ""
+    },
+    {
+      "key": "m8PedidoId",
+      "value": ""
     }
   ],
   "item": [
@@ -7576,6 +7632,1661 @@
                 {
                   "key": "tamanoPagina",
                   "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "M8 Bitacora",
+      "item": [
+        {
+          "name": "Setup: Login admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Primer request de M8: sufijo unico y clave de idempotencia de la corrida.",
+                  "const s = Date.now().toString(36);",
+                  "pm.collectionVariables.set('m8Sufijo', s);",
+                  "pm.collectionVariables.set('m8K1', 'm8key-' + s + '-0001');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('m8AdminToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: Login operador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('m8OperadorToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Setup: Login cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login cliente', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('m8ClienteToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"cliente@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: crear categoria (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 categoria creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDCategoria) pm.collectionVariables.set('m8CategoriaId', j.IDCategoria);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Bitacora {{m8Sufijo}}\",\n  \"descripcion\": \"Categoria M8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: crear producto (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8CategoriaId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8CategoriaId\");",
+                  "  pm.expect(_v, \"variable m8CategoriaId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 producto creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDProducto) pm.collectionVariables.set('m8ProductoId', j.IDProducto);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idCategoria\": \"{{m8CategoriaId}}\",\n  \"nombre\": \"Producto M8 {{m8Sufijo}}\",\n  \"descripcion\": \"Creado por Postman M8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: crear variante (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8ProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8ProductoId\");",
+                  "  pm.expect(_v, \"variable m8ProductoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 variante creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.variante && j.variante.IDVariante) pm.collectionVariables.set('m8VarianteId', j.variante.IDVariante);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{m8ProductoId}}/variantes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{m8ProductoId}}",
+                "variantes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"BIT-{{m8Sufijo}}\",\n  \"precio\": 100,\n  \"atributos\": [\n    {\n      \"nombre\": \"Color\",\n      \"valor\": \"Negro\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: cambiar precio de variante (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8VarianteId\");",
+                  "  pm.expect(_v, \"variable m8VarianteId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 variante actualizada (precio cambiado)', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/variantes/{{m8VarianteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "variantes",
+                "{{m8VarianteId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"BIT-{{m8Sufijo}}\",\n  \"precio\": 150.5,\n  \"atributos\": [\n    {\n      \"nombre\": \"Color\",\n      \"valor\": \"Negro\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: desactivar producto (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8ProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8ProductoId\");",
+                  "  pm.expect(_v, \"variable m8ProductoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 producto desactivado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{m8ProductoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{m8ProductoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: crear cupon (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 cupon creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDCupon) pm.collectionVariables.set('m8CuponId', j.IDCupon);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"BIT-{{m8Sufijo}}\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 10,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2025-01-01T00:00:00.000Z\",\n  \"fechaFin\": \"2030-01-01T00:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin: desactivar cupon (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8CuponId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8CuponId\");",
+                  "  pm.expect(_v, \"variable m8CuponId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 cupon desactivado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones/{{m8CuponId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones",
+                "{{m8CuponId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador: entrada de inventario (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8VarianteId\");",
+                  "  pm.expect(_v, \"variable m8VarianteId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8Sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8Sufijo\");",
+                  "  pm.expect(_v, \"variable m8Sufijo vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 entrada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDKardex) pm.collectionVariables.set('m8KardexId', j.IDKardex);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventario/entradas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": \"{{m8VarianteId}}\",\n  \"cantidad\": 5,\n  \"motivo\": \"Entrada M8 {{m8Sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente: capturar direccion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = []; try { j = pm.response.json(); } catch (e) { j = []; }",
+                  "pm.test('200 direcciones', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const lista = Array.isArray(j) ? j : [];",
+                  "pm.test('el cliente tiene al menos una direccion', () => pm.expect(lista.length).to.be.above(0));",
+                  "if (lista.length) pm.collectionVariables.set('m8DireccionId', lista[0].IDDireccion);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente: vaciar carrito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 carrito vaciado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente: quitar cupon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 cupon quitado (sin error si no habia)', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente: buscar producto disponible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 busqueda', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = (j.filas || []).filter(p => p.HayDisponible === true);",
+                  "pm.test('hay producto disponible', () => pm.expect(filas.length).to.be.above(0));",
+                  "if (filas.length) pm.collectionVariables.set('m8PedProductoId', filas[0].IDProducto);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?soloDisponibles=true&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "soloDisponibles",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente: capturar variante disponible",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8PedProductoId\");",
+                  "  pm.expect(_v, \"variable m8PedProductoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
+                  "vars.sort((a, b) => Number(b.Disponible) - Number(a.Disponible));",
+                  "pm.test('hay variante disponible', () => pm.expect(vars.length).to.be.above(0));",
+                  "if (vars.length) pm.collectionVariables.set('m8PedVarianteId', vars[0].IDVariante);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{m8PedProductoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{m8PedProductoId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente: agregar al carrito (cantidad 1)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedVarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8PedVarianteId\");",
+                  "  pm.expect(_v, \"variable m8PedVarianteId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 variante agregada', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{m8PedVarianteId}},\n  \"cantidad\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente: iniciar checkout (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8DireccionId\");",
+                  "  pm.expect(_v, \"variable m8DireccionId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 checkout iniciado', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m8DireccionId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente: pagar APROBADO (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8DireccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8DireccionId\");",
+                  "  pm.expect(_v, \"variable m8DireccionId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8K1 no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8K1\");",
+                  "  pm.expect(_v, \"variable m8K1 vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.pedido) pm.collectionVariables.set('m8PedidoId', j.pedido.IDPedido);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{m8K1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{m8DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador: avanzar a EN_PREPARACION (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8PedidoId\");",
+                  "  pm.expect(_v, \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 estado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('ahora EN_PREPARACION', () => pm.expect(j.pedido.EstadoCodigo).to.eql('EN_PREPARACION'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m8PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m8PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"EN_PREPARACION\",\n  \"comentario\": \"En preparacion M8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Bitacora CATALOGO: producto (CREAR + DESACTIVAR, admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8ProductoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8ProductoId\");",
+                  "  pm.expect(_v, \"variable m8ProductoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const acc = filas.map(f => f.Accion);",
+                  "pm.test('tiene CREAR del producto', () => pm.expect(acc).to.include('CREAR'));",
+                  "pm.test('tiene DESACTIVAR del producto', () => pm.expect(acc).to.include('DESACTIVAR'));",
+                  "pm.test('usuario = admin', () => pm.expect(filas.every(f => f.UsuarioCorreo === 'admin@shopcart.local')).to.eql(true));",
+                  "pm.test('modulo CATALOGO', () => pm.expect(filas.every(f => f.Modulo === 'CATALOGO')).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=CATALOGO&entidad=Producto&idEntidad={{m8ProductoId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "CATALOGO"
+                },
+                {
+                  "key": "entidad",
+                  "value": "Producto"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8ProductoId}}"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora CATALOGO: variante (MODIFICAR precio, admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8VarianteId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8VarianteId\");",
+                  "  pm.expect(_v, \"variable m8VarianteId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const acc = filas.map(f => f.Accion);",
+                  "pm.test('tiene CREAR de la variante', () => pm.expect(acc).to.include('CREAR'));",
+                  "pm.test('tiene MODIFICAR de la variante', () => pm.expect(acc).to.include('MODIFICAR'));",
+                  "const mod = filas.find(f => f.Accion === 'MODIFICAR');",
+                  "let va = {}, vn = {};",
+                  "try { va = JSON.parse(mod.ValorAnterior); } catch (e) {}",
+                  "try { vn = JSON.parse(mod.ValorNuevo); } catch (e) {}",
+                  "pm.test('JSON con precio anterior y nuevo distintos', () => {",
+                  "  pm.expect(Number(va.Precio)).to.eql(100);",
+                  "  pm.expect(Number(vn.Precio)).to.eql(150.5);",
+                  "});",
+                  "pm.test('usuario = admin', () => pm.expect(filas.every(f => f.UsuarioCorreo === 'admin@shopcart.local')).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=CATALOGO&entidad=Variante&idEntidad={{m8VarianteId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "CATALOGO"
+                },
+                {
+                  "key": "entidad",
+                  "value": "Variante"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8VarianteId}}"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora INVENTARIO: kardex (operador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8KardexId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8KardexId\");",
+                  "  pm.expect(_v, \"variable m8KardexId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "pm.test('una fila de kardex', () => pm.expect(filas.length).to.eql(1));",
+                  "pm.test('accion CREAR', () => pm.expect(filas[0].Accion).to.eql('CREAR'));",
+                  "pm.test('usuario = operador', () => pm.expect(filas[0].UsuarioCorreo).to.eql('operador@shopcart.local'));",
+                  "let vn = {}; try { vn = JSON.parse(filas[0].ValorNuevo); } catch (e) {}",
+                  "pm.test('JSON del movimiento ENTRADA_COMPRA', () => pm.expect(vn.Tipo).to.eql('ENTRADA_COMPRA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=INVENTARIO&entidad=Kardex&idEntidad={{m8KardexId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "INVENTARIO"
+                },
+                {
+                  "key": "entidad",
+                  "value": "Kardex"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8KardexId}}"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora CUPONES: cupon (CREAR + DESACTIVAR, admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8CuponId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8CuponId\");",
+                  "  pm.expect(_v, \"variable m8CuponId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const acc = filas.map(f => f.Accion);",
+                  "pm.test('tiene CREAR del cupon', () => pm.expect(acc).to.include('CREAR'));",
+                  "pm.test('tiene DESACTIVAR del cupon', () => pm.expect(acc).to.include('DESACTIVAR'));",
+                  "pm.test('usuario = admin', () => pm.expect(filas.every(f => f.UsuarioCorreo === 'admin@shopcart.local')).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=CUPONES&entidad=Cupon&idEntidad={{m8CuponId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "CUPONES"
+                },
+                {
+                  "key": "entidad",
+                  "value": "Cupon"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8CuponId}}"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora PEDIDOS: avance PAGADO -> EN_PREPARACION (operador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m8PedidoId\");",
+                  "  pm.expect(_v, \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const avance = filas.find(f => f.ValorAnterior === 'PAGADO' && f.ValorNuevo === 'EN_PREPARACION');",
+                  "pm.test('existe avance PAGADO -> EN_PREPARACION', () => pm.expect(avance).to.not.be.undefined);",
+                  "pm.test('usuario = operador', () => pm.expect(avance && avance.UsuarioCorreo).to.eql('operador@shopcart.local'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=PEDIDOS&idEntidad={{m8PedidoId}}&accion=MODIFICAR&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "PEDIDOS"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8PedidoId}}"
+                },
+                {
+                  "key": "accion",
+                  "value": "MODIFICAR"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora modulo inexistente (200, 0 filas)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('0 filas', () => pm.expect((j.filas || []).length).to.eql(0));",
+                  "pm.test('total 0', () => pm.expect(j.total).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=INEXISTENTE&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "INEXISTENTE"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora: modulos (incluye los 4)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = []; try { j = pm.response.json(); } catch (e) { j = []; }",
+                  "pm.test('200 modulos', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const mods = Array.isArray(j) ? j : [];",
+                  "pm.test('incluye CATALOGO', () => pm.expect(mods).to.include('CATALOGO'));",
+                  "pm.test('incluye INVENTARIO', () => pm.expect(mods).to.include('INVENTARIO'));",
+                  "pm.test('incluye CUPONES', () => pm.expect(mods).to.include('CUPONES'));",
+                  "pm.test('incluye PEDIDOS', () => pm.expect(mods).to.include('PEDIDOS'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora/modulos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora",
+                "modulos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cliente a /bitacora (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 prohibido para cliente', () => pm.expect(pm.response.code).to.eql(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=CATALOGO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "CATALOGO"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Operador a /bitacora (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 prohibido para operador', () => pm.expect(pm.response.code).to.eql(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=CATALOGO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "CATALOGO"
                 }
               ]
             }

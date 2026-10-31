@@ -4,6 +4,7 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { requestContext } from './middlewares/requestContext.js';
+import { httpLogger } from './config/logger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { NotFoundError } from './errors/index.js';
 import routes from './routes/index.js';
@@ -24,6 +25,8 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(requestContext);
+// Log HTTP (una linea por request) antes de las rutas; omite /health.
+app.use(httpLogger);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
