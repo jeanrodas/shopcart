@@ -36,7 +36,9 @@ export const cartIdentity: RequestHandler = (req, _res, next) => {
 
   if (scheme === 'Bearer' && token) {
     try {
-      const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as unknown as AccessPayload;
+      const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+        algorithms: ['HS256'],
+      }) as unknown as AccessPayload;
       if (payload.rol !== ROLES.Cliente) {
         next(new ForbiddenError('El carrito es exclusivo de clientes'));
         return;

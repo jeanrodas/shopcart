@@ -140,6 +140,10 @@
     {
       "key": "m6K2",
       "value": ""
+    },
+    {
+      "key": "m1UsuarioId",
+      "value": ""
     }
   ],
   "item": [
@@ -153,12 +157,23 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "const j = pm.response.json();",
-                  "if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
-                  "if (j.refreshToken) pm.collectionVariables.set('refreshToken', j.refreshToken);",
-                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));"
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "if (pm.response.code === 201 && j.refreshToken) pm.collectionVariables.set('refreshToken', j.refreshToken);"
                 ],
                 "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Primer request de la coleccion: fija el sufijo unico de la corrida (M1).",
+                  "pm.collectionVariables.set('sufijo', Date.now().toString(36));"
+                ]
               }
             }
           ],
@@ -184,7 +199,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": \"nuevo@shopcart.local\",\n  \"contrasena\": \"Cliente123!\",\n  \"nombre\": \"Nuevo Cliente\"\n}"
+              "raw": "{\n  \"correo\": \"cliente_{{sufijo}}@shopcart.local\",\n  \"contrasena\": \"Cliente123!\",\n  \"nombre\": \"Nuevo Cliente {{sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         },
@@ -491,12 +511,43 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": \"operador2@shopcart.local\",\n  \"contrasena\": \"Operador123!\",\n  \"nombre\": \"Segundo Operador\",\n  \"idRol\": 2\n}"
+              "raw": "{\n  \"correo\": \"operador_{{sufijo}}@shopcart.local\",\n  \"contrasena\": \"Operador123!\",\n  \"nombre\": \"Operador Prueba {{sufijo}}\",\n  \"idRol\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDUsuario) pm.collectionVariables.set('m1UsuarioId', j.IDUsuario);"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Cambiar rol (usuario 4 -> Administrador)",
+          "name": "Cambiar rol (usuario de prueba -> Administrador)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -510,7 +561,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/usuarios/4/rol",
+              "raw": "{{baseUrl}}/api/v1/usuarios/{{m1UsuarioId}}/rol",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -518,18 +569,46 @@
                 "api",
                 "v1",
                 "usuarios",
-                "4",
+                "{{m1UsuarioId}}",
                 "rol"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"idRol\": 3\n}"
+              "raw": "{\n  \"idRol\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m1UsuarioId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m1UsuarioId\");",
+                  "  pm.expect(_v, \"variable m1UsuarioId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 rol cambiado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Cambiar estado (desactivar usuario 2 - Operador)",
+          "name": "Cambiar estado (desactivar usuario de prueba)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -543,7 +622,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/usuarios/2/estado",
+              "raw": "{{baseUrl}}/api/v1/usuarios/{{m1UsuarioId}}/estado",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -551,15 +630,43 @@
                 "api",
                 "v1",
                 "usuarios",
-                "2",
+                "{{m1UsuarioId}}",
                 "estado"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"activo\": false\n}"
+              "raw": "{\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m1UsuarioId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m1UsuarioId\");",
+                  "  pm.expect(_v, \"variable m1UsuarioId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 estado cambiado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -596,9 +703,10 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "const j = pm.response.json();",
-                  "if (j && j.IDDireccion) pm.collectionVariables.set('direccionId', j.IDDireccion);",
-                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));"
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('201 creado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if (pm.response.code === 201 && j.IDDireccion) pm.collectionVariables.set('direccionId', j.IDDireccion);"
                 ],
                 "type": "text/javascript"
               }
@@ -655,7 +763,21 @@
                 "{{direccionId}}"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable direccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"direccionId\");",
+                  "  pm.expect(_v, \"variable direccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Actualizar direccion",
@@ -687,7 +809,21 @@
               "mode": "raw",
               "raw": "{\n  \"alias\": \"Oficina principal\",\n  \"nombreReceptor\": \"Cliente ShopCart\",\n  \"telefono\": \"+502 5555-2222\",\n  \"linea1\": \"5a Avenida 10-20 Zona 10\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\",\n  \"codigoPostal\": \"01010\",\n  \"referencia\": \"Recepcion piso 3\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable direccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"direccionId\");",
+                  "  pm.expect(_v, \"variable direccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Desactivar direccion (baja logica)",
@@ -711,7 +847,21 @@
                 "{{direccionId}}"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable direccionId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"direccionId\");",
+                  "  pm.expect(_v, \"variable direccionId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -845,6 +995,18 @@
                 ],
                 "type": "text/javascript"
               }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable sufijo no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
+                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
             }
           ],
           "request": {
@@ -869,7 +1031,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+              "raw": "{\n  \"correo\": \"operador_{{sufijo}}@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         },
@@ -915,6 +1082,67 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reactivar usuario de prueba (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m1UsuarioId no vacia\", function () {",
+                  "  const _v = pm.collectionVariables.get(\"m1UsuarioId\");",
+                  "  pm.expect(_v, \"variable m1UsuarioId vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 reactivado', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/usuarios/{{m1UsuarioId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "usuarios",
+                "{{m1UsuarioId}}",
+                "estado"
+              ]
             }
           }
         }

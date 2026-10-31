@@ -7,7 +7,8 @@ const booleanFromString = z
   .enum(['true', 'false'], { message: "debe ser 'true' o 'false'" })
   .transform((value) => value === 'true');
 
-const envSchema = z.object({
+const envSchema = z
+  .object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
 
@@ -18,6 +19,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().min(1, 'es requerida'),
   DB_ENCRYPT: booleanFromString.default(true),
   DB_TRUST_SERVER_CERT: booleanFromString.default(false),
+  DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 
   CORS_ORIGIN: z
     .string()
@@ -41,7 +43,22 @@ const envSchema = z.object({
 
   RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_AUTH_VENTANA_MIN: z.coerce.number().int().positive().default(15),
-});
+  RATE_LIMIT_CHECKOUT_MAX: z.coerce.number().int().positive().default(20),
+
+  // Pago simulado: el backend decide el resultado. Solo desarrollo/demo; en
+  // produccion debe quedar en false (ver la validacion de abajo).
+  PAGO_SIMULADO: booleanFromString.default(false),
+  })
+  .superRefine((cfg, ctx) => {
+    if (cfg.NODE_ENV === 'production' && cfg.PAGO_SIMULADO) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['PAGO_SIMULADO'],
+        message:
+          'no puede estar activo en produccion (el pago simulado es solo para desarrollo/demo)',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

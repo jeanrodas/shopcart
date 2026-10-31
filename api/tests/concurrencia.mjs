@@ -10,6 +10,10 @@
  * admin@shopcart.local / Admin123!. Como registra 10 clientes + login admin en
  * pocos segundos, ejecute la API con RATE_LIMIT_AUTH_MAX alto (p.ej. 100); con el
  * valor por defecto (10) el limitador devolvera 429 durante el alta de clientes.
+ * El escenario (g) necesita PAGO_SIMULADO=true (si no, el backend fuerza APROBADO).
+ * Cada usuario hace a lo sumo 3 operaciones de checkout, por debajo del default
+ * RATE_LIMIT_CHECKOUT_MAX=20; si se baja ese limite, correr con
+ * RATE_LIMIT_CHECKOUT_MAX=100.
  *
  * Escenarios:
  *   (c) 10 POST /checkout/iniciar en paralelo -> 1x201 y 9x409.
@@ -17,6 +21,11 @@
  *       ambos 201, mismo NumeroPedido, exactamente uno con replay=true.
  *   (e) GET /inventario/consistencia -> consistente=true.
  *   (f) un perdedor reintenta /checkout/iniciar -> 409.
+ *   (g) pago RECHAZADO -> 402 con monto numerico; reintento APROBADO con clave
+ *       nueva -> 201 (variante y cliente dedicados).
+ *   (h) cliente B reutiliza la clave de A -> 409 sin campo pedido en el body.
+ *   (i) tras el pedido del ganador, GET /inventario/existencias de la variante
+ *       en contienda -> Existencia=0 y Reservado=0.
  */
 
 const BASE_URL = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -134,14 +143,53 @@ async function setup() {
     clientes.push({ token, idDireccion: dir.json.IDDireccion });
   }
 
-  return { adminToken, idVariante, clientes };
+  return { adminToken, idProducto, idVariante, clientes };
+}
+
+/**
+ * (g) Variante nueva con 1 unidad y un cliente dedicado: el stock del escenario de
+ * contienda ya se agoto, asi que el flujo RECHAZADO -> APROBADO necesita el suyo.
+ */
+async function prepararEscenarioRechazo(adminToken, idProducto) {
+  const sku = `CONC2-${SUFIJO}`;
+  const varr = await req('POST', `/productos/${idProducto}/variantes`, {
+    token: adminToken,
+    body: { sku, precio: 50.0, atributos: [] },
+  });
+  if (varr.status !== 201) throw new Error(`Crear variante (g): ${varr.status} ${JSON.stringify(varr.json)}`);
+  const idVariante = varr.json.variante.IDVariante;
+
+  const entrada = await req('POST', '/inventario/entradas', {
+    token: adminToken,
+    body: { idVariante, cantidad: 1, motivo: `Carga rechazo ${SUFIJO}` },
+  });
+  if (entrada.status !== 201) throw new Error(`Entrada inventario (g): ${entrada.status} ${JSON.stringify(entrada.json)}`);
+
+  const token = await registrar(`conc_g_${SUFIJO}@shopcart.local`, 'Password123', 'Cliente Rechazo');
+  const item = await req('POST', '/carrito/items', { token, body: { idVariante, cantidad: 1 } });
+  if (item.status !== 201) throw new Error(`Agregar item (g): ${item.status} ${JSON.stringify(item.json)}`);
+
+  const dir = await req('POST', '/direcciones', {
+    token,
+    body: {
+      alias: 'Casa',
+      nombreReceptor: 'Cliente Rechazo',
+      telefono: '+502 5555-0000',
+      linea1: '1a Calle 2-34 Zona 1',
+      municipio: 'Guatemala',
+      departamento: 'Guatemala',
+    },
+  });
+  if (dir.status !== 201) throw new Error(`Crear direccion (g): ${dir.status} ${JSON.stringify(dir.json)}`);
+
+  return { idVariante, token, idDireccion: dir.json.IDDireccion };
 }
 
 async function main() {
   const resultados = [];
   const check = (nombre, ok, detalle) => resultados.push({ nombre, ok, detalle });
 
-  const { adminToken, clientes } = await setup();
+  const { adminToken, idProducto, idVariante, clientes } = await setup();
 
   // (c) 10 iniciar en paralelo: 1x201, 9x409.
   const iniciar = await Promise.all(
@@ -196,6 +244,54 @@ async function main() {
     body: { idDireccion: perdedor.idDireccion },
   });
   check('(f) perdedor reintenta checkout/iniciar -> 409', reintento.status === 409, `status=${reintento.status}`);
+
+  // (g) Pago RECHAZADO -> 402 con monto numerico; reintento APROBADO con clave nueva -> 201.
+  const g = await prepararEscenarioRechazo(adminToken, idProducto);
+  const iniG = await req('POST', '/checkout/iniciar', { token: g.token, body: { idDireccion: g.idDireccion } });
+  const cuerpoG = { idDireccion: g.idDireccion, metodoPago: 'TARJETA' };
+  const rechazo = await req('POST', '/checkout/pagar', {
+    token: g.token,
+    headers: { 'Idempotency-Key': nuevaClave() },
+    body: { ...cuerpoG, simularResultado: 'RECHAZADO' },
+  });
+  const reintentoAprob = await req('POST', '/checkout/pagar', {
+    token: g.token,
+    headers: { 'Idempotency-Key': nuevaClave() },
+    body: { ...cuerpoG, simularResultado: 'APROBADO' },
+  });
+  check(
+    '(g) pago RECHAZADO -> 402 (monto numerico) y reintento APROBADO -> 201',
+    iniG.status === 201 &&
+      rechazo.status === 402 &&
+      typeof rechazo.json?.pago?.Monto === 'number' &&
+      reintentoAprob.status === 201,
+    `iniciar=${iniG.status}, rechazo=${rechazo.status}, monto=${rechazo.json?.pago?.Monto}, aprobado=${reintentoAprob.status}`,
+  );
+
+  // (h) Cliente B reutiliza la clave de A (la del ganador en (d)) -> 409 sin pedido.
+  const idxB = iniciar.findIndex((r, i) => r.status === 409 && i !== idxPerdedor);
+  const clienteB = clientes[idxB];
+  const pagoB = await req('POST', '/checkout/pagar', {
+    token: clienteB.token,
+    headers: { 'Idempotency-Key': clave },
+    body: { idDireccion: clienteB.idDireccion, metodoPago: 'TARJETA', simularResultado: 'APROBADO' },
+  });
+  check(
+    '(h) cliente B reutiliza la clave de A -> 409 sin campo pedido',
+    pagoB.status === 409 && pagoB.json?.pedido === undefined,
+    `status=${pagoB.status}, pedido=${pagoB.json?.pedido === undefined ? 'ausente' : 'presente'}`,
+  );
+
+  // (i) Tras el pedido del ganador, la variante en contienda queda en 0 / 0.
+  const ex = await req('GET', `/inventario/existencias?texto=CONC-${SUFIJO}`, { token: adminToken });
+  const fila = Array.isArray(ex.json?.filas)
+    ? ex.json.filas.find((f) => f.IDVariante === idVariante)
+    : null;
+  check(
+    '(i) inventario/existencias de la variante -> Existencia=0 y Reservado=0',
+    ex.status === 200 && fila != null && fila.Existencia === 0 && fila.Reservado === 0,
+    `status=${ex.status}, existencia=${fila?.Existencia}, reservado=${fila?.Reservado}`,
+  );
 
   return imprimir(resultados);
 }

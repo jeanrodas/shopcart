@@ -69,6 +69,7 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 | `DB_PASSWORD` | Contrasena de SQL Server | `ShopCart_Dev_2026!` |
 | `DB_ENCRYPT` | Cifrar la conexion (`true`/`false`) | `true` |
 | `DB_TRUST_SERVER_CERT` | Confiar en el certificado del servidor | `true` |
+| `DB_REQUEST_TIMEOUT_MS` | Timeout de cada request a SQL Server (ms) | `30000` |
 | `CORS_ORIGIN` | Origenes permitidos (separados por coma) | `http://localhost:5173` |
 | `JWT_ACCESS_SECRET` | Secreto del access token (min. 32 chars) | `...` |
 | `JWT_REFRESH_SECRET` | Secreto del refresh token (min. 32 chars) | `...` |
@@ -77,6 +78,8 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 | `RESERVA_MINUTOS` | Minutos de vigencia de una reserva de stock | `15` |
 | `CARRITO_ABANDONO_HORAS` | Horas para considerar un carrito abandonado | `24` |
 | `IVA_PORCENTAJE` | Porcentaje de IVA aplicado | `12` |
+| `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` |
+| `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `true` |
 
 ## Scripts de base de datos
 
@@ -377,13 +380,16 @@ incluso desde `dbo` o un SP.
   Required** (semantica HTTP del pago que no prospera), registra el `Pago` `Rechazado`,
   **no** crea pedido y **deja las reservas intactas** para poder reintentar. En replay se
   repite el mismo codigo (201 o 402), deducido de `aprobado`.
-- **Orden exacto de la transaccion aprobada.** (0) pre-bloquear las variantes del carrito
-  en `IDVariante` ascendente, (1) consumir reservas (`Estado = 'Consumida'`), (2) crear
-  `Pedido`, (3) `PedidoDetalle`, (4) un `SP_Inventario_RegistrarMovimiento` `SALIDA_VENTA`
-  por linea, (5) uso del cupon, (6) `Pago` aprobado, (7) `Carrito` `Convertido`, (8)
-  historial de estado. **Las reservas se consumen ANTES del kardex** porque
-  `SP_Inventario_RegistrarMovimiento` descuenta del disponible las reservas activas; si
-  siguieran `Activa`, la salida de venta de la misma cantidad se bloquearia a si misma.
+- **Orden exacto de la transaccion aprobada.** (0) **pre-bloquear** las variantes del
+  carrito en `IDVariante` ascendente (recorriendo `CarritoDetalle`, antes de leer totales y
+  de construir `#Lineas`), (1) leer totales y armar el snapshot (`#Lineas` con prorrateo),
+  (2) consumir reservas (`Estado = 'Consumida'`, solo vigentes; si el numero de reservas
+  consumidas no iguala las lineas del carrito -> `409`), (3) crear `Pedido`, (4)
+  `PedidoDetalle`, (5) un `SP_Inventario_RegistrarMovimiento` `SALIDA_VENTA` por linea, (6)
+  uso del cupon, (7) `Pago` aprobado, (8) `Carrito` `Convertido`, (9) historial de estado.
+  **Las reservas se consumen ANTES del kardex** porque `SP_Inventario_RegistrarMovimiento`
+  descuenta del disponible las reservas activas; si siguieran `Activa`, la salida de venta
+  de la misma cantidad se bloquearia a si misma.
 - **Orden de bloqueo anti-deadlock.** `Carrito (UPDLOCK, HOLDLOCK)` -> `Variante
   (UPDLOCK, HOLDLOCK, IDVariante ascendente)` -> `Reserva` -> `Cupon (UPDLOCK)`. En la rama
   aprobada se **pre-bloquean** primero todas las variantes del carrito en `IDVariante`
@@ -405,6 +411,13 @@ incluso desde `dbo` o un SP.
   Descuento` al centavo; las no elegibles van en 0. `TotalLinea = bruto - DescuentoLinea`.
 - **Numero de pedido legible.** `NumeroPedido = 'SC-' + FORMAT(NEXT VALUE FOR
   SEQ_Pedido_Numero, '000000')` (p.ej. `SC-000001`), con `UNIQUE`.
+- **IVA sobre el total con envio.** El costo de envio **grava IVA**: la base imponible y el
+  IVA se calculan sobre el total **con** envio, no sobre el del carrito. La formula es
+  `BaseImponible = ROUND(Total / (1 + IVA/100), 2)` e `IVA = Total - BaseImponible`, con
+  `Total = Subtotal - Descuento + CostoEnvio`. `FU_Carrito_CalcularTotales` (012) **no**
+  cambia (es del carrito, sin envio); por eso `SP_Checkout_Iniciar` y `SP_Checkout_Resumen`
+  recalculan `BaseImponible`/`IVA` sobre `TotalConEnvio` con esa misma formula (no usan los
+  de la funcion). `SP_Pedidos_CrearPedido` ya persiste el pedido con esta regla.
 - **Estados y ciclo de vida.** `015` siembra `EstadoPedido` y `TransicionEstadoPedido`.
   El pedido nace en `PAGADO` y avanza por transiciones permitidas (las aplicara M7):
 
@@ -425,17 +438,52 @@ incluso desde `dbo` o un SP.
   marca `Liberada` toda reserva `Activa` vencida (sin `session context`: actor nulo). El
   job `jobs/liberarReservas.ts` lo llama cada `RESERVA_JOB_SEGUNDOS` (default 60), loguea
   solo si libero algo y nunca tumba el proceso (errores capturados); arranca tras escuchar
-  y se detiene en el apagado. El Administrador puede dispararlo a mano con
+  y se detiene en el apagado. Una bandera `enEjecucion` evita el solapamiento: si una
+  corrida sigue viva (base lenta), la siguiente se salta ese ciclo y lo registra. El Administrador puede dispararlo a mano con
   `POST /checkout/reservas/liberar`. El disponible se lee en vivo de
   `VW_Inventario_Disponible` (existencia - reservas activas no vencidas).
 - **Prueba de concurrencia.** `api/tests/concurrencia.mjs` (Node 24 puro, solo HTTP) crea
   una variante con **1 unidad**, registra 10 clientes que compiten y verifica: 10
   `iniciar` en paralelo -> **1x201 / 9x409**; dos `pagar` del ganador con la misma clave ->
   ambos **201**, mismo `NumeroPedido`, uno con `replay`; `GET /inventario/consistencia` ->
-  `consistente: true`; un perdedor reintenta -> **409**. Se corre con la API arriba:
+  `consistente: true`; un perdedor reintenta -> **409**; un pago **RECHAZADO** -> **402** con
+  monto numerico y reintento **APROBADO** -> **201**; cliente B reutiliza la clave de A ->
+  **409** sin `pedido`; y tras el pedido la variante en contienda queda en `Existencia=0`,
+  `Reservado=0`. Se corre con la API arriba:
   `BASE_URL=http://localhost:3000 npm run test:concurrencia` (sale con codigo 1 si algun
   escenario falla). Registra 10 clientes + login admin, asi que conviene correr la API con
-  `RATE_LIMIT_AUTH_MAX` alto (p.ej. 100); con el default (10) el limitador devuelve 429.
+  `RATE_LIMIT_AUTH_MAX` alto (p.ej. 100); con el default (10) el limitador devuelve 429. El
+  escenario de rechazo requiere `PAGO_SIMULADO=true`; cada usuario hace <=3 operaciones de
+  checkout (por debajo de `RATE_LIMIT_CHECKOUT_MAX=20`), pero si se baja ese limite, correr
+  con `RATE_LIMIT_CHECKOUT_MAX=100`.
+- **Pago simulado gobernado por entorno.** `PAGO_SIMULADO` (default `false`) decide si el
+  cliente puede elegir el desenlace. Con `false`, el backend **ignora** `simularResultado`
+  del body y cobra siempre `APROBADO` (el body lo sigue aceptando para no romper Postman).
+  Si `NODE_ENV=production` y `PAGO_SIMULADO=true`, la app **no arranca**. El resultado del
+  pago siempre lo decide el servidor, nunca el cliente: al integrar una pasarela real, el SP
+  recibira el resultado ya verificado por la pasarela.
+- **Rate limiting del checkout.** `/checkout/iniciar` y `/checkout/pagar` se limitan por
+  **usuario autenticado** (no por IP, para no castigar a varios clientes tras un mismo NAT),
+  ventana de 1 minuto, maximo `RATE_LIMIT_CHECKOUT_MAX` (default 20). El exceso responde
+  **429** con el formato de error estandar `{ code: 'RATE_LIMITED', message, requestId }`.
+
+### Decisiones abiertas (M6)
+
+- **Reinicio libre de `checkout/iniciar`.** Reiniciar el checkout vuelve a reservar sin
+  limite de intentos. Se mitiga con **un solo carrito activo por usuario** (indice unico
+  filtrado) y el **rate limit** del checkout. En produccion se anadiria un backoff por
+  usuario y metricas de reservas creadas/liberadas para detectar abuso.
+- **Clave de idempotencia unica global.** `Pago.ClaveIdempotencia` es `UNIQUE` en toda la
+  tabla, no por usuario; por eso la clave de un usuario reusada por otro da **409** (y no un
+  replay ajeno). Es lo mas seguro ante colisiones, a costa de que dos usuarios no puedan
+  elegir la misma cadena. En produccion la clave la genera el cliente como UUID, asi que la
+  colision entre usuarios es despreciable; si se quisiera aislar por usuario, la unicidad
+  pasaria a `(IDUsuario, ClaveIdempotencia)`.
+- **El replay no compara el cuerpo.** Un segundo `pagar` con la misma clave devuelve el
+  resultado original **sin** verificar que el body coincida con el primero. Se asume que el
+  cliente reintenta la MISMA peticion (semantica habitual de idempotencia). En produccion se
+  guardaria un hash del cuerpo con la clave y se devolveria **422** si el reintento llega con
+  un cuerpo distinto.
 - **Correccion de modelo: unicidad del token de invitado.** En SQL Server un `UNIQUE`
   admite un solo NULL, asi que el `UQ_Carrito_TokenInvitado UNIQUE (TokenInvitado)` original
   dejaba crear un unico carrito de usuario (token NULL) y el segundo fallaba con error 2627.

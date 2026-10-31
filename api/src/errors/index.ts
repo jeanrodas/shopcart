@@ -68,6 +68,11 @@ export function mapSqlError(err: unknown): AppError {
     return new ConflictError('Violacion de integridad referencial o de restriccion');
   }
 
+  // Deadlock elegido como victima: reintentable por el cliente.
+  if (num === 1205) {
+    return new ConflictError('Conflicto de concurrencia, reintente la operacion');
+  }
+
   // THROW 50400-50499 -> status = numero - 50000 (50404 -> 404, 50409 -> 409, 50422 -> 422)
   if (typeof num === 'number' && num >= 50400 && num <= 50499) {
     const status = num - 50000;

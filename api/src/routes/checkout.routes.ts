@@ -3,6 +3,7 @@ import { validate } from '../middlewares/validate.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
 import { idempotencyKey } from '../middlewares/idempotencyKey.js';
+import { rateLimitCheckout } from '../middlewares/rateLimitCheckout.js';
 import { ROLES } from '../config/roles.js';
 import { iniciarSchema, pagarSchema } from '../schemas/checkout.schema.js';
 import {
@@ -17,9 +18,16 @@ const router = Router();
 // Checkout del cliente autenticado (Operador/Administrador no compran -> 403).
 const cliente: RequestHandler[] = [authenticate, authorize(ROLES.Cliente)];
 
-router.post('/iniciar', ...cliente, validate({ body: iniciarSchema }), postIniciar);
+router.post('/iniciar', ...cliente, rateLimitCheckout, validate({ body: iniciarSchema }), postIniciar);
 router.get('/resumen', ...cliente, getResumen);
-router.post('/pagar', ...cliente, idempotencyKey, validate({ body: pagarSchema }), postPagar);
+router.post(
+  '/pagar',
+  ...cliente,
+  rateLimitCheckout,
+  idempotencyKey,
+  validate({ body: pagarSchema }),
+  postPagar,
+);
 
 // Liberacion manual de reservas vencidas (equivale al job): solo Administrador.
 router.post(

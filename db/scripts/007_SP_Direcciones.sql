@@ -89,7 +89,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Crear
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @NuevoID INT;
@@ -141,7 +141,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Actualizar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @Owner INT, @Activo BIT;
@@ -200,7 +200,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Desactivar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @Owner INT, @Activo BIT, @Afectadas INT = 0;

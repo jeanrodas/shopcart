@@ -188,7 +188,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CrearProducto
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Categoria WHERE IDCategoria = @IDCategoria AND Activo = 1)
@@ -234,7 +234,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ActualizarProducto
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Producto WHERE IDProducto = @IDProducto)
@@ -281,7 +281,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CambiarEstadoProducto
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Producto WHERE IDProducto = @IDProducto)
@@ -333,7 +333,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CrearVariante
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @Activo BIT,
@@ -399,7 +399,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ActualizarVariante
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @SkuNorm NVARCHAR(50) = UPPER(LTRIM(RTRIM(@SKU)));
@@ -456,7 +456,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CambiarEstadoVariante
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Variante WHERE IDVariante = @IDVariante)
@@ -501,7 +501,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_AgregarImagen
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Producto WHERE IDProducto = @IDProducto)
@@ -555,7 +555,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_EliminarImagen
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @EsPrincipal BIT, @Afectadas INT = 0, @Siguiente INT;
@@ -608,7 +608,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_MarcarImagenPrincipal
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.ProductoImagen

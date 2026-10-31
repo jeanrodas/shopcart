@@ -229,7 +229,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Cupones_AplicarACarrito
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @IDCarrito INT, @NumLineas INT, @IDCupon INT,
@@ -291,7 +291,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Cupones_QuitarDeCarrito
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @IDCarrito INT;
@@ -419,7 +419,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Cupones_Crear
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @Cod NVARCHAR(30) = UPPER(LTRIM(RTRIM(@Codigo)));
@@ -474,7 +474,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Cupones_Actualizar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @Cod NVARCHAR(30) = UPPER(LTRIM(RTRIM(@Codigo)));
@@ -541,7 +541,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Cupones_CambiarEstado
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE IDCupon = @IDCupon)

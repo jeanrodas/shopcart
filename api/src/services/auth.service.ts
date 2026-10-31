@@ -56,6 +56,7 @@ function duracionAMs(valor: string): number {
 
 function emitirAccessToken(u: UsuarioTokenData): string {
   return jwt.sign({ sub: u.IDUsuario, rol: u.Rol, nombre: u.Nombre }, env.JWT_ACCESS_SECRET, {
+    algorithm: 'HS256',
     expiresIn: env.JWT_ACCESS_EXPIRES as jwt.SignOptions['expiresIn'],
   });
 }

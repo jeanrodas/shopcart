@@ -7,6 +7,7 @@ const config: sql.config = {
   database: env.DB_NAME,
   user: env.DB_USER,
   password: env.DB_PASSWORD,
+  requestTimeout: env.DB_REQUEST_TIMEOUT_MS,
   options: {
     encrypt: env.DB_ENCRYPT,
     trustServerCertificate: env.DB_TRUST_SERVER_CERT,

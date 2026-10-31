@@ -37,7 +37,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_RegistrarCliente
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     DECLARE @CorreoNorm NVARCHAR(255) = LOWER(LTRIM(RTRIM(@Correo)));
     DECLARE @IDRol INT = (SELECT IDRol FROM dbo.Rol WHERE Nombre = N'Cliente');
     DECLARE @NuevoID INT;
@@ -107,7 +107,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_RegistrarIntentoFallido
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     DECLARE @Ahora DATETIME2(0) = SYSUTCDATETIME();
     DECLARE @Max INT  = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'LOGIN_MAX_INTENTOS') AS INT), 5);
     DECLARE @Bloq INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'LOGIN_BLOQUEO_MINUTOS') AS INT), 15);
@@ -149,7 +149,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_RegistrarLoginExitoso
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     BEGIN TRY
         BEGIN TRAN;
 
@@ -183,7 +183,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_GuardarRefreshToken
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     DECLARE @NuevoID INT;
 
     BEGIN TRY
@@ -226,7 +226,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_RotarRefreshToken
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     DECLARE @Ahora DATETIME2(0) = SYSUTCDATETIME();
     DECLARE @IDRefreshToken INT, @IDUsuario INT,
             @FechaRevocado DATETIME2(0), @FechaExpira DATETIME2(0),
@@ -312,7 +312,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Auth_RevocarRefreshToken
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     DECLARE @Afectadas INT = 0;
 
     BEGIN TRY

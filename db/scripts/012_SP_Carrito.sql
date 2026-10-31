@@ -222,7 +222,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Carrito_AgregarItem
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @IDUsuario IS NULL AND @TokenInvitado IS NULL
@@ -364,7 +364,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Carrito_ActualizarItem
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @IDUsuario IS NULL AND @TokenInvitado IS NULL
@@ -462,7 +462,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Carrito_EliminarItem
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @IDUsuario IS NULL AND @TokenInvitado IS NULL
@@ -533,7 +533,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Carrito_Vaciar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @IDUsuario IS NULL AND @TokenInvitado IS NULL
@@ -607,7 +607,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Carrito_Fusionar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuario;
 
     DECLARE @Advertencias TABLE (

@@ -58,7 +58,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Inventario_RegistrarMovimiento
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @IDTipo INT, @Signo SMALLINT;

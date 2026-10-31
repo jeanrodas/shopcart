@@ -33,7 +33,9 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as unknown as AccessPayload;
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      algorithms: ['HS256'],
+    }) as unknown as AccessPayload;
     req.usuario = { id: Number(payload.sub), rol: payload.rol, nombre: payload.nombre };
     next();
   } catch (err) {

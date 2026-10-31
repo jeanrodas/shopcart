@@ -69,57 +69,70 @@ BEGIN
 
     DECLARE @Expira DATETIME2(0) = DATEADD(MINUTE, @Minutos, SYSUTCDATETIME());
 
-    -- Libera reservas previas de ESTE carrito (reinicio del checkout).
-    UPDATE dbo.Reserva
-       SET Estado = N'Liberada'
-     WHERE IDCarrito = @IDCarrito AND Estado = N'Activa';
-
     DECLARE @IDVariante INT, @Cantidad INT, @SKU NVARCHAR(50),
             @Existencia INT, @Reservado INT, @Disponible INT, @Msg NVARCHAR(300);
 
-    -- Recorrido en orden ascendente de IDVariante (anti-deadlock).
-    DECLARE lineas CURSOR LOCAL FAST_FORWARD FOR
-        SELECT cd.IDVariante, cd.Cantidad, v.SKU
-        FROM dbo.CarritoDetalle cd
-        INNER JOIN dbo.Variante v ON v.IDVariante = cd.IDVariante
-        WHERE cd.IDCarrito = @IDCarrito
-        ORDER BY cd.IDVariante;
+    -- Corre DENTRO de la transaccion del llamador (no abre la suya ni revierte). El
+    -- TRY/CATCH solo garantiza que el cursor quede cerrado y liberado si una linea
+    -- lanza (p. ej. 50409); el rollback lo decide el llamador al relanzar el THROW.
+    BEGIN TRY
+        -- Libera reservas previas de ESTE carrito (reinicio del checkout).
+        UPDATE dbo.Reserva
+           SET Estado = N'Liberada'
+         WHERE IDCarrito = @IDCarrito AND Estado = N'Activa';
 
-    OPEN lineas;
-    FETCH NEXT FROM lineas INTO @IDVariante, @Cantidad, @SKU;
+        -- Recorrido en orden ascendente de IDVariante (anti-deadlock).
+        DECLARE lineas CURSOR LOCAL FAST_FORWARD FOR
+            SELECT cd.IDVariante, cd.Cantidad, v.SKU
+            FROM dbo.CarritoDetalle cd
+            INNER JOIN dbo.Variante v ON v.IDVariante = cd.IDVariante
+            WHERE cd.IDCarrito = @IDCarrito
+            ORDER BY cd.IDVariante;
 
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        -- Bloqueo de la variante.
-        SELECT @Existencia = Existencia
-        FROM dbo.Variante WITH (UPDLOCK, HOLDLOCK)
-        WHERE IDVariante = @IDVariante;
+        OPEN lineas;
+        FETCH NEXT FROM lineas INTO @IDVariante, @Cantidad, @SKU;
 
-        -- Reservas Activa no vencidas de OTROS carritos.
-        SELECT @Reservado = ISNULL(SUM(r.Cantidad), 0)
-        FROM dbo.Reserva r
-        WHERE r.IDVariante = @IDVariante
-          AND r.Estado = N'Activa'
-          AND r.FechaExpira > SYSUTCDATETIME()
-          AND r.IDCarrito <> @IDCarrito;
-
-        SET @Disponible = @Existencia - @Reservado;
-
-        IF @Cantidad > @Disponible
+        WHILE @@FETCH_STATUS = 0
         BEGIN
-            SET @Msg = CONCAT(N'Existencia insuficiente para SKU ', @SKU,
-                              N': disponible ', @Disponible, N', solicitado ', @Cantidad);
-            THROW 50409, @Msg, 1;
+            -- Bloqueo de la variante.
+            SELECT @Existencia = Existencia
+            FROM dbo.Variante WITH (UPDLOCK, HOLDLOCK)
+            WHERE IDVariante = @IDVariante;
+
+            -- Reservas Activa no vencidas de OTROS carritos.
+            SELECT @Reservado = ISNULL(SUM(r.Cantidad), 0)
+            FROM dbo.Reserva r
+            WHERE r.IDVariante = @IDVariante
+              AND r.Estado = N'Activa'
+              AND r.FechaExpira > SYSUTCDATETIME()
+              AND r.IDCarrito <> @IDCarrito;
+
+            SET @Disponible = @Existencia - @Reservado;
+
+            IF @Cantidad > @Disponible
+            BEGIN
+                SET @Msg = CONCAT(N'Existencia insuficiente para SKU ', @SKU,
+                                  N': disponible ', @Disponible, N', solicitado ', @Cantidad);
+                THROW 50409, @Msg, 1;
+            END
+
+            INSERT dbo.Reserva (IDCarrito, IDVariante, Cantidad, Estado, FechaExpira)
+            VALUES (@IDCarrito, @IDVariante, @Cantidad, N'Activa', @Expira);
+
+            FETCH NEXT FROM lineas INTO @IDVariante, @Cantidad, @SKU;
         END
 
-        INSERT dbo.Reserva (IDCarrito, IDVariante, Cantidad, Estado, FechaExpira)
-        VALUES (@IDCarrito, @IDVariante, @Cantidad, N'Activa', @Expira);
-
-        FETCH NEXT FROM lineas INTO @IDVariante, @Cantidad, @SKU;
-    END
-
-    CLOSE lineas;
-    DEALLOCATE lineas;
+        CLOSE lineas;
+        DEALLOCATE lineas;
+    END TRY
+    BEGIN CATCH
+        IF CURSOR_STATUS('local', 'lineas') >= 0
+        BEGIN
+            CLOSE lineas;
+            DEALLOCATE lineas;
+        END;
+        THROW;
+    END CATCH
 
     -- Reservas creadas. Omitido cuando @SinResultado = 1 (el llamador las lee de
     -- dbo.Reserva), para no contaminar los result sets de salida.
@@ -148,7 +161,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Checkout_Iniciar
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @IDCarrito INT, @IDCupon INT, @NumLineas INT, @Minutos INT,
@@ -240,7 +253,10 @@ BEGIN
         @IDDireccion AS IDDireccion,
         CONCAT_WS(N', ', d.NombreReceptor, d.Telefono, d.Linea1, d.Linea2,
                          d.Municipio, d.Departamento, d.CodigoPostal, d.Referencia) AS DireccionTexto,
-        t.Subtotal, t.Descuento, t.Total, t.PorcentajeIVA, t.BaseImponible, t.IVA,
+        t.Subtotal, t.Descuento, t.Total, t.PorcentajeIVA,
+        -- IVA sobre el total CON envio (el envio grava IVA), misma formula que CrearPedido.
+        CAST(ROUND((t.Total + @CostoEnvio) / (1 + t.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS BaseImponible,
+        CAST((t.Total + @CostoEnvio) - ROUND((t.Total + @CostoEnvio) / (1 + t.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS IVA,
         t.CantidadLineas, t.CantidadUnidades,
         @CostoEnvio AS CostoEnvio,
         CAST(t.Total + @CostoEnvio AS DECIMAL(18,2)) AS TotalConEnvio,
@@ -328,7 +344,10 @@ BEGIN
         @IDCarrito AS IDCarrito,
         CAST(NULL AS INT) AS IDDireccion,
         CAST(NULL AS NVARCHAR(600)) AS DireccionTexto,
-        t.Subtotal, t.Descuento, t.Total, t.PorcentajeIVA, t.BaseImponible, t.IVA,
+        t.Subtotal, t.Descuento, t.Total, t.PorcentajeIVA,
+        -- IVA sobre el total CON envio (el envio grava IVA), misma formula que CrearPedido.
+        CAST(ROUND((t.Total + @CostoEnvio) / (1 + t.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS BaseImponible,
+        CAST((t.Total + @CostoEnvio) - ROUND((t.Total + @CostoEnvio) / (1 + t.PorcentajeIVA / 100), 2) AS DECIMAL(18,2)) AS IVA,
         t.CantidadLineas, t.CantidadUnidades,
         @CostoEnvio AS CostoEnvio,
         CAST(t.Total + @CostoEnvio AS DECIMAL(18,2)) AS TotalConEnvio,
@@ -351,6 +370,10 @@ GO
    Paso 2: cobra (pago simulado) y, si aprueba, crea el pedido. Idempotente por
    ClaveIdempotencia con replay identico. Ver el encabezado del script para el
    orden de bloqueo y las transacciones anidadas.
+
+   PAGO SIMULADO: el resultado lo decide el backend; al integrar una pasarela real,
+   el SP recibe el resultado ya verificado por la pasarela, nunca uno enviado por el
+   cliente.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_CrearPedido
     @IDUsuario         INT,
@@ -362,7 +385,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_CrearPedido
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     /* 1) Validacion de entrada. */
@@ -450,6 +473,33 @@ BEGIN
                     THROW 50422, @Causa, 1;
             END
 
+            /* (0) Pre-bloqueo de TODAS las variantes del carrito en IDVariante
+               ascendente (orden Carrito -> Variante -> Reserva -> Cupon), ANTES de
+               leer los totales, de construir #Lineas y de consumir las reservas. Se
+               recorre dbo.CarritoDetalle porque #Lineas todavia no existe. Las
+               variantes quedan retenidas hasta el COMMIT: sin esto, entre consumir la
+               reserva (que la quita del disponible) y registrar la salida, otro
+               carrito podria reservar esa unidad y el pago fallaria. */
+            DECLARE bloqueo CURSOR LOCAL FAST_FORWARD FOR
+                SELECT IDVariante FROM dbo.CarritoDetalle
+                WHERE IDCarrito = @IDCarrito ORDER BY IDVariante;
+
+            OPEN bloqueo;
+            FETCH NEXT FROM bloqueo INTO @vIDVariante;
+
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                SELECT @Dummy = Existencia
+                FROM dbo.Variante WITH (UPDLOCK, HOLDLOCK)
+                WHERE IDVariante = @vIDVariante;
+
+                FETCH NEXT FROM bloqueo INTO @vIDVariante;
+            END
+
+            CLOSE bloqueo;
+            DEALLOCATE bloqueo;
+
+            /* (1) Totales y snapshot. */
             SELECT @Subtotal = Subtotal, @Descuento = Descuento, @PorcentajeIVA = PorcentajeIVA
             FROM dbo.FU_Carrito_CalcularTotales(@IDCarrito);
 
@@ -510,33 +560,22 @@ BEGIN
                      WHERE IDVariante = (SELECT MAX(IDVariante) FROM #Lineas WHERE EsElegible = 1);
                 END
 
-                /* Pre-bloqueo de todas las variantes del carrito en IDVariante
-                   ascendente (orden Carrito -> Variante -> Reserva -> Cupon). Las
-                   variantes quedan retenidas hasta el COMMIT: sin esto, entre
-                   consumir la reserva (que la quita del disponible) y registrar la
-                   salida, otro carrito podria reservar esa unidad y el pago fallaria. */
-                DECLARE bloqueo CURSOR LOCAL FAST_FORWARD FOR
-                    SELECT IDVariante FROM #Lineas ORDER BY IDVariante;
+                /* Caso teorico de redondeo: ninguna linea puede quedar con descuento
+                   negativo (el resto absorbido por la ultima linea elegible podria, en
+                   teoria, volverla negativa). Se lleva a 0 antes del snapshot. */
+                UPDATE #Lineas SET DescuentoLinea = 0 WHERE DescuentoLinea < 0;
 
-                OPEN bloqueo;
-                FETCH NEXT FROM bloqueo INTO @vIDVariante;
-
-                WHILE @@FETCH_STATUS = 0
-                BEGIN
-                    SELECT @Dummy = Existencia
-                    FROM dbo.Variante WITH (UPDLOCK, HOLDLOCK)
-                    WHERE IDVariante = @vIDVariante;
-
-                    FETCH NEXT FROM bloqueo INTO @vIDVariante;
-                END
-
-                CLOSE bloqueo;
-                DEALLOCATE bloqueo;
-
-                /* Consumo de reservas ANTES del kardex (ver encabezado). */
+                /* (2) Consumo de reservas ANTES del kardex (ver encabezado). El
+                   pre-bloqueo de variantes (paso 0) ya dejo las variantes retenidas. */
                 UPDATE dbo.Reserva
                    SET Estado = N'Consumida'
-                 WHERE IDCarrito = @IDCarrito AND Estado = N'Activa';
+                 WHERE IDCarrito = @IDCarrito AND Estado = N'Activa'
+                   AND FechaExpira > SYSUTCDATETIME();
+
+                -- Debe consumirse exactamente una reserva vigente por cada linea del
+                -- carrito; si no coincide, alguna expiro entre iniciar y pagar.
+                IF @@ROWCOUNT <> @NumLineas
+                    THROW 50409, 'La reserva de existencia expiro; inicie el checkout de nuevo', 1;
 
                 /* Cabecera del pedido. */
                 SET @IDEstadoPagado = (SELECT IDEstadoPedido FROM dbo.EstadoPedido WHERE Codigo = N'PAGADO');
@@ -638,6 +677,16 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK;
+        IF CURSOR_STATUS('local', 'bloqueo') >= 0
+        BEGIN
+            CLOSE bloqueo;
+            DEALLOCATE bloqueo;
+        END;
+        IF CURSOR_STATUS('local', 'movs') >= 0
+        BEGIN
+            CLOSE movs;
+            DEALLOCATE movs;
+        END;
         THROW;
     END CATCH
 
@@ -648,6 +697,7 @@ BEGIN
         pg.Estado AS EstadoPago,
         pg.MensajeResultado,
         pg.ClaveIdempotencia,
+        pg.Monto,
         pg.IDPedido,
         ped.NumeroPedido,
         ep.Codigo AS EstadoPedidoCodigo,

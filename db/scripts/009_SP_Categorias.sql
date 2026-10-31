@@ -52,7 +52,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CrearCategoria
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @NuevoID INT;
@@ -92,7 +92,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ActualizarCategoria
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Categoria WHERE IDCategoria = @IDCategoria)
@@ -132,7 +132,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CambiarEstadoCategoria
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Categoria WHERE IDCategoria = @IDCategoria)

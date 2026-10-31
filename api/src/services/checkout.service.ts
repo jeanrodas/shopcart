@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
+import { env } from '../config/env.js';
 import type { PagarInput } from '../schemas/checkout.schema.js';
 
 /** Fila de resumen de checkout (recordset 1 de Iniciar/Resumen). */
@@ -29,6 +30,7 @@ interface PagoRow {
   EstadoPago: string;
   MensajeResultado: string | null;
   ClaveIdempotencia: string;
+  Monto: number | null;
   IDPedido: number | null;
   NumeroPedido: string | null;
   EstadoPedidoCodigo: string | null;
@@ -134,12 +136,16 @@ export async function pagar(
   claveIdempotencia: string,
   datos: PagarInput,
 ): Promise<ResultadoPago> {
+  // El resultado del pago lo decide el backend, nunca el cliente. Con PAGO_SIMULADO
+  // desactivado se ignora simularResultado del body y siempre se cobra APROBADO.
+  const simularResultado = env.PAGO_SIMULADO ? datos.simularResultado : 'APROBADO';
+
   const result = await executeSp('SP_Pedidos_CrearPedido', [
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
     { name: 'IDDireccion', type: sql.Int, value: datos.idDireccion },
     { name: 'ClaveIdempotencia', type: sql.NVarChar(100), value: claveIdempotencia },
     { name: 'MetodoPago', type: sql.NVarChar(30), value: datos.metodoPago },
-    { name: 'SimularResultado', type: sql.NVarChar(10), value: datos.simularResultado },
+    { name: 'SimularResultado', type: sql.NVarChar(10), value: simularResultado },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuario },
   ]);
 
@@ -157,7 +163,8 @@ export async function pagar(
       Estado: cab?.EstadoPago ?? 'Desconocido',
       MensajeResultado: cab?.MensajeResultado ?? null,
       ClaveIdempotencia: cab?.ClaveIdempotencia ?? claveIdempotencia,
-      Monto: cab?.Total ?? null,
+      // Monto intentado: un pago rechazado tambien lo reporta (no null).
+      Monto: cab?.Monto ?? null,
     },
     pedido:
       aprobado && cab

@@ -85,7 +85,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_Crear
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     DECLARE @CorreoNorm NVARCHAR(255) = LOWER(LTRIM(RTRIM(@Correo)));
@@ -133,7 +133,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_CambiarRol
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @IDUsuario = @IDUsuarioEjecuta
@@ -182,7 +182,7 @@ CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_CambiarEstado
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET XACT_ABORT ON;
     EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
 
     IF @Activo = 0 AND @IDUsuario = @IDUsuarioEjecuta
