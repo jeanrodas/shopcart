@@ -505,6 +505,7 @@ export const openapiDocument = {
     { name: 'Checkout', description: 'Checkout y pago: reserva de existencia, pago simulado idempotente y creacion de pedido (RF-06)' },
     { name: 'Pedidos', description: 'Ciclo de vida del pedido, cancelacion y devoluciones (RF-07)' },
     { name: 'Bitacora', description: 'Auditoria inmutable: consulta por Administrador con filtro por modulo (RF-09)' },
+    { name: 'Reportes', description: 'Dashboard y reportes de ventas, categorias, top productos y carritos abandonados; export a Excel (Administrador) (RF-08)' },
   ],
   components: {
     securitySchemes: {
@@ -2015,6 +2016,175 @@ export const openapiDocument = {
             description: 'Modulos distintos',
             ...jsonBody({ type: 'array', items: { type: 'string', example: 'CATALOGO' } }),
           },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/resumen': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Resumen de indicadores con comparativo (Administrador)',
+        description:
+          'Pedidos, venta neta, ticket promedio y unidades netas del periodo, mas el comparativo ' +
+          'con el periodo inmediatamente anterior de igual longitud (variaciones NULL si el anterior ' +
+          'es 0), carritos abandonados y productos bajo stock. Respuesta cacheada (header X-Cache).',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: {
+          '200': { description: 'Resumen (una fila)' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/ventas': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Ventas por periodo DIA/SEMANA/MES (Administrador)',
+        description: 'Venta neta agrupada. Rango invalido o > 366 dias / agrupacion invalida -> 400. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'agrupacion', in: 'query', required: true, schema: { type: 'string', enum: ['DIA', 'SEMANA', 'MES'] } },
+        ],
+        responses: {
+          '200': { description: 'Filas por periodo' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/categorias': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Ventas por categoria (Administrador)',
+        description: 'Unidades y monto netos por categoria en el rango, orden por monto neto. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: {
+          '200': { description: 'Filas por categoria' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/top-productos': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Top productos por unidades netas (Administrador)',
+        description: 'Los @top (1-50, default 10) productos mas vendidos por unidades netas en el rango. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'top', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 50 } },
+        ],
+        responses: {
+          '200': { description: 'Filas de productos' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/carritos-abandonados': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Carritos abandonados (Administrador)',
+        description:
+          'Carritos activos con lineas e inactividad mayor al parametro de abandono. Recordsets: filas + total. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': { description: 'Pagina de carritos abandonados' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/ventas/export': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Exportar ventas por periodo a Excel (Administrador)',
+        description: 'Descarga .xlsx (una hoja) con el reporte de ventas del rango. Respeta el tope de 366 dias.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'agrupacion', in: 'query', required: true, schema: { type: 'string', enum: ['DIA', 'SEMANA', 'MES'] } },
+        ],
+        responses: {
+          '200': {
+            description: 'Archivo .xlsx (attachment)',
+            content: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } } },
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/categorias/export': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Exportar ventas por categoria a Excel (Administrador)',
+        description: 'Descarga .xlsx con el reporte por categoria del rango.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Archivo .xlsx (attachment)',
+            content: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } } },
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/reportes/top-productos/export': {
+      get: {
+        tags: ['Reportes'],
+        summary: 'Exportar top productos a Excel (Administrador)',
+        description: 'Descarga .xlsx con el reporte de top productos del rango.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'top', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 50 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Archivo .xlsx (attachment)',
+            content: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } } },
+          },
+          '400': errRef,
           '401': errRef,
           '403': errRef,
         },

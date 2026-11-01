@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
+import { invalidarTodo } from '../utils/reportesCache.js';
 import type {
   EntradaInput,
   AjusteInput,
@@ -19,6 +20,8 @@ export async function registrarEntrada(datos: EntradaInput, actorId: number): Pr
     { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
+  // Cambia la existencia: invalida el cache de reportes (productos bajo stock).
+  invalidarTodo();
   return result.recordset[0];
 }
 
@@ -30,6 +33,7 @@ export async function registrarAjuste(datos: AjusteInput, actorId: number): Prom
     { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
+  invalidarTodo();
   return result.recordset[0];
 }
 

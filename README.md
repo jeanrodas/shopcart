@@ -80,6 +80,7 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 | `CARRITO_ABANDONO_HORAS` | Horas para considerar un carrito abandonado | `24` |
 | `IVA_PORCENTAJE` | Porcentaje de IVA aplicado | `12` |
 | `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` |
+| `REPORTES_CACHE_TTL_SEGUNDOS` | Vigencia del cache de reportes (RF-08); `0` lo desactiva | `60` |
 | `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `true` |
 
 ## Scripts de base de datos
@@ -108,6 +109,7 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001`: cambia la unicidad del token de invitado a un indice unico filtrado para tolerar multiples NULL (RF-06). |
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
+| `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
 | `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
 
 ```bash
@@ -136,6 +138,8 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/017_Migracion_CarritoTok
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/018_SP_Pedidos.sql
 # M8 (RF-09): bitacora de auditoria (triggers + consulta).
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/019_Bitacora.sql
+# M9 (RF-08): dashboard y reportes (vistas + SPs + indice de apoyo). Requiere SQL Server 2022.
+sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/020_Reportes.sql
 sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 ```
 
@@ -599,6 +603,86 @@ SP concreto.
   usuario) y el total, ordenadas por fecha descendente. `GET /api/v1/bitacora/modulos`
   (`SP_Bitacora_Modulos`) lista los modulos presentes para alimentar el filtro.
 
+### Dashboard y reportes (M9, RF-08)
+
+Reportes de ventas para el Administrador, calculados en SQL sobre dos vistas y consumidos
+por `GET /api/v1/reportes/*`.
+
+**Reglas y formulas.**
+
+- **Pedido completado** = estado distinto de `CANCELADO` (incluye `DEVUELTO`, que cuenta
+  con su devolucion descontada).
+- **Las devoluciones se descuentan:** venta neta del pedido = `Total - SUM(MontoReintegrado)`;
+  unidades netas de linea = `Cantidad - CantidadDevuelta`; monto neto de linea =
+  `ROUND(TotalLinea * (Cantidad - CantidadDevuelta) / Cantidad, 2)`.
+- **Periodos en UTC** por `Pedido.FechaCreacion`. **Ticket promedio** = venta neta / pedidos
+  completados del periodo.
+- **Carrito abandonado** = `Estado = 'Activo'`, >= 1 linea y `FechaUltimaActividad` anterior a
+  `ahora - CARRITO_ABANDONO_HORAS` (parametro). **Productos bajo stock** =
+  `VW_Inventario_Disponible.Disponible <= STOCK_MINIMO` (parametro).
+- El listado de pedidos con filtros ya lo cubre `GET /pedidos` (M7): no se duplica.
+
+**Vistas y SPs (`020_Reportes.sql`).** `VW_Reportes_PedidoNeto` (venta neta por pedido) y
+`VW_Reportes_LineaNeta` (unidades/monto netos por linea) aislan la regla de devoluciones.
+Encima: `SP_Reportes_VentasPorPeriodo` (agrupa por `DIA`/`SEMANA`/`MES` con `DATETRUNC` de
+SQL Server 2022; semana con `DATEFIRST 1`), `SP_Reportes_VentasPorCategoria`,
+`SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen`. Todos
+validan el rango (`Hasta > Desde`, `<= 366 dias`) con error `50400 -> 400`.
+
+**Comparativo.** `SP_Reportes_Resumen` compara el periodo actual con el inmediatamente
+anterior de **igual longitud** (`[Desde - (Hasta-Desde), Desde)`): `PedidosAnterior`,
+`VentaNetaAnterior`, `VariacionPedidosPct` y `VariacionVentaPct` (NULL cuando el valor
+anterior es 0). Ademas devuelve `CarritosAbandonados` y `ProductosBajoStock`.
+
+**Cache (`api/src/utils/reportesCache.ts`).** Las lecturas JSON y los export pasan por un
+cache en memoria con TTL (`REPORTES_CACHE_TTL_SEGUNDOS`, default 60; `0` lo desactiva). La
+**clave** es el nombre del reporte mas sus parametros ordenados de forma estable; no guarda
+nada por usuario (todas las rutas son de Administrador). Responde el header **`X-Cache:
+HIT|MISS`**. Limite de 200 entradas con desalojo LRU simple. Nunca cachea respuestas de
+error. **Invalidacion por evento:** los servicios que cambian ventas o inventario
+(`checkout.service` al aprobar un pedido, `pedidos.service` al cambiar estado/cancelar/
+devolver, `inventario.service` en cada movimiento) llaman `invalidarTodo()` tras el SP
+exitoso, de modo que el proximo reporte recomputa. Con varias instancias de API el cache
+seria por-proceso; el equivalente compartido es Redis con la misma clave y el mismo evento
+de invalidacion.
+
+**Export a Excel.** `GET /reportes/{ventas,categorias,top-productos}/export` generan un
+`.xlsx` en memoria con `exceljs` (sin dependencias nativas): una hoja con titulo, rango de
+fechas, encabezados en negrita, columnas de dinero con formato `"Q" #,##0.00`, fechas como
+fecha, autofiltro y anchos razonables; headers `Content-Type` de xlsx y `Content-Disposition:
+attachment` con nombre `ventas_YYYYMMDD_YYYYMMDD.xlsx`. **Proteccion contra inyeccion de
+formulas:** todo texto que empieza con `=`, `+`, `-` o `@` se antepone con un apostrofo, de
+modo que nombres de producto/categoria nunca se evaluan como formula. El export respeta el
+mismo tope de 366 dias.
+
+**Rendimiento.** `npm run test:rendimiento` (Node puro, `api/tests/rendimiento.mjs`): inicia
+sesion como admin y, para cada reporte JSON (resumen, ventas DIA/SEMANA/MES de los ultimos 90
+dias, categorias, top-productos, carritos-abandonados), hace 20 llamadas y reporta p50/p95/max
+en ms; sale con codigo 1 si algun p95 >= 1000 ms. Para medir el **SP puro** correr con el
+cache desactivado (`REPORTES_CACHE_TTL_SEGUNDOS=0`); una segunda fase repite las llamadas y
+muestra la proporcion de `X-Cache: HIT` (con el cache activo deberia ser ~19/20).
+
+Numeros reales medidos con `REPORTES_CACHE_TTL_SEGUNDOS=0` (SP puro, sin cache), 20
+llamadas por reporte, rango `2026-08-03 -> 2026-11-01`, SQL Server 2022 local:
+
+| Reporte | p50 (ms) | p95 (ms) |
+|---------|---------:|---------:|
+| resumen | 11.8 | 23.0 |
+| ventas DIA | 26.0 | 30.0 |
+| ventas SEMANA | 19.1 | 29.4 |
+| ventas MES | 25.5 | 32.3 |
+| categorias | 25.9 | 37.4 |
+| top-productos | 17.7 | 22.5 |
+| carritos-abandonados | 28.6 | 35.6 |
+
+RNF: `p95 < 1000 ms`. Todos los reportes lo cumplen con amplio margen (p95 maximo 37.4 ms).
+
+**Indices usados.** De `001`: `IX_Pedido_FechaEstado` (rango por fecha/estado),
+`IX_PedidoDetalle_Variante` e `IX_PedidoDetalle_Categoria` (agregados por linea),
+`IX_Carrito_Abandono` (carritos activos por actividad) e `IX_Devolucion_Pedido`. `020` agrega
+`IX_Devolucion_Pedido_Monto` (`IDPedido` INCLUDE `MontoReintegrado`) para cubrir la suma de
+devoluciones por pedido sin leer la fila base.
+
 ## Logs
 
 La API usa [pino](https://getpino.io) (`api/src/config/logger.ts`). El `logger` emite JSON
@@ -612,11 +696,27 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
   ni los cuerpos ni la query (los serializadores solo exponen metodo, ruta y status; esos
   headers ademas estan en la lista de `redact`).
 - **Errores.** El `errorHandler` registra los `5xx` como `error` (con stack) y los `4xx`
-  como `warn` (sin stack), ambos con el `code` y el `requestId`.
+  como `warn` (sin stack), ambos con el `code` y el `requestId`. Cada export de reporte deja
+  una linea `info` con el reporte y el numero de filas (sin datos).
+
+## Extras implementados
+
+- **Rate limiting de autenticacion.** `/auth/*` limitado por IP (`RATE_LIMIT_AUTH_MAX` por
+  ventana) y el checkout por usuario (`RATE_LIMIT_CHECKOUT_MAX` por minuto); el exceso
+  responde `429` con el formato de error estandar.
+- **Cache de reportes con invalidacion correcta.** Cache en memoria con TTL, clave estable
+  por reporte+parametros, `X-Cache: HIT|MISS`, limite de entradas (LRU) e invalidacion por
+  evento desde los servicios que mutan ventas o inventario (ver M9).
+- **Exportacion a Excel.** Reportes de ventas, categorias y top productos como `.xlsx`
+  (`exceljs`, en memoria), con formato de dinero/fecha y proteccion contra inyeccion de
+  formulas (ver M9).
+- **SSE (planificado, Fase 2).** Un canal `Server-Sent Events` para refrescar el dashboard en
+  vivo colgaria del **mismo evento de invalidacion** (`invalidarTodo()`): cada mutacion que
+  invalida el cache emitiria tambien un evento al stream. No esta implementado en esta fase.
 
 ## Pruebas con Postman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6, M7 y M8.
+La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6, M7, M8 y M9.
 
 > Para correr la **coleccion completa** de una sola pasada con el Collection Runner conviene
 > arrancar la API con `RATE_LIMIT_AUTH_MAX=100` y `RATE_LIMIT_CHECKOUT_MAX=100`: con los
@@ -630,7 +730,7 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
 2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
    **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
    **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout** ->
-   **M7 Pedidos** -> **M8 Bitacora**.
+   **M7 Pedidos** -> **M8 Bitacora** -> **M9 Reportes**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
    los scripts `001`-`018` y `099` en SQL Server (en el orden del bloque anterior:
@@ -651,6 +751,17 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    verifica las acciones, el usuario (por correo) y el JSON de valores, que un modulo
    inexistente responde `200` con 0 filas, que `GET /bitacora/modulos` incluye los cuatro
    modulos, y que el cliente y el operador reciben `403` al consultar la bitacora.
+   La carpeta **M9 Reportes** es repetible (sufijo por corrida): crea una variante (precio
+   100, stock 10) y tres clientes; el cliente 1 compra 3 (pedido A), el cliente 2 compra 2 y
+   cancela (pedido B), el cliente 3 compra 1 y el operador lo lleva a `ENTREGADO` y registra
+   la devolucion de 1 (pedido C). Luego verifica: ventas `DIA` de hoy (A = 300, C neto 0, B
+   excluido), categorias y top-productos (`UnidadesNetas` = 3), `resumen` (`Pedidos >= 2` y
+   campos del comparativo), carritos-abandonados (`Total >= 1` por el carrito de invitado de
+   `099`, con 3 dias de inactividad), `X-Cache` MISS -> HIT en `resumen` y vuelta a MISS tras
+   crear un pedido nuevo (invalidacion por evento), el export de ventas (`.xlsx` con
+   `Content-Disposition`), y los rechazos `403` (operador/cliente), `401` (sin token) y `400`
+   (rango > 366 dias, agrupacion invalida, fecha invalida). Requiere el cache activo
+   (`REPORTES_CACHE_TTL_SEGUNDOS` > 0, el default) para los asserts de `X-Cache`.
 
 > El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
 > "Login x11" conviene reiniciar la API o esperar la ventana configurada.
