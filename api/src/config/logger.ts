@@ -1,13 +1,10 @@
-// Carga .env antes de leer LOG_LEVEL / NODE_ENV: este modulo puede evaluarse
-// antes del cuerpo de env.ts (los imports se evaluan primero), y no importa env.js
-// para no crear un ciclo (env.ts si usa este logger).
-import 'dotenv/config';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { env } from './env.js';
 
-const level = process.env.LOG_LEVEL ?? 'info';
-const isDevelopment = process.env.NODE_ENV === 'development';
+const level = env.LOG_LEVEL;
+const isDevelopment = env.NODE_ENV === 'development';
 
 /** Logger de aplicacion. Salida JSON en todos los entornos; legible solo en dev. */
 export const logger = pino({

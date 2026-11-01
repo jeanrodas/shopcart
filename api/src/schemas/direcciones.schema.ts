@@ -1,16 +1,17 @@
 import { z } from 'zod';
+import { textoPlano } from './common.schema.js';
 
-/** Longitudes identicas a las columnas de dbo.Direccion. */
+/** Longitudes identicas a las columnas de dbo.Direccion. Texto con lista blanca. */
 export const direccionSchema = z.object({
-  alias: z.string().trim().min(1).max(50),
-  nombreReceptor: z.string().trim().min(1).max(150),
-  telefono: z.string().trim().min(1).max(20),
-  linea1: z.string().trim().min(1).max(200),
-  linea2: z.string().trim().max(200).optional(),
-  municipio: z.string().trim().min(1).max(100),
-  departamento: z.string().trim().min(1).max(100),
-  codigoPostal: z.string().trim().max(10).optional(),
-  referencia: z.string().trim().max(300).optional(),
+  alias: textoPlano(50),
+  nombreReceptor: textoPlano(150),
+  telefono: textoPlano(20),
+  linea1: textoPlano(200),
+  linea2: textoPlano(200, 0).optional(),
+  municipio: textoPlano(100),
+  departamento: textoPlano(100),
+  codigoPostal: textoPlano(10, 0).optional(),
+  referencia: textoPlano(300, 0).optional(),
 });
 
 export type DireccionInput = z.infer<typeof direccionSchema>;

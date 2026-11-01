@@ -40,7 +40,7 @@ GO
 /* ------------------------------------------------------------
    SP_Direcciones_Obtener
    Parametros: @IDDireccion, @IDUsuario.
-   Errores: 50404 no existe o inactiva; 50403 pertenece a otro usuario.
+   Errores: 50404 no existe, inactiva o ajena (respuesta uniforme, no revela existencia).
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Obtener
     @IDDireccion INT,
@@ -57,7 +57,7 @@ BEGIN
     IF @Owner IS NULL
         THROW 50404, 'Direccion no encontrada', 1;
     IF @Owner <> @IDUsuario
-        THROW 50403, 'La direccion pertenece a otro usuario', 1;
+        THROW 50404, 'Direccion no encontrada', 1;
     IF @Activo = 0
         THROW 50404, 'Direccion no encontrada', 1;
 
@@ -122,7 +122,7 @@ GO
 /* ------------------------------------------------------------
    SP_Direcciones_Actualizar
    Parametros: @IDDireccion, @IDUsuario, datos, @IDUsuarioEjecuta.
-   Errores: 50404 no existe o inactiva; 50403 pertenece a otro usuario.
+   Errores: 50404 no existe, inactiva o ajena (respuesta uniforme, no revela existencia).
    Devuelve: la direccion actualizada.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Actualizar
@@ -152,7 +152,7 @@ BEGIN
     IF @Owner IS NULL
         THROW 50404, 'Direccion no encontrada', 1;
     IF @Owner <> @IDUsuario
-        THROW 50403, 'La direccion pertenece a otro usuario', 1;
+        THROW 50404, 'Direccion no encontrada', 1;
     IF @Activo = 0
         THROW 50404, 'Direccion no encontrada', 1;
 
@@ -190,7 +190,7 @@ GO
    SP_Direcciones_Desactivar
    Parametros: @IDDireccion, @IDUsuario, @IDUsuarioEjecuta.
    Baja logica (Activo = 0); nunca borrado fisico (Pedido referencia IDDireccion).
-   Errores: 50404 no existe o inactiva; 50403 pertenece a otro usuario.
+   Errores: 50404 no existe, inactiva o ajena (respuesta uniforme, no revela existencia).
    Devuelve: FilasAfectadas.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Direcciones_Desactivar
@@ -211,7 +211,7 @@ BEGIN
     IF @Owner IS NULL
         THROW 50404, 'Direccion no encontrada', 1;
     IF @Owner <> @IDUsuario
-        THROW 50403, 'La direccion pertenece a otro usuario', 1;
+        THROW 50404, 'Direccion no encontrada', 1;
     IF @Activo = 0
         THROW 50404, 'Direccion no encontrada', 1;
 

@@ -16,7 +16,8 @@
 
    Que se audita y por que trigger (todos AFTER, set-based, sin cursores):
      - Producto  (CATALOGO):  INSERT -> CREAR; UPDATE -> MODIFICAR, salvo
-                              Activo 1->0 -> DESACTIVAR.
+                              Activo 1->0 -> DESACTIVAR. El UPDATE solo se registra
+                              si cambio IDCategoria, Nombre, Descripcion o Activo.
      - Variante  (CATALOGO):  igual que Producto. El JSON lleva el precio (anterior
                               y nuevo). Si una fila SOLO cambia Existencia (la
                               escribe el kardex) NO se registra aqui: la existencia
@@ -29,8 +30,10 @@
      - PedidoHistorialEstado (PEDIDOS, IDEntidad = IDPedido): INSERT -> CREAR si no
                               hay estado anterior, si no MODIFICAR; ValorAnterior =
                               codigo del estado anterior, ValorNuevo = codigo nuevo.
+     - Devolucion (PEDIDOS, IDEntidad = IDPedido): INSERT -> MODIFICAR; ValorNuevo =
+                              JSON {IDDevolucion, Motivo, MontoReintegrado}.
 
-   ValorAnterior/ValorNuevo: JSON compacto (FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+   ValorAnterior/ValorNuevo: JSON (FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES)
    con las columnas de negocio relevantes (excluye Fecha* y hashes), salvo
    PedidoHistorialEstado, que guarda el codigo del estado tal cual.
 
@@ -95,7 +98,7 @@ BEGIN
     SELECT N'CATALOGO', N'Producto', i.IDProducto, N'CREAR',
            NULL,
            (SELECT i.IDCategoria, i.Nombre, i.Descripcion, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     WHERE NOT EXISTS (SELECT 1 FROM deleted d WHERE d.IDProducto = i.IDProducto);
@@ -105,12 +108,16 @@ BEGIN
     SELECT N'CATALOGO', N'Producto', i.IDProducto,
            CASE WHEN d.Activo = 1 AND i.Activo = 0 THEN N'DESACTIVAR' ELSE N'MODIFICAR' END,
            (SELECT d.IDCategoria, d.Nombre, d.Descripcion, d.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            (SELECT i.IDCategoria, i.Nombre, i.Descripcion, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
-    INNER JOIN deleted d ON d.IDProducto = i.IDProducto;
+    INNER JOIN deleted d ON d.IDProducto = i.IDProducto
+    WHERE i.IDCategoria <> d.IDCategoria
+       OR i.Nombre      <> d.Nombre
+       OR ISNULL(i.Descripcion, N'') <> ISNULL(d.Descripcion, N'')
+       OR i.Activo      <> d.Activo;
 END
 GO
 
@@ -134,7 +141,7 @@ BEGIN
     SELECT N'CATALOGO', N'Variante', i.IDVariante, N'CREAR',
            NULL,
            (SELECT i.IDProducto, i.SKU, i.Precio, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     WHERE NOT EXISTS (SELECT 1 FROM deleted d WHERE d.IDVariante = i.IDVariante);
@@ -144,9 +151,9 @@ BEGIN
     SELECT N'CATALOGO', N'Variante', i.IDVariante,
            CASE WHEN d.Activo = 1 AND i.Activo = 0 THEN N'DESACTIVAR' ELSE N'MODIFICAR' END,
            (SELECT d.IDProducto, d.SKU, d.Precio, d.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            (SELECT i.IDProducto, i.SKU, i.Precio, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     INNER JOIN deleted d ON d.IDVariante = i.IDVariante
@@ -179,7 +186,7 @@ BEGIN
                    i.ExistenciaResultante AS Existencia,
                    i.Motivo              AS Motivo,
                    i.IDPedido            AS IDPedido
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     INNER JOIN dbo.TipoMovimientoInventario t
@@ -208,7 +215,7 @@ BEGIN
            NULL,
            (SELECT i.Codigo, i.TipoDescuento, i.Valor, i.IDCategoria, i.MontoMinimo,
                    i.FechaInicio, i.FechaFin, i.LimiteUsosTotal, i.LimiteUsosPorCliente, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     WHERE NOT EXISTS (SELECT 1 FROM deleted d WHERE d.IDCupon = i.IDCupon);
@@ -219,10 +226,10 @@ BEGIN
            CASE WHEN d.Activo = 1 AND i.Activo = 0 THEN N'DESACTIVAR' ELSE N'MODIFICAR' END,
            (SELECT d.Codigo, d.TipoDescuento, d.Valor, d.IDCategoria, d.MontoMinimo,
                    d.FechaInicio, d.FechaFin, d.LimiteUsosTotal, d.LimiteUsosPorCliente, d.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            (SELECT i.Codigo, i.TipoDescuento, i.Valor, i.IDCategoria, i.MontoMinimo,
                    i.FechaInicio, i.FechaFin, i.LimiteUsosTotal, i.LimiteUsosPorCliente, i.Activo
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER),
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
            @IDUsuario
     FROM inserted i
     INNER JOIN deleted d ON d.IDCupon = i.IDCupon
@@ -263,6 +270,30 @@ BEGIN
     FROM inserted i
     LEFT JOIN  dbo.EstadoPedido ea ON ea.IDEstadoPedido = i.IDEstadoAnterior
     INNER JOIN dbo.EstadoPedido en ON en.IDEstadoPedido = i.IDEstadoNuevo;
+END
+GO
+
+/* ------------------------------------------------------------
+   TR_Devolucion_Bitacora  (PEDIDOS / Pedido)
+   Una devolucion (total o parcial) es un cambio del pedido: INSERT -> MODIFICAR
+   sobre el pedido (IDEntidad = IDPedido), con el detalle de la devolucion en el JSON.
+   ------------------------------------------------------------ */
+CREATE OR ALTER TRIGGER dbo.TR_Devolucion_Bitacora
+ON dbo.Devolucion
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IDUsuario INT = TRY_CAST(SESSION_CONTEXT(N'IDUsuario') AS INT);
+
+    INSERT dbo.Bitacora (Modulo, Entidad, IDEntidad, Accion, ValorAnterior, ValorNuevo, IDUsuario)
+    SELECT N'PEDIDOS', N'Pedido', i.IDPedido, N'MODIFICAR',
+           NULL,
+           (SELECT i.IDDevolucion, i.Motivo, i.MontoReintegrado
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES),
+           @IDUsuario
+    FROM inserted i;
 END
 GO
 

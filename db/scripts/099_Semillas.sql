@@ -7,8 +7,11 @@
 
    Orden de ejecucion: ultimo (despues de 004-007 y de los scripts de cada modulo).
 
-   NOTA DE SEGURIDAD: los hashes son de contrasenas de DESARROLLO conocidas
-   (ver README "Credenciales de prueba"). No usar en ambientes reales.
+   NOTA DE SEGURIDAD: Admin123!, Operador123! y Cliente123! son contrasenas de
+   EVALUACION/DESARROLLO publicas (ver README "Credenciales de prueba"). En un
+   ambiente real este archivo de semillas NO se aplica: los usuarios se crean con
+   contrasenas unicas fuera del control de versiones (p. ej. por un alta inicial del
+   Administrador o un secreto de despliegue) y se rotan periodicamente.
    ============================================================ */
 
 USE ShopCart;

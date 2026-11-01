@@ -84,10 +84,14 @@ export interface ResultadoExport {
   cacheHit: boolean;
 }
 
-/** Evita inyeccion de formulas: un texto que empieza por = + - @ se antepone con '. */
+/**
+ * Evita inyeccion de formulas: un texto que empieza por = + - @ (o por tab, retorno
+ * de carro o barra vertical, que algunos lectores tratan como separador de comando)
+ * se antepone con un apostrofo. La celda ademas se fuerza a tipo texto (numFmt '@').
+ */
 function textoSeguro(valor: unknown): string {
   const s = valor === null || valor === undefined ? '' : String(valor);
-  return /^[=+\-@]/.test(s) ? `'${s}` : s;
+  return /^[=+\-@\t\r|]/.test(s) ? `'${s}` : s;
 }
 
 function yyyymmdd(fecha: Date): string {
@@ -135,6 +139,7 @@ async function construirExcel(opts: {
         cell.value = typeof v === 'number' ? v : v == null ? null : Number(v);
       } else {
         cell.value = textoSeguro(v);
+        cell.numFmt = '@';
       }
     });
   });

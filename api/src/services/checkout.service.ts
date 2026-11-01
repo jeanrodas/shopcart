@@ -122,6 +122,8 @@ export async function iniciar(idUsuario: number, idDireccion: number): Promise<R
     { name: 'IDDireccion', type: sql.Int, value: idDireccion },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuario },
   ]);
+  // La reserva cambia el disponible: invalida el cache de reportes.
+  invalidarTodo();
   return ensamblarResumen(result.recordsets as unknown[][]);
 }
 
@@ -156,8 +158,9 @@ export async function pagar(
   const replay = Boolean((recordsets[2]?.[0] as { Replay?: boolean } | undefined)?.Replay);
   const aprobado = Boolean(cab?.Aprobado);
 
-  // Un pedido aprobado cambia ventas e inventario: invalida el cache de reportes.
-  if (aprobado) invalidarTodo();
+  // Un pedido aprobado NUEVO cambia ventas e inventario: invalida el cache de
+  // reportes. Un replay no muta nada (idempotente), por eso no invalida.
+  if (aprobado && !replay) invalidarTodo();
 
   return {
     aprobado,
@@ -197,5 +200,7 @@ export async function pagar(
 export async function liberarVencidas(): Promise<{ liberadas: number }> {
   const result = await executeSp('SP_Checkout_LiberarReservasVencidas', []);
   const liberadas = (result.recordset[0] as { Liberadas: number } | undefined)?.Liberadas ?? 0;
+  // Liberar reservas vencidas cambia el disponible: invalida el cache de reportes.
+  if (liberadas > 0) invalidarTodo();
   return { liberadas };
 }

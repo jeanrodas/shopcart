@@ -26,7 +26,7 @@ export const cuponSchema = z
   .object({
     codigo,
     tipoDescuento: z.enum(['PORCENTAJE', 'MONTO']),
-    valor: z.number().positive().refine(dosDecimales, 'maximo 2 decimales'),
+    valor: z.number().positive().max(99999999.99).refine(dosDecimales, 'maximo 2 decimales'),
     idCategoria: z.coerce.number().int().positive().optional(),
     montoMinimo: z.number().nonnegative().default(0).refine(dosDecimales, 'maximo 2 decimales'),
     fechaInicio: z.string().datetime({ message: 'fecha ISO invalida' }),

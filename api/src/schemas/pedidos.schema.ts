@@ -1,19 +1,20 @@
 import { z } from 'zod';
+import { textoPlano } from './common.schema.js';
 
 /** Cuerpo de POST /pedidos/:id/estado (Operador/Admin): avance de estado. */
 export const cambiarEstadoSchema = z.object({
   estado: z.enum(['EN_PREPARACION', 'DESPACHADO', 'ENTREGADO']),
-  comentario: z.string().trim().min(3, 'minimo 3 caracteres').max(300).optional(),
+  comentario: textoPlano(300, 3).optional(),
 });
 
 /** Cuerpo de POST /pedidos/:id/cancelar: motivo de la cancelacion. */
 export const cancelarSchema = z.object({
-  motivo: z.string().trim().min(3, 'minimo 3 caracteres').max(300),
+  motivo: textoPlano(300, 3),
 });
 
 /** Cuerpo de POST /pedidos/:id/devoluciones: motivo y lineas a devolver. */
 export const devolucionSchema = z.object({
-  motivo: z.string().trim().min(3, 'minimo 3 caracteres').max(300),
+  motivo: textoPlano(300, 3),
   lineas: z
     .array(
       z.object({

@@ -82,9 +82,14 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'COSTO_ENVIO')
     INSERT dbo.Parametro (Clave, Valor, Descripcion)
     VALUES (N'COSTO_ENVIO', N'0.00', N'Costo de envio por defecto');
 
+/* Umbral del lockout POR CUENTA en BD (capa 2). La capa 1 es un limitador en memoria
+   por (correo + IP) en la API. Reaplicable: fuerza el valor a 10 aunque ya exista. */
 IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'LOGIN_MAX_INTENTOS')
     INSERT dbo.Parametro (Clave, Valor, Descripcion)
-    VALUES (N'LOGIN_MAX_INTENTOS', N'5', N'Intentos fallidos de login antes de bloquear la cuenta');
+    VALUES (N'LOGIN_MAX_INTENTOS', N'10', N'Intentos fallidos de login antes de bloquear la cuenta');
+ELSE
+    UPDATE dbo.Parametro SET Valor = N'10'
+     WHERE Clave = N'LOGIN_MAX_INTENTOS';
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'LOGIN_BLOQUEO_MINUTOS')
     INSERT dbo.Parametro (Clave, Valor, Descripcion)

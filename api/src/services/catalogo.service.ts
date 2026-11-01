@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
+import { invalidarTodo } from '../utils/reportesCache.js';
 import type {
   CategoriaInput,
   ProductoInput,
@@ -177,6 +178,8 @@ export async function cambiarEstadoProducto(
     { name: 'Activo', type: sql.Bit, value: activo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
+  // El alta/baja del producto puede afectar reportes: invalida el cache.
+  invalidarTodo();
   return result.recordset[0];
 }
 
@@ -209,6 +212,8 @@ export async function actualizarVariante(
     { name: 'Atributos', value: tvpAtributos(datos.atributos) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
+  // El precio/atributos de la variante pueden afectar reportes: invalida el cache.
+  invalidarTodo();
   return { variante: result.recordsets[0]?.[0] ?? null, atributos: result.recordsets[1] ?? [] };
 }
 
@@ -222,6 +227,8 @@ export async function cambiarEstadoVariante(
     { name: 'Activo', type: sql.Bit, value: activo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
+  // El alta/baja de la variante cambia las variantes bajo stock: invalida el cache.
+  invalidarTodo();
   return result.recordset[0];
 }
 

@@ -12,8 +12,25 @@ import { openapiDocument } from './docs/openapi.js';
 
 const app = express();
 
+// Numero de saltos de proxy de confianza para derivar req.ip de X-Forwarded-For.
+// 0 (default) = sin proxy: usa la IP del socket. Detras de un proxy/balanceador,
+// fijar TRUST_PROXY al numero de proxies propios (ver .env.example).
+app.set('trust proxy', env.TRUST_PROXY);
+
 app.disable('x-powered-by');
-app.use(helmet());
+// Cabeceras de seguridad. crossOriginResourcePolicy same-origin evita que otros
+// origenes embeban las respuestas de esta API.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+  }),
+);
+// Permissions-Policy: helmet 8 no la incluye, se fija a mano para desactivar APIs
+// sensibles del navegador que esta API nunca necesita.
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 app.use(
   cors({
     origin: env.CORS_ORIGIN,

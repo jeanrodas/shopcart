@@ -4,9 +4,59 @@ import jwt from 'jsonwebtoken';
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { env } from '../config/env.js';
+import { logger } from '../config/logger.js';
 import { UnauthorizedError } from '../errors/index.js';
 
 const BCRYPT_COST = 10;
+
+/** Enmascara el correo para los logs: conserva 2 chars del local y el dominio. */
+function correoTruncado(correo: string): string {
+  const [local, dominio] = correo.split('@');
+  const visibles = (local ?? '').slice(0, 2);
+  return dominio ? `${visibles}***@${dominio}` : `${visibles}***`;
+}
+
+/*
+ * Lockout en memoria por (correo + IP), complementario al contador por cuenta en BD
+ * (Usuario.IntentosFallidos, umbral LOGIN_MAX_INTENTOS). Esta capa frena el ataque de
+ * fuerza bruta desde una IP SIN permitir que un atacante bloquee la cuenta ajena: el
+ * bloqueo es por par (correo, IP), no por cuenta. Tras MAX_INTENTOS_IP fallos en
+ * VENTANA_MS desde la misma IP para el mismo correo, se rechaza sin tocar la BD. Es
+ * por-proceso (con varias instancias de API, iria a un store compartido tipo Redis).
+ */
+const VENTANA_MS = 15 * 60 * 1000;
+const MAX_INTENTOS_IP = 5;
+const intentosIpCorreo = new Map<string, { conteo: number; expira: number }>();
+
+function claveIntentos(correo: string, ip: string | null): string {
+  return `${correo.toLowerCase()}|${ip ?? 'sin-ip'}`;
+}
+
+function intentosBloqueado(correo: string, ip: string | null): boolean {
+  const clave = claveIntentos(correo, ip);
+  const e = intentosIpCorreo.get(clave);
+  if (!e) return false;
+  if (Date.now() > e.expira) {
+    intentosIpCorreo.delete(clave);
+    return false;
+  }
+  return e.conteo >= MAX_INTENTOS_IP;
+}
+
+function intentosRegistrarFallo(correo: string, ip: string | null): void {
+  const clave = claveIntentos(correo, ip);
+  const ahora = Date.now();
+  const e = intentosIpCorreo.get(clave);
+  if (!e || ahora > e.expira) {
+    intentosIpCorreo.set(clave, { conteo: 1, expira: ahora + VENTANA_MS });
+  } else {
+    e.conteo += 1;
+  }
+}
+
+function intentosLimpiar(correo: string, ip: string | null): void {
+  intentosIpCorreo.delete(claveIntentos(correo, ip));
+}
 
 // Hash dummy de costo equivalente: se compara contra el cuando el correo no
 // existe, para que el tiempo de respuesta no revele si el usuario existe.
@@ -135,37 +185,62 @@ export async function login(
   contrasena: string,
   ip: string | null,
   tokenInvitado: string | null = null,
+  requestId: string | null = null,
 ): Promise<SesionResponse & { carritoFusionado: CarritoFusionado | null }> {
+  // Capa 1 (memoria, por correo+IP): si ya se supero el umbral, se rechaza SIN
+  // consultar la BD. No bloquea la cuenta para otras IPs.
+  if (intentosBloqueado(correo, ip)) {
+    logger.warn(
+      { requestId, correo: correoTruncado(correo), causa: 'bloqueo temporal por IP+cuenta' },
+      'login fallido',
+    );
+    throw new UnauthorizedError('Credenciales invalidas');
+  }
+
   const result = await executeSp<UsuarioLogin>('SP_Auth_ObtenerUsuarioPorCorreo', [
     { name: 'Correo', type: sql.NVarChar(255), value: correo },
   ]);
   const u = result.recordset[0];
 
+  // Respuesta UNIFORME para el cliente: cualquier causa (usuario inexistente,
+  // contrasena incorrecta, cuenta bloqueada o desactivada) responde 401
+  // 'Credenciales invalidas'. La causa real solo va al log (correo enmascarado,
+  // nunca la contrasena), para no filtrar que cuentas existen o estan bloqueadas.
+  // Cada fallo suma en la capa 1 (memoria, por correo+IP).
+  const fallar = (causa: string): never => {
+    intentosRegistrarFallo(correo, ip);
+    logger.warn({ requestId, correo: correoTruncado(correo), causa }, 'login fallido');
+    throw new UnauthorizedError('Credenciales invalidas');
+  };
+
   if (!u) {
     // Comparacion dummy para igualar tiempos; no revela si el correo existe.
     await bcrypt.compare(contrasena, DUMMY_HASH);
-    throw new UnauthorizedError('Credenciales invalidas');
+    return fallar('usuario inexistente');
   }
+
+  // La comparacion se hace siempre (antes de los chequeos de estado) para que el
+  // tiempo de respuesta no distinga una cuenta bloqueada/desactivada de una activa.
+  const ok = await bcrypt.compare(contrasena, u.HashContrasena);
 
   if (u.BloqueadoHasta && new Date(u.BloqueadoHasta) > new Date()) {
-    throw new UnauthorizedError('Cuenta bloqueada temporalmente; intente mas tarde');
+    return fallar('cuenta bloqueada');
   }
-
   if (!u.Activo) {
-    throw new UnauthorizedError('Usuario desactivado');
+    return fallar('usuario desactivado');
   }
-
-  const ok = await bcrypt.compare(contrasena, u.HashContrasena);
   if (!ok) {
     await executeSp('SP_Auth_RegistrarIntentoFallido', [
       { name: 'IDUsuario', type: sql.Int, value: u.IDUsuario },
     ]);
-    throw new UnauthorizedError('Credenciales invalidas');
+    return fallar('contrasena incorrecta');
   }
 
+  // Exito: limpia ambas capas (BD la resetea el SP; memoria aqui).
   await executeSp('SP_Auth_RegistrarLoginExitoso', [
     { name: 'IDUsuario', type: sql.Int, value: u.IDUsuario },
   ]);
+  intentosLimpiar(correo, ip);
 
   const sesion = await emitirParGuardando(u, ip);
   const carritoFusionado = await fusionarCarritoInvitado(u.IDUsuario, tokenInvitado);

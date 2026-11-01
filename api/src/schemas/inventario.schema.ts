@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { textoPlano } from './common.schema.js';
 
-const motivoSchema = z.string().trim().min(3, 'minimo 3 caracteres').max(300);
+const motivoSchema = textoPlano(300, 3);
 const cantidadSchema = z.coerce.number().int().min(1).max(100000);
 const idVarianteSchema = z.coerce.number().int().positive();
 
@@ -38,10 +39,10 @@ export const kardexQuerySchema = z
     pagina: z.coerce.number().int().positive().default(1),
     tamanoPagina: z.coerce.number().int().positive().max(100).default(20),
   })
-  .refine((q) => q.desde === undefined || q.hasta === undefined || q.desde <= q.hasta, {
-    message: 'desde no puede ser mayor que hasta',
-    path: ['desde'],
-  });
+  .refine(
+    (q) => q.desde === undefined || q.hasta === undefined || new Date(q.desde) <= new Date(q.hasta),
+    { message: 'desde no puede ser mayor que hasta', path: ['desde'] },
+  );
 
 export type EntradaInput = z.infer<typeof entradaSchema>;
 export type AjusteInput = z.infer<typeof ajusteSchema>;

@@ -31,7 +31,7 @@ export const postRegistro: RequestHandler = async (req, res) => {
 
 export const postLogin: RequestHandler = async (req, res) => {
   const { correo, contrasena } = req.body as { correo: string; contrasena: string };
-  const result = await authService.login(correo, contrasena, req.ip ?? null, cartToken(req));
+  const result = await authService.login(correo, contrasena, req.ip ?? null, cartToken(req), req.requestId);
   res.status(200).json(result);
 };
 
