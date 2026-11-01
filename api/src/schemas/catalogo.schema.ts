@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { textoPlano, textoLargo } from './common.schema.js';
 
 const dosDecimales = (v: number) => Number.isInteger(Math.round(v * 100));
 
@@ -40,24 +41,24 @@ export const listarCategoriasSchema = z.object({ incluirInactivas: boolQuery() }
 export const obtenerProductoAdminSchema = z.object({ incluirInactivos: boolQuery() });
 
 export const categoriaSchema = z.object({
-  nombre: z.string().trim().min(1).max(100),
-  descripcion: z.string().trim().max(300).optional(),
+  nombre: textoPlano(100),
+  descripcion: textoLargo(300).optional(),
 });
 
 export const productoSchema = z.object({
   idCategoria: z.coerce.number().int().positive(),
-  nombre: z.string().trim().min(1).max(200),
-  descripcion: z.string().trim().optional(),
+  nombre: textoPlano(200),
+  descripcion: textoLargo(4000).optional(),
 });
 
 const atributoSchema = z.object({
-  nombre: z.string().trim().min(1).max(50),
-  valor: z.string().trim().min(1).max(100),
+  nombre: textoPlano(50),
+  valor: textoPlano(100),
 });
 
 export const varianteSchema = z.object({
-  sku: z.string().trim().min(1).max(50),
-  precio: z.number().positive().refine(dosDecimales, 'maximo 2 decimales'),
+  sku: textoPlano(50),
+  precio: z.number().positive().max(99999999.99).refine(dosDecimales, 'maximo 2 decimales'),
   atributos: z
     .array(atributoSchema)
     .max(10)

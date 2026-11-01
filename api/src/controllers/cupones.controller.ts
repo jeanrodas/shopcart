@@ -35,6 +35,12 @@ export const deleteCuponCarrito: RequestHandler = async (req, res) => {
   res.status(200).json(await cuponesService.quitarDeCarrito(clienteId(req)));
 };
 
+/** Valida un codigo contra el carrito del cliente sin guardarlo (util para el front). */
+export const postValidarCupon: RequestHandler = async (req, res) => {
+  const { codigo } = req.body as AplicarCuponInput;
+  res.status(200).json(await cuponesService.validar(clienteId(req), codigo));
+};
+
 /* ---------------------------- CRUD Administrador -------------------------- */
 
 export const getCupones: RequestHandler = async (req, res) => {

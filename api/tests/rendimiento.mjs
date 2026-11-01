@@ -109,11 +109,13 @@ async function main() {
         `p50=${p50.toFixed(1)}ms  p95=${p95.toFixed(1)}ms  max=${max.toFixed(1)}ms`,
     );
   }
+  // La fase base debe medir el SP sin cache. Si hubo HIT, la medicion no es valida.
   if (algunHitEnBase) {
-    console.log(
-      '\naviso: se observo X-Cache: HIT en la fase base. Para medir el SP puro, ' +
-        'correr con REPORTES_CACHE_TTL_SEGUNDOS=0.',
+    console.error(
+      '\nFALLO (exit 2): se observo X-Cache: HIT en la fase base, por lo que las ' +
+        'latencias NO reflejan el SP. Corra con REPORTES_CACHE_TTL_SEGUNDOS=0.\n',
     );
+    process.exit(2);
   }
 
   // --- Fase CACHE ---
@@ -126,6 +128,23 @@ async function main() {
       if (r.cache === 'HIT') hits++;
     }
     console.log(`${rep.nombre.padEnd(anchoNombre)}  HIT ${hits}/${REPETICIONES}`);
+  }
+
+  // --- Fase CONCURRENTE ---
+  // 10 llamadas en paralelo por reporte (Promise.all); reporta p95 bajo concurrencia.
+  console.log('\n--- Fase concurrente (10 en paralelo) ---');
+  const CONC = 10;
+  for (const rep of REPORTES.filter((r) => r.nombre === 'resumen' || r.nombre === 'ventas-DIA')) {
+    const resultados = await Promise.all(
+      Array.from({ length: CONC }, () => req('GET', rep.path, { token })),
+    );
+    const malos = resultados.filter((r) => r.status !== 200).length;
+    if (malos > 0) throw new Error(`${rep.nombre}: ${malos}/${CONC} respuestas != 200 en concurrencia`);
+    const lat = resultados.map((r) => r.ms);
+    console.log(
+      `${rep.nombre.padEnd(anchoNombre)}  p95=${percentil(lat, 95).toFixed(1)}ms  ` +
+        `max=${Math.max(...lat).toFixed(1)}ms  (n=${CONC} paralelas)`,
+    );
   }
 
   console.log(

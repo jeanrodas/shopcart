@@ -1534,7 +1534,8 @@ export const openapiDocument = {
         description:
           'Valida el codigo contra el carrito activo del cliente y lo guarda (un solo ' +
           'cupon por carrito: reemplaza el anterior). Invitado -> 401. Carrito vacio, ' +
-          'cupon vencido/agotado/sin monto minimo/no aplica -> 422. Cupon inexistente -> 404.',
+          'cupon vencido/agotado/sin monto minimo/no aplica -> 422. Cupon inexistente -> 404. ' +
+          'Rate limit por identidad (RATE_LIMIT_CUPON_MAX por minuto) -> 429.',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -1551,6 +1552,7 @@ export const openapiDocument = {
           '403': errRef,
           '404': errRef,
           '422': errRef,
+          '429': errRef,
         },
       },
       delete: {
@@ -1562,6 +1564,34 @@ export const openapiDocument = {
           '200': { description: 'Carrito sin cupon (descuento 0)', ...jsonBody(carritoSchema) },
           '401': errRef,
           '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/carrito/cupon/validar': {
+      post: {
+        tags: ['Cupones'],
+        summary: 'Validar un cupon contra el carrito sin aplicarlo (solo Cliente autenticado)',
+        description:
+          'Igual validacion que aplicar, pero NO guarda el cupon; util para previsualizar el ' +
+          'descuento en el front. Invitado -> 401; mismos 404/422 que aplicar; rate limit -> 429.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['codigo'],
+            properties: { codigo: { type: 'string', example: 'PROMO10' } },
+          }),
+        },
+        responses: {
+          '200': { description: 'Calculo del descuento del cupon sobre el carrito' },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+          '422': errRef,
+          '429': errRef,
         },
       },
     },
@@ -1673,7 +1703,7 @@ export const openapiDocument = {
         tags: ['Checkout'],
         summary: 'Iniciar checkout: reservar existencia (solo Cliente)',
         description:
-          'Valida carrito, direccion y cupon, reserva existencia por RESERVA_MINUTOS y ' +
+          'Valida carrito, direccion y cupon, reserva existencia por los minutos configurados y ' +
           'devuelve el resumen. Reiniciable: vuelve a reservar. Carrito vacio o cupon no ' +
           'valido -> 422; direccion inexistente/inactiva -> 404; direccion de otro usuario ' +
           '-> 403; existencia insuficiente -> 409.',
@@ -2033,7 +2063,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
         ],
         responses: {
           '200': { description: 'Resumen (una fila)' },
@@ -2052,7 +2082,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
           { name: 'agrupacion', in: 'query', required: true, schema: { type: 'string', enum: ['DIA', 'SEMANA', 'MES'] } },
         ],
         responses: {
@@ -2072,7 +2102,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
         ],
         responses: {
           '200': { description: 'Filas por categoria' },
@@ -2091,7 +2121,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
           { name: 'top', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 50 } },
         ],
         responses: {
@@ -2131,7 +2161,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
           { name: 'agrupacion', in: 'query', required: true, schema: { type: 'string', enum: ['DIA', 'SEMANA', 'MES'] } },
         ],
         responses: {
@@ -2154,7 +2184,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
         ],
         responses: {
           '200': {
@@ -2176,7 +2206,7 @@ export const openapiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
-          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
           { name: 'top', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 50 } },
         ],
         responses: {

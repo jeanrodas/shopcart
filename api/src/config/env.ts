@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
-import { logger } from './logger.js';
 
 dotenv.config();
 
@@ -37,14 +36,26 @@ const envSchema = z
   JWT_ACCESS_EXPIRES: z.string().min(1).default('15m'),
   JWT_REFRESH_EXPIRES: z.string().min(1).default('7d'),
 
-  RESERVA_MINUTOS: z.coerce.number().int().positive().default(15),
+  // Config tecnica de la API. La config de NEGOCIO (minutos de reserva, horas de
+  // abandono, porcentaje de IVA, etc.) vive en dbo.Parametro, no en env.
   RESERVA_JOB_SEGUNDOS: z.coerce.number().int().positive().default(60),
-  CARRITO_ABANDONO_HORAS: z.coerce.number().int().positive().default(24),
-  IVA_PORCENTAJE: z.coerce.number().nonnegative().default(12),
+
+  // Logs (pino): nivel de salida.
+  LOG_LEVEL: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
+    .default('info'),
+
+  // Cache de reportes (RF-08): segundos de vigencia por entrada; 0 lo desactiva.
+  REPORTES_CACHE_TTL_SEGUNDOS: z.coerce.number().int().nonnegative().default(60),
 
   RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_AUTH_VENTANA_MIN: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_CHECKOUT_MAX: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_CUPON_MAX: z.coerce.number().int().positive().default(10),
+
+  // Saltos de confianza para Express (X-Forwarded-For) detras de un proxy/balanceador.
+  // 0 = sin proxy (usa la IP del socket). Ver app.ts.
+  TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
 
   // Pago simulado: el backend decide el resultado. Solo desarrollo/demo; en
   // produccion debe quedar en false (ver la validacion de abajo).
@@ -69,7 +80,9 @@ if (!parsed.success) {
   const detalles = parsed.error.issues
     .map((issue) => `  - ${issue.path.join('.') || '(raiz)'}: ${issue.message}`)
     .join('\n');
-  logger.error(
+  // Fallo de bootstrap: el logger aun no existe (depende de env), se escribe a
+  // stderr directamente. No se usa console.* en el resto del codigo.
+  process.stderr.write(
     '\n[config] No se pudo iniciar: variables de entorno invalidas o faltantes.\n' +
       'Copie api/.env.example a api/.env y complete los valores.\n' +
       `Problemas detectados:\n${detalles}\n`,

@@ -124,6 +124,8 @@ GO
    Parametros: @IDUsuario, @IDRol, @IDUsuarioEjecuta.
    Errores: 50404 usuario no existe; 50400 rol inexistente;
             50409 no puede cambiar su propio rol.
+   Efecto: revoca todos los refresh tokens activos del usuario (el rol viaja en el
+   access token; forzar re-login evita que el rol viejo siga vigente hasta 15 min).
    Devuelve: el usuario actualizado.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_CambiarRol
@@ -152,6 +154,11 @@ BEGIN
            SET IDRol = @IDRol,
                FechaActualizacion = SYSUTCDATETIME()
          WHERE IDUsuario = @IDUsuario;
+
+        -- El rol cambio: revoca los refresh tokens activos para forzar re-login.
+        UPDATE dbo.RefreshToken
+           SET FechaRevocado = SYSUTCDATETIME()
+         WHERE IDUsuario = @IDUsuario AND FechaRevocado IS NULL;
 
         COMMIT;
     END TRY

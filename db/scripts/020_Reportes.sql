@@ -10,8 +10,10 @@
          * Unidades netas de linea  = Cantidad - CantidadDevuelta.
          * Monto neto de linea      = TotalLinea prorrateado por la cantidad neta
                                       = ROUND(TotalLinea * (Cantidad - CantidadDevuelta) / Cantidad, 2).
-     - Periodos en UTC por Pedido.FechaCreacion. Ticket promedio = venta neta /
-       pedidos completados del periodo.
+     - Periodos en UTC por Pedido.FechaCreacion. Rango SIEMPRE semiabierto
+       [@Desde, @Hasta): incluye @Desde y EXCLUYE @Hasta (asi un pedido en el limite
+       no cuenta en dos periodos contiguos). Ticket promedio = venta neta / pedidos
+       completados del periodo.
      - Carrito abandonado = Estado 'Activo', >= 1 linea y FechaUltimaActividad
        anterior a (ahora - CARRITO_ABANDONO_HORAS de dbo.Parametro).
      - ProductosBajoStock = variantes activas con Disponible <= STOCK_MINIMO
@@ -120,7 +122,7 @@ BEGIN
         CAST(SUM(pn.VentaNeta) / COUNT(1) AS DECIMAL(18,2))   AS TicketPromedio
     FROM dbo.VW_Reportes_PedidoNeto pn
     WHERE pn.FechaCreacion >= @Desde
-      AND pn.FechaCreacion <= @Hasta
+      AND pn.FechaCreacion < @Hasta
     GROUP BY
         CASE @Agrupacion
             WHEN N'DIA'    THEN DATETRUNC(DAY,   pn.FechaCreacion)
@@ -157,9 +159,9 @@ BEGIN
     FROM dbo.VW_Reportes_LineaNeta ln
     INNER JOIN dbo.Categoria c ON c.IDCategoria = ln.IDCategoria
     WHERE ln.Fecha >= @Desde
-      AND ln.Fecha <= @Hasta
+      AND ln.Fecha < @Hasta
     GROUP BY ln.IDCategoria, c.Nombre
-    ORDER BY MontoNeto DESC, Categoria
+    ORDER BY MontoNeto DESC, Categoria, ln.IDCategoria
     OPTION (RECOMPILE);
 END
 GO
@@ -193,11 +195,12 @@ BEGIN
         CAST(SUM(ln.MontoNeto) AS DECIMAL(18,2))   AS MontoNeto
     FROM dbo.VW_Reportes_LineaNeta ln
     INNER JOIN dbo.Producto pr  ON pr.IDProducto = ln.IDProducto
-    INNER JOIN dbo.Categoria c  ON c.IDCategoria = pr.IDCategoria
+    -- Categoria del SNAPSHOT de la linea (ln.IDCategoria), no la actual del producto.
+    INNER JOIN dbo.Categoria c  ON c.IDCategoria = ln.IDCategoria
     WHERE ln.Fecha >= @Desde
-      AND ln.Fecha <= @Hasta
-    GROUP BY ln.IDProducto, pr.Nombre, c.Nombre
-    ORDER BY UnidadesNetas DESC, MontoNeto DESC
+      AND ln.Fecha < @Hasta
+    GROUP BY ln.IDProducto, pr.Nombre, ln.IDCategoria, c.Nombre
+    ORDER BY UnidadesNetas DESC, MontoNeto DESC, ln.IDProducto
     OPTION (RECOMPILE);
 END
 GO
@@ -244,7 +247,7 @@ BEGIN
     SELECT IDCarrito, Cliente, Correo, Lineas, Unidades, ValorEstimado,
            FechaUltimaActividad, HorasInactivo
     FROM Abandonados
-    ORDER BY FechaUltimaActividad ASC
+    ORDER BY FechaUltimaActividad ASC, IDCarrito ASC
     OFFSET @Offset ROWS FETCH NEXT @TamanoPagina ROWS ONLY
     OPTION (RECOMPILE);
 
@@ -286,11 +289,11 @@ BEGIN
     DECLARE @Pedidos INT, @VentaNeta DECIMAL(18,2), @UnidadesNetas INT;
     SELECT @Pedidos = COUNT(1), @VentaNeta = CAST(ISNULL(SUM(VentaNeta), 0) AS DECIMAL(18,2))
     FROM dbo.VW_Reportes_PedidoNeto
-    WHERE FechaCreacion >= @Desde AND FechaCreacion <= @Hasta;
+    WHERE FechaCreacion >= @Desde AND FechaCreacion < @Hasta;
 
     SELECT @UnidadesNetas = ISNULL(SUM(CantidadNeta), 0)
     FROM dbo.VW_Reportes_LineaNeta
-    WHERE Fecha >= @Desde AND Fecha <= @Hasta;
+    WHERE Fecha >= @Desde AND Fecha < @Hasta;
 
     /* Periodo anterior (misma longitud, sin solapar el actual). */
     DECLARE @PedidosAnterior INT, @VentaNetaAnterior DECIMAL(18,2);
@@ -317,7 +320,7 @@ BEGIN
             AND EXISTS (SELECT 1 FROM dbo.CarritoDetalle cd WHERE cd.IDCarrito = car.IDCarrito)) AS CarritosAbandonados,
         (SELECT COUNT(1)
            FROM dbo.VW_Inventario_Disponible inv
-          WHERE inv.Activo = 1 AND inv.Disponible <= @StockMin)                                 AS ProductosBajoStock;
+          WHERE inv.Activo = 1 AND inv.Disponible <= @StockMin)                                 AS VariantesBajoStock;
 END
 GO
 

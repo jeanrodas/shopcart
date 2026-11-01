@@ -6,7 +6,11 @@ import { z } from 'zod';
  */
 const fechaIso = z.coerce.date({ message: 'fecha ISO invalida' });
 
-/** Rango de fechas base, compartido por los reportes con periodo. */
+/**
+ * Rango de fechas base, compartido por los reportes con periodo. El rango es
+ * SEMIABIERTO: [desde, hasta) -> incluye `desde` y EXCLUYE `hasta` (lo aplican los
+ * SPs de 020). El orden y el tope de 366 dias los valida el SP (-> 400).
+ */
 export const rangoSchema = z.object({
   desde: fechaIso,
   hasta: fechaIso,

@@ -328,6 +328,10 @@
     {
       "key": "m9CDetalleId",
       "value": ""
+    },
+    {
+      "key": "m8PedDetalleId",
+      "value": ""
     }
   ],
   "item": [
@@ -1130,17 +1134,17 @@
           }
         },
         {
-          "name": "Direccion ajena (403)",
+          "name": "Direccion ajena (404)",
           "description": "Admin solicita la direccion del cliente (IDDireccion 1 de las semillas). Requiere 'Login admin'. Debe responder 403.",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.test('403 prohibido', () => pm.expect(pm.response.code).to.eql(403));",
-                  "pm.test('code FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
-                ],
-                "type": "text/javascript"
+                  "pm.test('404 no encontrado (respuesta uniforme, no revela existencia)', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('code NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));"
+                ]
               }
             }
           ],
@@ -1173,22 +1177,10 @@
             {
               "listen": "test",
               "script": {
-                "exec": [
-                  "pm.test('401 no autenticado', () => pm.expect(pm.response.code).to.eql(401));",
-                  "pm.test('mensaje desactivado', () => pm.expect(pm.response.json().message).to.include('desactivado'));"
-                ],
-                "type": "text/javascript"
-              }
-            },
-            {
-              "listen": "prerequest",
-              "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"variable sufijo no vacia\", function () {",
-                  "  const _v = pm.collectionVariables.get(\"sufijo\");",
-                  "  pm.expect(_v, \"variable sufijo vacía\").to.not.be.oneOf([undefined, null, \"\"]);",
-                  "});"
+                  "pm.test('401 no autenticado', () => pm.expect(pm.response.code).to.eql(401));",
+                  "pm.test('mensaje generico (no revela que esta desactivado)', () => pm.expect(pm.response.json().message).to.eql('Credenciales invalidas'));"
                 ]
               }
             }
@@ -4369,6 +4361,58 @@
               }
             }
           ]
+        },
+        {
+          "name": "Validar PROMO10 sin aplicar (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 validacion', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('devuelve el codigo PROMO10', () => pm.expect(j && j.Codigo).to.eql('PROMO10'));",
+                  "pm.test('trae un Descuento calculado', () => pm.expect(j && j.Descuento).to.not.be.oneOf([undefined, null]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon/validar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon",
+                "validar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PROMO10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         },
         {
           "name": "LUB50: Q50 fijos sobre Lubricantes (200)",
@@ -8556,7 +8600,7 @@
                 "exec": [
                   "let j = {}; try { j = pm.response.json(); } catch (e) {}",
                   "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
-                  "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 1);",
+                  "const vars = (j.variantes || []).filter(v => v.Activo === true && Number(v.Disponible) >= 2);",
                   "vars.sort((a, b) => Number(b.Disponible) - Number(a.Disponible));",
                   "pm.test('hay variante disponible', () => pm.expect(vars.length).to.be.above(0));",
                   "if (vars.length) pm.collectionVariables.set('m8PedVarianteId', vars[0].IDVariante);"
@@ -8588,7 +8632,7 @@
           }
         },
         {
-          "name": "Cliente: agregar al carrito (cantidad 1)",
+          "name": "Cliente: agregar al carrito (cantidad 2)",
           "event": [
             {
               "listen": "prerequest",
@@ -8638,7 +8682,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"idVariante\": {{m8PedVarianteId}},\n  \"cantidad\": 1\n}",
+              "raw": "{\n  \"idVariante\": {{m8PedVarianteId}},\n  \"cantidad\": 2\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8734,7 +8778,8 @@
                 "exec": [
                   "let j = {}; try { j = pm.response.json(); } catch (e) {}",
                   "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
-                  "if (pm.response.code === 201 && j.pedido) pm.collectionVariables.set('m8PedidoId', j.pedido.IDPedido);"
+                  "if (pm.response.code === 201 && j.pedido) pm.collectionVariables.set('m8PedidoId', j.pedido.IDPedido);",
+                  "if (pm.response.code === 201 && j.lineas && j.lineas[0]) pm.collectionVariables.set('m8PedDetalleId', j.lineas[0].IDPedidoDetalle);"
                 ]
               }
             }
@@ -8833,6 +8878,189 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"estado\": \"EN_PREPARACION\",\n  \"comentario\": \"En preparacion M8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador: C EN_PREPARACION -> DESPACHADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"m8PedidoId\"), \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 DESPACHADO -> DESPACHADO', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m8PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m8PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"DESPACHADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador: C DESPACHADO -> ENTREGADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"m8PedidoId\"), \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 ENTREGADO -> ENTREGADO', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m8PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m8PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Operador: registrar devolucion parcial de 1",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"m8PedidoId\"), \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});",
+                  "pm.test(\"variable m8PedDetalleId no vacia\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"m8PedDetalleId\"), \"variable m8PedDetalleId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 devolucion', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{m8PedidoId}}/devoluciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{m8PedidoId}}",
+                "devoluciones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Devolucion parcial M8\",\n  \"lineas\": [ { \"idPedidoDetalle\": {{m8PedDetalleId}}, \"cantidad\": 1 } ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9191,6 +9419,75 @@
                 {
                   "key": "accion",
                   "value": "MODIFICAR"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitacora PEDIDOS: devolucion (MODIFICAR, operador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable m8PedidoId no vacia\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"m8PedidoId\"), \"variable m8PedidoId vacia\").to.not.be.oneOf([undefined, null, \"\"]);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 consulta', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas || [];",
+                  "const dev = filas.find(f => f.Accion === 'MODIFICAR' && typeof f.ValorNuevo === 'string' && f.ValorNuevo.indexOf('IDDevolucion') !== -1);",
+                  "pm.test('existe entrada de devolucion', () => pm.expect(dev, 'fila de devolucion').to.not.be.undefined);",
+                  "pm.test('usuario = operador', () => pm.expect(dev && dev.UsuarioCorreo).to.eql('operador@shopcart.local'));",
+                  "pm.test('JSON con MontoReintegrado', () => pm.expect(String(dev && dev.ValorNuevo)).to.include('MontoReintegrado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{m8AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=PEDIDOS&entidad=Pedido&idEntidad={{m8PedidoId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "PEDIDOS"
+                },
+                {
+                  "key": "entidad",
+                  "value": "Pedido"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{m8PedidoId}}"
                 },
                 {
                   "key": "tamano",
@@ -11248,7 +11545,7 @@
                   "pm.test('200 resumen', () => pm.expect(pm.response.code).to.eql(200));",
                   "pm.test('X-Cache MISS en la primera llamada', () => pm.expect(String(pm.response.headers.get('X-Cache'))).to.eql('MISS'));",
                   "pm.test('Pedidos >= 2', () => pm.expect(Number(j.Pedidos)).to.be.at.least(2));",
-                  "pm.test('campos del comparativo presentes', () => { ['PedidosAnterior','VentaNetaAnterior','VariacionPedidosPct','VariacionVentaPct','CarritosAbandonados','ProductosBajoStock'].forEach(k => pm.expect(j, k).to.have.property(k)); });"
+                  "pm.test('campos del comparativo presentes', () => { ['PedidosAnterior','VentaNetaAnterior','VariacionPedidosPct','VariacionVentaPct','CarritosAbandonados','VariantesBajoStock'].forEach(k => pm.expect(j, k).to.have.property(k)); });"
                 ]
               }
             }

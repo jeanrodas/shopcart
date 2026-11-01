@@ -27,7 +27,8 @@
        pedido, Cantidad > 0, sin lineas repetidas y Cantidad + CantidadDevuelta <=
        Cantidad vendida (50422 con el SKU en el mensaje). Inserta Devolucion
        (MontoReintegrado = suma de MontoLinea) y DevolucionDetalle
-       (MontoLinea = ROUND(TotalLinea * Cantidad / CantidadVendida, 2)); actualiza
+       (MontoLinea prorrateado; la ultima unidad de la linea toma el remanente
+       TotalLinea - montos previos, sin perder centavos); actualiza
        PedidoDetalle.CantidadDevuelta; y por cada linea un movimiento DEVOLUCION
        (+Cantidad) con el mismo patron de pre-bloqueo ascendente. Si tras la
        devolucion TODAS las lineas quedan con CantidadDevuelta = Cantidad, el pedido
@@ -188,7 +189,7 @@ BEGIN
         WHERE (@IDUsuario    IS NULL OR p.IDUsuario = @IDUsuario)
           AND (@CodigoEstado IS NULL OR ep.Codigo = @CodigoEstado)
           AND (@Desde        IS NULL OR p.FechaCreacion >= @Desde)
-          AND (@Hasta        IS NULL OR p.FechaCreacion <= @Hasta)
+          AND (@Hasta        IS NULL OR p.FechaCreacion < @Hasta)
           AND (@Patron       IS NULL OR p.NumeroPedido LIKE @Patron OR u.Correo LIKE @Patron)
     )
     SELECT *
@@ -205,7 +206,7 @@ BEGIN
     WHERE (@IDUsuario    IS NULL OR p.IDUsuario = @IDUsuario)
       AND (@CodigoEstado IS NULL OR ep.Codigo = @CodigoEstado)
       AND (@Desde        IS NULL OR p.FechaCreacion >= @Desde)
-      AND (@Hasta        IS NULL OR p.FechaCreacion <= @Hasta)
+      AND (@Hasta        IS NULL OR p.FechaCreacion < @Hasta)
       AND (@Patron       IS NULL OR p.NumeroPedido LIKE @Patron OR u.Correo LIKE @Patron)
     OPTION (RECOMPILE);
 END
@@ -429,15 +430,29 @@ BEGIN
             THROW 50422, @Msg, 1;
         END
 
-        /* Lineas resueltas (monto prorrateado por linea). */
+        /* Lineas resueltas (monto prorrateado por linea). La ULTIMA unidad devuelta de
+           una linea (la que la deja completa) reintegra el remanente exacto
+           TotalLinea - (suma de montos ya reintegrados de esa linea), para que la suma
+           de las devoluciones iguale TotalLinea sin perder centavos por redondeo.
+           Ej.: TotalLinea 10.00, 3 unidades, 3 devoluciones de 1 -> 3.33, 3.33, 3.34.
+           prev.SumaMontos no incluye esta devolucion (aun no se inserto). */
         SELECT
             pd.IDPedidoDetalle,
             pd.IDVariante,
             l.Cantidad,
-            CAST(ROUND(pd.TotalLinea * l.Cantidad / pd.Cantidad, 2) AS DECIMAL(18,2)) AS MontoLinea
+            CAST(
+                CASE WHEN pd.CantidadDevuelta + l.Cantidad = pd.Cantidad
+                     THEN pd.TotalLinea - ISNULL(prev.SumaMontos, 0)
+                     ELSE ROUND(pd.TotalLinea * l.Cantidad / pd.Cantidad, 2)
+                END AS DECIMAL(18,2)) AS MontoLinea
         INTO #DevLineas
         FROM @Lineas l
-        INNER JOIN dbo.PedidoDetalle pd ON pd.IDPedidoDetalle = l.IDPedidoDetalle;
+        INNER JOIN dbo.PedidoDetalle pd ON pd.IDPedidoDetalle = l.IDPedidoDetalle
+        OUTER APPLY (
+            SELECT SUM(dd.MontoLinea) AS SumaMontos
+            FROM dbo.DevolucionDetalle dd
+            WHERE dd.IDPedidoDetalle = pd.IDPedidoDetalle
+        ) prev;
 
         /* Cabecera de la devolucion. */
         INSERT dbo.Devolucion (IDPedido, IDUsuario, Motivo, MontoReintegrado)

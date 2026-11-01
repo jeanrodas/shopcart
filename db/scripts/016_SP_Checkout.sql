@@ -150,7 +150,7 @@ GO
    Paso 1: valida carrito/direccion/cupon, reserva existencia y devuelve el
    resumen de checkout. Reiniciable (vuelve a reservar).
    Errores: 50422 carrito vacio / cupon no valido / variante inactiva (con SKU);
-            50404 direccion inexistente o inactiva; 50403 direccion de otro usuario;
+            50404 direccion inexistente, inactiva o ajena (respuesta uniforme);
             50409 existencia insuficiente (desde ReservarExistencia).
    Devuelve: (1) resumen; (2) lineas reservadas.
    ------------------------------------------------------------ */
@@ -192,7 +192,7 @@ BEGIN
         IF @DirUsuario IS NULL
             THROW 50404, 'Direccion no encontrada', 1;
         IF @DirUsuario <> @IDUsuario
-            THROW 50403, 'La direccion no pertenece al usuario', 1;
+            THROW 50404, 'Direccion no encontrada', 1;
         IF @DirActivo = 0
             THROW 50404, 'Direccion no encontrada', 1;
 
@@ -447,7 +447,7 @@ BEGIN
             IF @DirUsuario IS NULL
                 THROW 50404, 'Direccion no encontrada', 1;
             IF @DirUsuario <> @IDUsuario
-                THROW 50403, 'La direccion no pertenece al usuario', 1;
+                THROW 50404, 'Direccion no encontrada', 1;
             IF @DirActivo = 0
                 THROW 50404, 'Direccion no encontrada', 1;
 

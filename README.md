@@ -76,10 +76,9 @@ estas variables al arrancar con zod y **no inicia** si falta alguna o es invalid
 | `JWT_REFRESH_SECRET` | Secreto del refresh token (min. 32 chars) | `...` |
 | `JWT_ACCESS_EXPIRES` | Vigencia del access token | `15m` |
 | `JWT_REFRESH_EXPIRES` | Vigencia del refresh token | `7d` |
-| `RESERVA_MINUTOS` | Minutos de vigencia de una reserva de stock | `15` |
-| `CARRITO_ABANDONO_HORAS` | Horas para considerar un carrito abandonado | `24` |
-| `IVA_PORCENTAJE` | Porcentaje de IVA aplicado | `12` |
+| `TRUST_PROXY` | Saltos de proxy de confianza para derivar la IP (Express `trust proxy`); `0` = sin proxy | `0` |
 | `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` |
+| `RATE_LIMIT_CUPON_MAX` | Aplicaciones de cupon por identidad por minuto | `10` |
 | `REPORTES_CACHE_TTL_SEGUNDOS` | Vigencia del cache de reportes (RF-08); `0` lo desactiva | `60` |
 | `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `true` |
 
@@ -145,6 +144,31 @@ sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
 
 ## Decisiones tecnicas
 
+**Configuracion: negocio en BD, tecnica en env.** La configuracion de **negocio**
+(minutos de reserva, horas de abandono de carrito, porcentaje de IVA, stock minimo,
+costo de envio, etc.) vive en la tabla `dbo.Parametro` y la leen los stored procedures;
+asi se ajusta sin redesplegar la API. La configuracion **tecnica** (conexion, secretos
+JWT, niveles de log, TTL de cache, limites de rate limit, `TRUST_PROXY`) vive en
+variables de entorno validadas por zod en `api/src/config/env.ts`, unico modulo que lee
+`process.env`.
+
+**Login con respuesta uniforme (anti-enumeracion).** `POST /auth/login` responde
+SIEMPRE `401 'Credenciales invalidas'` ante usuario inexistente, contrasena incorrecta,
+cuenta bloqueada o desactivada; la causa real solo va a `logger.warn` (con `requestId` y
+el correo enmascarado, nunca la contrasena). Se mantiene una comparacion bcrypt dummy y
+se hace la comparacion antes de los chequeos de estado para igualar los tiempos de
+respuesta, de modo que un atacante no distingue que cuentas existen o estan bloqueadas.
+
+**Ventana del access token (15 min).** El rol viaja dentro del access token (JWT,
+`JWT_ACCESS_EXPIRES=15m`). Al cambiar el rol o desactivar un usuario, los SPs de M1
+revocan sus refresh tokens activos para forzar re-login; el access token ya emitido
+sigue valido hasta 15 min. Es una decision documentada: se acepta esa ventana a cambio
+de no mantener una lista de revocacion de access tokens.
+
+**Confianza en el proxy.** `app.set('trust proxy', TRUST_PROXY)`: con `0` (default) la IP
+es la del socket; detras de un proxy/balanceador propio se fija al numero de saltos para
+que `req.ip` (y por tanto el rate limiting por IP) use el `X-Forwarded-For` correcto.
+
 **Acceso a datos exclusivo por stored procedures.** El backend nunca arma SQL.
 El unico punto de acceso es `executeSp(spName, params)` (`api/src/data/spExecutor.ts`),
 que ejecuta `request.execute(spName)` con parametros tipados (`request.input`/
@@ -170,6 +194,50 @@ backend **no** fija el contexto de sesion por su cuenta: solo pasa
 el usuario de aplicacion solo tiene `EXECUTE` sobre `dbo` (sin permisos de tabla),
 y un trigger `INSTEAD OF UPDATE, DELETE` bloquea cualquier modificacion o borrado,
 incluso desde `dbo` o un SP.
+
+### Decisiones de seguridad
+
+Un resumen del modelo de amenazas y las decisiones que lo sostienen (los detalles
+tecnicos estan en las notas de arriba y en cada modulo).
+
+- **Sesion por JWT en el header, no en cookies.** El access token viaja en
+  `Authorization: Bearer` y el front lo guarda del lado del cliente; al no usar cookies
+  de sesion, **CSRF no aplica** (no hay credencial que el navegador adjunte sola) y por
+  eso no se incluye proteccion anti-CSRF.
+- **Ventana de 15 minutos del access token.** El rol viaja firmado dentro del token. Al
+  hacer logout, desactivar un usuario o cambiarle el rol se revocan sus refresh tokens
+  (no podra renovar), pero el access token ya emitido sigue valido hasta 15 min. Se
+  acepta esa ventana a proposito: evita mantener una lista de revocacion de access
+  tokens consultada en cada request, a cambio de una exposicion corta y acotada.
+- **Lockout en dos capas.** Capa 1, en memoria por `(correo + IP)`: tras 5 fallos en 15
+  min desde la misma IP para el mismo correo se rechaza sin tocar la BD. Capa 2, por
+  cuenta en BD (`Usuario.IntentosFallidos`, umbral `LOGIN_MAX_INTENTOS = 10`). La capa 1
+  frena la fuerza bruta desde una IP **sin** permitir que un atacante bloquee la cuenta
+  de un tercero (el bloqueo por IP+correo no afecta a otras IPs). Un login exitoso limpia
+  ambas.
+- **Rate limiting por recurso y por identidad justa.** `/auth/*` por IP; checkout por
+  usuario; aplicacion/validacion de cupones por identidad (usuario o token de invitado).
+  La clave es la identidad, no solo la IP, para no castigar a varios clientes tras un NAT.
+- **Respuestas uniformes.** El login responde siempre `401 'Credenciales invalidas'`
+  (no distingue inexistente / mala contrasena / bloqueado / desactivado) y el acceso a
+  una direccion ajena responde `404` igual que una inexistente: no se filtra la
+  existencia de cuentas ni de recursos. La causa real queda en el log.
+- **Sin recuperacion de contrasena en Fase 1.** Queda fuera de alcance; cuando se
+  implemente llevara su propio rate limit por correo y por IP y un token de un solo uso
+  con expiracion corta.
+- **Cabeceras de seguridad.** `helmet` (con `Cross-Origin-Resource-Policy: same-origin`)
+  mas `Permissions-Policy: camera=(), microphone=(), geolocation=()` fijada a mano
+  (helmet 8 no la trae). CORS restringe los origenes a `CORS_ORIGIN`.
+- **Validacion de entrada con lista blanca.** Los campos de texto que se muestran o
+  exportan (nombres, alias, direccion, motivos) pasan por `textoPlano`, que rechaza
+  caracteres de control y `< >` (anti-inyeccion de markup y de formulas en el `.xlsx`,
+  junto con el prefijo de apostrofo del export). Las descripciones largas solo filtran
+  caracteres de control.
+- **Acceso a datos solo por stored procedures** (sin SQL en el backend) y **bitacora
+  inmutable** en tres capas (ver arriba).
+- **Credenciales de evaluacion.** Las contrasenas sembradas y la de BD son publicas y
+  de desarrollo; en produccion no se aplica el seed y se rotan (ver
+  [Credenciales de prueba](#credenciales-de-prueba)).
 
 ### Autenticacion y usuarios (M1, RF-01)
 
@@ -305,7 +373,7 @@ incluso desde `dbo` o un SP.
   (funcion en linea, invocada solo desde SPs) calcula `TotalLinea = ROUND(Precio *
   Cantidad, 2)`, `Subtotal`, `Total = Subtotal - Descuento`, y el IVA incluido en el
   precio: `BaseImponible = ROUND(Total / (1 + IVA/100), 2)`, `IVA = Total -
-  BaseImponible`. El `PorcentajeIVA` sale del parametro `IVA_PORCENTAJE` (default 12).
+  BaseImponible`. El `PorcentajeIVA` sale del parametro de IVA en `dbo.Parametro` (default 12).
   El backend nunca calcula montos.
 - **Descuento = 0 en M4.** `Descuento` siempre es `0.00`; la funcion lo deja marcado
   para que **M5 (cupones)** lo sustituya. El cupon del carrito se resuelve en M5 con un
@@ -369,7 +437,7 @@ incluso desde `dbo` o un SP.
 ### Checkout y pago (M6, RF-06)
 
 - **Dos pasos: reservar y luego pagar.** `POST /checkout/iniciar` **reserva** existencia
-  por `RESERVA_MINUTOS` (parametro, default 15) y devuelve un resumen con totales y costo
+  por los minutos de reserva configurados en `dbo.Parametro` (default 15) y devuelve un resumen con totales y costo
   de envio; `POST /checkout/pagar` **cobra** (pago simulado) y, si aprueba, crea el pedido.
   Separar reserva de pago evita vender mas unidades de las que hay cuando varios clientes
   compiten por el ultimo stock.
@@ -618,8 +686,10 @@ por `GET /api/v1/reportes/*`.
 - **Periodos en UTC** por `Pedido.FechaCreacion`. **Ticket promedio** = venta neta / pedidos
   completados del periodo.
 - **Carrito abandonado** = `Estado = 'Activo'`, >= 1 linea y `FechaUltimaActividad` anterior a
-  `ahora - CARRITO_ABANDONO_HORAS` (parametro). **Productos bajo stock** =
+  el tiempo de abandono configurado en `dbo.Parametro`. **Variantes bajo stock** =
   `VW_Inventario_Disponible.Disponible <= STOCK_MINIMO` (parametro).
+- **Rango semiabierto:** todos los reportes y `GET /pedidos` filtran `[desde, hasta)` (incluye
+  `desde`, EXCLUYE `hasta`), para que un pedido en el limite no caiga en dos periodos.
 - El listado de pedidos con filtros ya lo cubre `GET /pedidos` (M7): no se duplica.
 
 **Vistas y SPs (`020_Reportes.sql`).** `VW_Reportes_PedidoNeto` (venta neta por pedido) y
@@ -627,12 +697,13 @@ por `GET /api/v1/reportes/*`.
 Encima: `SP_Reportes_VentasPorPeriodo` (agrupa por `DIA`/`SEMANA`/`MES` con `DATETRUNC` de
 SQL Server 2022; semana con `DATEFIRST 1`), `SP_Reportes_VentasPorCategoria`,
 `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen`. Todos
-validan el rango (`Hasta > Desde`, `<= 366 dias`) con error `50400 -> 400`.
+validan el rango (`Hasta > Desde`, `<= 366 dias`) con error `50400 -> 400`. `TopProductos`
+agrupa la categoria por el snapshot de la linea (`ln.IDCategoria`).
 
 **Comparativo.** `SP_Reportes_Resumen` compara el periodo actual con el inmediatamente
 anterior de **igual longitud** (`[Desde - (Hasta-Desde), Desde)`): `PedidosAnterior`,
 `VentaNetaAnterior`, `VariacionPedidosPct` y `VariacionVentaPct` (NULL cuando el valor
-anterior es 0). Ademas devuelve `CarritosAbandonados` y `ProductosBajoStock`.
+anterior es 0). Ademas devuelve `CarritosAbandonados` y `VariantesBajoStock`.
 
 **Cache (`api/src/utils/reportesCache.ts`).** Las lecturas JSON y los export pasan por un
 cache en memoria con TTL (`REPORTES_CACHE_TTL_SEGUNDOS`, default 60; `0` lo desactiva). La
@@ -701,12 +772,15 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
 
 ## Extras implementados
 
-- **Rate limiting de autenticacion.** `/auth/*` limitado por IP (`RATE_LIMIT_AUTH_MAX` por
-  ventana) y el checkout por usuario (`RATE_LIMIT_CHECKOUT_MAX` por minuto); el exceso
-  responde `429` con el formato de error estandar.
+- **Rate limiting.** `/auth/*` por IP (`RATE_LIMIT_AUTH_MAX` por ventana), el checkout por
+  usuario (`RATE_LIMIT_CHECKOUT_MAX` por minuto) y la aplicacion/validacion de cupones por
+  identidad -usuario o token de invitado- (`RATE_LIMIT_CUPON_MAX` por minuto, para frenar el
+  sondeo de codigos); el exceso responde `429` con el formato de error estandar.
 - **Cache de reportes con invalidacion correcta.** Cache en memoria con TTL, clave estable
-  por reporte+parametros, `X-Cache: HIT|MISS`, limite de entradas (LRU) e invalidacion por
-  evento desde los servicios que mutan ventas o inventario (ver M9).
+  por reporte+parametros (fechas truncadas a minuto), `X-Cache: HIT|MISS`, limite de entradas
+  (LRU), versionado + single-flight (no cachea un dato invalidado durante su calculo ni
+  recomputa la misma clave en paralelo) e invalidacion por evento desde los servicios que
+  mutan ventas o inventario (ver M9).
 - **Exportacion a Excel.** Reportes de ventas, categorias y top productos como `.xlsx`
   (`exceljs`, en memoria), con formato de dinero/fecha y proteccion contra inyeccion de
   formulas (ver M9).
@@ -746,9 +820,10 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    total), verificando que el inventario se reponga. La carpeta **M8 Bitacora** es repetible
    (sufijo por corrida): el admin crea producto/variante, cambia el precio y desactiva el
    producto; crea y desactiva un cupon; el operador registra una entrada de inventario; se
-   corre un pedido completo via checkout y el operador lo avanza a `EN_PREPARACION`. Luego
-   consulta `GET /bitacora` por modulo (`CATALOGO`, `INVENTARIO`, `CUPONES`, `PEDIDOS`),
-   verifica las acciones, el usuario (por correo) y el JSON de valores, que un modulo
+   corre un pedido completo via checkout (2 unidades), el operador lo lleva de `PAGADO` a
+   `ENTREGADO` y registra una devolucion parcial. Luego consulta `GET /bitacora` por modulo
+   (`CATALOGO`, `INVENTARIO`, `CUPONES`, `PEDIDOS`), verifica las acciones, el usuario (por
+   correo) y el JSON de valores -incluida la fila de la devolucion en `PEDIDOS`-, que un modulo
    inexistente responde `200` con 0 filas, que `GET /bitacora/modulos` incluye los cuatro
    modulos, y que el cliente y el operador reciben `403` al consultar la bitacora.
    La carpeta **M9 Reportes** es repetible (sufijo por corrida): crea una variante (precio
@@ -792,7 +867,12 @@ cost 10). El cliente incluye una direccion activa.
 | `operador@shopcart.local` | `Operador123!` | Operador |
 | `cliente@shopcart.local` | `Cliente123!` | Cliente |
 
-> Contrasenas de desarrollo conocidas: no usar en ambientes reales.
+> **Credenciales de evaluacion/desarrollo, publicas y conocidas.** `Admin123!`,
+> `Operador123!`, `Cliente123!` y la contrasena de BD `ShopCart_Dev_2026!` existen solo
+> para correr el proyecto y las pruebas. En produccion este archivo de semillas **no** se
+> aplica: los usuarios se dan de alta con contrasenas unicas fuera del control de versiones
+> (alta inicial del Administrador o secreto de despliegue) y se rotan periodicamente; la
+> contrasena de `shopcart_app` se cambia por un secreto fuerte gestionado por el entorno.
 
 ## Ciclo de vida del pedido
 
