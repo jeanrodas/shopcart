@@ -242,7 +242,8 @@ BEGIN
              @CodigoTipo       = N'ENTRADA_COMPRA',
              @Cantidad         = @CantidadInv,
              @Motivo           = N'Carga inicial de inventario',
-             @IDUsuarioEjecuta = @AdminInv;
+             @IDUsuarioEjecuta = @AdminInv,
+             @SinResultado     = 1;
 
         FETCH NEXT FROM cur_inventario INTO @IDVarianteInv;
     END
@@ -355,4 +356,171 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'UNAVEZ')
 IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'AGOTADO')
     INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente, UsosActuales)
     VALUES (N'AGOTADO', N'PORCENTAJE', 5.00, NULL, 0.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), 1, NULL, 1);
+GO
+
+/* ============================================================
+   M6-M9 - Pedidos de demostracion para el dashboard (RF-06 a RF-09)
+   Genera ~12 pedidos SOLO a traves de los SPs reales (checkout, cambio de estado,
+   devolucion), con claves de idempotencia deterministas 'SEED-xxx'. DESPUES, y SOLO
+   en semillas, se retrasan las fechas (Pedido.FechaCreacion, PedidoHistorialEstado.Fecha,
+   Pago.Fecha, Kardex.Fecha, Devolucion.Fecha) para repartir los datos en los ultimos
+   60 dias y que ventas DIA/SEMANA/MES, categorias, top y el comparativo del resumen
+   tengan material. Reparto: 2 PAGADO, 2 EN_PREPARACION, 2 DESPACHADO, 3 ENTREGADO
+   (1 con devolucion parcial, 1 con devolucion total -> DEVUELTO), 2 CANCELADO y 1 pago
+   RECHAZADO; 2 usan el cupon PROMO10; en 3+ categorias.
+   Idempotente: si ya existe el pago 'SEED-001' se salta toda la seccion. Las reservas
+   se crean con la hora actual (no se retrasan): no afectan a los reportes.
+   ============================================================ */
+IF NOT EXISTS (SELECT 1 FROM dbo.Pago WHERE ClaveIdempotencia = N'SEED-001')
+BEGIN
+    DECLARE @Oper INT = (SELECT IDUsuario FROM dbo.Usuario WHERE Correo = N'operador@shopcart.local');
+    DECLARE @AdminD INT = (SELECT IDUsuario FROM dbo.Usuario WHERE Correo = N'admin@shopcart.local');
+
+    /* Dos clientes demo adicionales (hash de 'Cliente123!', mismo que el cliente base). */
+    INSERT dbo.Usuario (IDRol, Correo, HashContrasena, Nombre)
+    SELECT r.IDRol, x.Correo,
+           N'$2b$10$ESr6NozUG8lCqPJtgzbLBeVVgGe64DVT.61MZeVUJTlDUR3/SBrSK', x.Nombre
+    FROM (VALUES
+        (N'cliente2@shopcart.local', N'Cliente Dos ShopCart'),
+        (N'cliente3@shopcart.local', N'Cliente Tres ShopCart')
+    ) x(Correo, Nombre)
+    CROSS JOIN dbo.Rol r
+    WHERE r.Nombre = N'Cliente'
+      AND NOT EXISTS (SELECT 1 FROM dbo.Usuario u WHERE u.Correo = x.Correo);
+
+    /* Direccion para cada cliente demo que no la tenga. */
+    INSERT dbo.Direccion (IDUsuario, Alias, NombreReceptor, Telefono, Linea1, Municipio, Departamento)
+    SELECT u.IDUsuario, N'Casa', u.Nombre, N'+502 5555-0000', N'Avenida Reforma 10-00 Zona 9',
+           N'Guatemala', N'Guatemala'
+    FROM dbo.Usuario u
+    WHERE u.Correo IN (N'cliente2@shopcart.local', N'cliente3@shopcart.local')
+      AND NOT EXISTS (SELECT 1 FROM dbo.Direccion d WHERE d.IDUsuario = u.IDUsuario);
+
+    /* Top-up de existencia para los SKUs de la demo (no toca LUB-SIN-5W30-1QT, que
+       queda en bajo stock para el resumen). Via SP, sin result set. */
+    DECLARE @skuTop NVARCHAR(50), @vTop INT;
+    DECLARE cur_top CURSOR LOCAL FAST_FORWARD FOR
+        SELECT sku FROM (VALUES
+            (N'LUB-SEM-10W40-1QT'), (N'LUB-TRA-ATF-1QT'), (N'LUB-SIN-5W30-GAL'),
+            (N'ADI-ULT-CONC-1L'), (N'ADI-REF-VERDE-1GAL'),
+            (N'ACC-FIL-UNIV-STD'), (N'CON-CAF-16OZ-REG')
+        ) s(sku);
+    OPEN cur_top;
+    FETCH NEXT FROM cur_top INTO @skuTop;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @vTop = (SELECT IDVariante FROM dbo.Variante WHERE SKU = @skuTop);
+        IF @vTop IS NOT NULL
+            EXEC dbo.SP_Inventario_RegistrarMovimiento
+                 @IDVariante = @vTop, @CodigoTipo = N'ENTRADA_COMPRA', @Cantidad = 100,
+                 @Motivo = N'Reposicion para pedidos demo', @IDUsuarioEjecuta = @AdminD,
+                 @SinResultado = 1;
+        FETCH NEXT FROM cur_top INTO @skuTop;
+    END
+    CLOSE cur_top; DEALLOCATE cur_top;
+
+    /* Especificaciones de los pedidos demo. Objetivo controla el estado final. */
+    DECLARE @spec TABLE (
+        Orden INT IDENTITY(1,1) PRIMARY KEY,
+        Clave NVARCHAR(100), Correo NVARCHAR(255), SKU NVARCHAR(50), Cantidad INT,
+        Cupon NVARCHAR(30) NULL, Objetivo NVARCHAR(20), Simular NVARCHAR(10), DiasAtras INT
+    );
+    INSERT @spec (Clave, Correo, SKU, Cantidad, Cupon, Objetivo, Simular, DiasAtras)
+    VALUES
+        (N'SEED-001', N'cliente@shopcart.local',  N'LUB-SEM-10W40-1QT',  2, NULL,      N'PAGADO',         N'APROBADO', 55),
+        (N'SEED-002', N'cliente2@shopcart.local', N'ADI-ULT-CONC-1L',    1, NULL,      N'PAGADO',         N'APROBADO', 52),
+        (N'SEED-003', N'cliente3@shopcart.local', N'ACC-FIL-UNIV-STD',   3, NULL,      N'EN_PREPARACION', N'APROBADO', 48),
+        (N'SEED-004', N'cliente@shopcart.local',  N'LUB-TRA-ATF-1QT',    2, N'PROMO10',N'EN_PREPARACION', N'APROBADO', 44),
+        (N'SEED-005', N'cliente2@shopcart.local', N'CON-CAF-16OZ-REG',   4, NULL,      N'DESPACHADO',     N'APROBADO', 39),
+        (N'SEED-006', N'cliente3@shopcart.local', N'ADI-REF-VERDE-1GAL', 1, NULL,      N'DESPACHADO',     N'APROBADO', 33),
+        (N'SEED-007', N'cliente@shopcart.local',  N'LUB-SIN-5W30-GAL',   1, N'PROMO10',N'ENTREGADO',      N'APROBADO', 28),
+        (N'SEED-008', N'cliente2@shopcart.local', N'ACC-FIL-UNIV-STD',   2, NULL,      N'PARCIAL',        N'APROBADO', 22),
+        (N'SEED-009', N'cliente3@shopcart.local', N'ADI-ULT-CONC-1L',    2, NULL,      N'DEVUELTO',       N'APROBADO', 16),
+        (N'SEED-010', N'cliente@shopcart.local',  N'CON-CAF-16OZ-REG',   3, NULL,      N'CANCELADO',      N'APROBADO', 11),
+        (N'SEED-011', N'cliente2@shopcart.local', N'LUB-SEM-10W40-1QT',  1, NULL,      N'CANCELADO',      N'APROBADO',  6),
+        (N'SEED-012', N'cliente3@shopcart.local', N'ADI-REF-VERDE-1GAL', 1, NULL,      N'RECHAZADO',      N'RECHAZADO', 3);
+
+    DECLARE @i INT = 1, @n INT = (SELECT MAX(Orden) FROM @spec);
+    DECLARE @Clave NVARCHAR(100), @Correo NVARCHAR(255), @SKU NVARCHAR(50), @Cant INT,
+            @Cupon NVARCHAR(30), @Obj NVARCHAR(20), @Sim NVARCHAR(10), @Dias INT,
+            @Cli INT, @Dir INT, @Var INT, @IDPedido INT, @Base DATETIME2(0);
+    DECLARE @Lineas dbo.TVP_DevolucionLinea;
+
+    WHILE @i <= @n
+    BEGIN
+        SELECT @Clave = Clave, @Correo = Correo, @SKU = SKU, @Cant = Cantidad,
+               @Cupon = Cupon, @Obj = Objetivo, @Sim = Simular, @Dias = DiasAtras
+        FROM @spec WHERE Orden = @i;
+
+        SET @Cli = (SELECT IDUsuario FROM dbo.Usuario WHERE Correo = @Correo);
+        SET @Dir = (SELECT TOP (1) IDDireccion FROM dbo.Direccion WHERE IDUsuario = @Cli AND Activo = 1 ORDER BY IDDireccion);
+        SET @Var = (SELECT IDVariante FROM dbo.Variante WHERE SKU = @SKU);
+
+        /* Parte de un carrito limpio: evita arrastrar el carrito demo de M4 (cliente
+           base) o una linea de un pago rechazado anterior. Sin carrito activo es no-op. */
+        EXEC dbo.SP_Carrito_Vaciar @IDUsuario = @Cli, @IDUsuarioEjecuta = @Cli;
+
+        EXEC dbo.SP_Carrito_AgregarItem
+             @IDUsuario = @Cli, @IDVariante = @Var, @Cantidad = @Cant, @IDUsuarioEjecuta = @Cli;
+
+        IF @Cupon IS NOT NULL
+            EXEC dbo.SP_Cupones_AplicarACarrito
+                 @Codigo = @Cupon, @IDUsuario = @Cli, @IDUsuarioEjecuta = @Cli;
+
+        EXEC dbo.SP_Checkout_Iniciar
+             @IDUsuario = @Cli, @IDDireccion = @Dir, @IDUsuarioEjecuta = @Cli;
+
+        EXEC dbo.SP_Pedidos_CrearPedido
+             @IDUsuario = @Cli, @IDDireccion = @Dir, @ClaveIdempotencia = @Clave,
+             @MetodoPago = N'TARJETA', @SimularResultado = @Sim, @IDUsuarioEjecuta = @Cli;
+
+        SET @IDPedido = (SELECT IDPedido FROM dbo.Pago WHERE ClaveIdempotencia = @Clave);
+
+        IF @Obj = N'RECHAZADO'
+        BEGIN
+            /* No hay pedido; limpia el carrito para no arrastrar la linea. */
+            EXEC dbo.SP_Carrito_Vaciar @IDUsuario = @Cli, @IDUsuarioEjecuta = @Cli;
+            UPDATE dbo.Pago SET Fecha = DATEADD(DAY, -@Dias, SYSUTCDATETIME()) WHERE ClaveIdempotencia = @Clave;
+        END
+        ELSE
+        BEGIN
+            /* Avance de estados (lo ejecuta el operador). */
+            IF @Obj IN (N'EN_PREPARACION', N'DESPACHADO', N'ENTREGADO', N'PARCIAL', N'DEVUELTO')
+                EXEC dbo.SP_Pedidos_CambiarEstado @IDPedido = @IDPedido, @CodigoEstadoDestino = N'EN_PREPARACION',
+                     @Comentario = N'Demo', @IDUsuarioEjecuta = @Oper, @RolEjecuta = N'Operador';
+            IF @Obj IN (N'DESPACHADO', N'ENTREGADO', N'PARCIAL', N'DEVUELTO')
+                EXEC dbo.SP_Pedidos_CambiarEstado @IDPedido = @IDPedido, @CodigoEstadoDestino = N'DESPACHADO',
+                     @Comentario = N'Demo', @IDUsuarioEjecuta = @Oper, @RolEjecuta = N'Operador';
+            IF @Obj IN (N'ENTREGADO', N'PARCIAL', N'DEVUELTO')
+                EXEC dbo.SP_Pedidos_CambiarEstado @IDPedido = @IDPedido, @CodigoEstadoDestino = N'ENTREGADO',
+                     @Comentario = N'Demo', @IDUsuarioEjecuta = @Oper, @RolEjecuta = N'Operador';
+            IF @Obj = N'CANCELADO'
+                EXEC dbo.SP_Pedidos_CambiarEstado @IDPedido = @IDPedido, @CodigoEstadoDestino = N'CANCELADO',
+                     @Comentario = N'Demo', @IDUsuarioEjecuta = @Oper, @RolEjecuta = N'Operador';
+
+            /* Devoluciones (operador). PARCIAL: 1 unidad; DEVUELTO: todo. */
+            IF @Obj IN (N'PARCIAL', N'DEVUELTO')
+            BEGIN
+                DELETE @Lineas;
+                INSERT @Lineas (IDPedidoDetalle, Cantidad)
+                SELECT pd.IDPedidoDetalle, CASE WHEN @Obj = N'PARCIAL' THEN 1 ELSE pd.Cantidad END
+                FROM dbo.PedidoDetalle pd WHERE pd.IDPedido = @IDPedido;
+
+                EXEC dbo.SP_Pedidos_RegistrarDevolucion
+                     @IDPedido = @IDPedido, @Motivo = N'Devolucion demo', @Lineas = @Lineas,
+                     @IDUsuarioEjecuta = @Oper;
+            END
+
+            /* Retraso de fechas (ACEPTABLE SOLO EN SEMILLAS). */
+            SET @Base = DATEADD(DAY, -@Dias, SYSUTCDATETIME());
+            UPDATE dbo.Pedido                SET FechaCreacion = @Base, FechaActualizacion = @Base WHERE IDPedido = @IDPedido;
+            UPDATE dbo.PedidoHistorialEstado SET Fecha = @Base WHERE IDPedido = @IDPedido;
+            UPDATE dbo.Pago                  SET Fecha = @Base WHERE IDPedido = @IDPedido;
+            UPDATE dbo.Kardex                SET Fecha = @Base WHERE IDPedido = @IDPedido;
+            UPDATE dbo.Devolucion            SET Fecha = @Base WHERE IDPedido = @IDPedido;
+        END
+
+        SET @i += 1;
+    END
+END
 GO

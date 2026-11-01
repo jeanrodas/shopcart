@@ -1,91 +1,182 @@
 # ShopCart
 
-Plataforma de e-commerce.
+Backend de e-commerce para las gasolineras y tienda de conveniencia "Don Arturo /
+RinoMart". Monorepo: la base de datos en `db/` y la API en `api/`.
 
 ## Descripcion
 
-Pendiente.
+ShopCart es una API REST respaldada por SQL Server en la que **toda la logica de datos
+vive en stored procedures** (el backend nunca arma SQL). Esta entrega corresponde a la
+**Fase 1** y cubre los requisitos funcionales RF-01 a RF-09:
+
+| RF | Modulo | Resumen |
+|----|--------|---------|
+| RF-01 | Autenticacion y usuarios | Registro/login con JWT, refresh tokens rotados, roles (Cliente/Operador/Administrador), direcciones. |
+| RF-02 | Catalogo | Categorias, productos, variantes (SKU/precio) con atributos e imagenes. |
+| RF-03 | Inventario y kardex | Existencia por variante con kardex inmutable; un unico SP la modifica. |
+| RF-04 | Carrito | Carrito de cliente o de invitado (token), totales e IVA. |
+| RF-05 | Cupones | Porcentaje/monto, vigencia, limites y categoria; validar/aplicar al carrito. |
+| RF-06 | Checkout y pago | Reserva de existencia, pago simulado idempotente, creacion de pedido. |
+| RF-07 | Pedidos y devoluciones | Maquina de estados, cancelacion y devoluciones (parcial/total). |
+| RF-08 | Dashboard y reportes | Ventas por periodo/categoria, top productos, carritos abandonados, comparativo, export a Excel. |
+| RF-09 | Bitacora | Auditoria inmutable de cambios con el usuario responsable. |
+
+Extras: rate limiting, cache de reportes con invalidacion por evento y exportacion a
+Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Stack
 
-Pendiente.
+- **SQL Server 2022** (requiere `DATETRUNC`, de 2022).
+- **Node.js 24 LTS** + **TypeScript** en modo `strict` (sin ORM; acceso solo por SP).
+- **Express 5** (HTTP), **mssql** (driver, `request.execute`), **zod** (validacion).
+- **pino** / **pino-http** (logs), **bcryptjs** (hash de contrasena),
+  **jsonwebtoken** (JWT), **express-rate-limit** (rate limiting), **exceljs** (export).
+- **helmet**, **cors**; documentacion **OpenAPI 3** via **swagger-ui-express**.
 
 ## Requisitos
 
-Pendiente.
+- SQL Server 2022 (Developer/Express sirven).
+- `sqlcmd` del cliente **ODBC 18** (o **go-sqlcmd**); el instalador usa `-C` (confia en
+  el certificado) y `-b` (aborta al primer error).
+- Node.js **24 LTS** y npm.
+- Opcional, para las pruebas de API: Postman o **newman** (`npx newman`).
 
 ## Instalacion
 
-Monorepo simple: la base de datos vive en `db/` y el backend en `api/`.
-
-### 1. Base de datos
-
-Requiere SQL Server 2019+. Ejecutar los scripts de `db/scripts/` **en orden**
-sobre una instancia limpia (ver `db/README.md`):
+### 1. Clonar el repositorio
 
 ```bash
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/001_CreateDatabase.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/002_SP_Sistema_Ping.sql
+git clone <url-del-repo> shopcart
+cd shopcart
 ```
 
-### 2. API
+### 2. Base de datos (un comando)
 
-Requiere Node.js 24 LTS.
+Desde `db/`, el instalador aplica los scripts en el unico orden canonico valido y
+verifica el resultado (ver `db/README.md`):
+
+```powershell
+cd db
+.\aplicar.ps1                         # autenticacion de Windows contra localhost, con semillas
+# o:  .\aplicar.ps1 -Server "localhost\SQLEXPRESS"
+# o:  .\aplicar.ps1 -User sa -Password '<pass>' -IncluirSemillas:$false
+```
+
+Equivalente en bash: `./aplicar.sh` (mismas opciones). Al terminar imprime los conteos
+de verificacion (26 tablas, procedimientos, triggers, vistas y el login `shopcart_app`).
+
+> **Avisos esperados durante la instalacion (no son errores).** Al aplicar `014` SQL
+> Server emite "The module '…' depends on the missing object 'dbo.SP_Carrito_Obtener'…
+> will still be created": es normal porque en el orden canonico `012` (que crea ese SP)
+> se aplica **despues** de `014`; la resolucion es diferida y queda correcta. Ademas,
+> `099` imprime varios result sets (`(N rows affected)` y tablas) al generar los pedidos
+> demo via los SPs de checkout/pedidos: es ruido de salida, no un error. La instalacion
+> termina bien si ves "Instalacion completada" y los conteos de verificacion.
+
+### 3. API
 
 ```bash
 cd api
-cp .env.example .env     # luego edite .env con sus valores reales
-npm install
-npm run dev              # desarrollo con recarga (tsx watch)
+npm ci                      # instala dependencias exactas del package-lock
+cp .env.example .env        # y edite .env (ver "Variables de entorno")
+npm run dev                 # desarrollo con recarga (tsx watch)
 ```
 
-Otros scripts:
+Variables minimas que hay que completar en `.env`: `DB_SERVER`, `DB_NAME`, `DB_USER`,
+`DB_PASSWORD`, `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` (>= 32 caracteres). El resto
+tiene default (ver tabla). Otros scripts: `npm run build` (compila a `dist/`),
+`npm start` (corre la build), `npm run lint`, `npm run format`.
 
-```bash
-npm run build   # compila TypeScript a dist/
-npm start       # ejecuta la build (node dist/server.js)
-npm run lint    # ESLint
-npm run format  # Prettier
-```
-
-La API queda disponible en `http://localhost:3000` (segun `PORT`):
+La API queda en `http://localhost:3000` (segun `PORT`). Verificacion:
 
 - `GET /health` — estado del servicio y de la BD.
 - `GET /api-docs` — documentacion Swagger (OpenAPI 3).
+- **Todo el resto de la API vive bajo `http://localhost:3000/api/v1`** (auth, usuarios,
+  catalogo, inventario, carrito, cupones, checkout, pedidos, bitacora, reportes).
+
+### Instalacion para evaluacion
+
+Para correr la coleccion de Postman/newman completa de una pasada sin topar los limites,
+use estos valores. **Lo mas simple es ponerlos en `api/.env`** (la API los lee de ahi):
+
+```ini
+NODE_ENV=development
+PAGO_SIMULADO=true
+RATE_LIMIT_AUTH_MAX=100
+RATE_LIMIT_CHECKOUT_MAX=100
+RATE_LIMIT_CUPON_MAX=100
+```
+
+y luego `npm run dev`. Como alternativa, se pueden pasar al vuelo al arrancar (segun el
+shell):
+
+```powershell
+# PowerShell
+$env:NODE_ENV="development"; $env:PAGO_SIMULADO="true"; $env:RATE_LIMIT_AUTH_MAX="100"; $env:RATE_LIMIT_CHECKOUT_MAX="100"; $env:RATE_LIMIT_CUPON_MAX="100"; npm run dev
+```
+
+```bat
+:: cmd
+set NODE_ENV=development && set PAGO_SIMULADO=true && set RATE_LIMIT_AUTH_MAX=100 && set RATE_LIMIT_CHECKOUT_MAX=100 && set RATE_LIMIT_CUPON_MAX=100 && npm run dev
+```
+
+```bash
+# bash
+NODE_ENV=development PAGO_SIMULADO=true RATE_LIMIT_AUTH_MAX=100 RATE_LIMIT_CHECKOUT_MAX=100 RATE_LIMIT_CUPON_MAX=100 npm run dev
+```
+
+### Produccion
+
+Diferencias respecto a desarrollo: `NODE_ENV=production`, `PAGO_SIMULADO=false`
+(obligatorio: la app no arranca con pago simulado en produccion), `TRUST_PROXY` igual al
+numero de proxies propios delante de la API, secretos JWT y contrasena de BD fuertes y
+**rotados** fuera del control de versiones, y los limites de rate limit en sus valores
+reales (no 100). El archivo de semillas `099` no se aplica en produccion.
 
 ## Variables de entorno
 
 Se definen en `api/.env` (plantilla en `api/.env.example`). La aplicacion valida
 estas variables al arrancar con zod y **no inicia** si falta alguna o es invalida.
 
-| Variable | Descripcion | Ejemplo |
-|----------|-------------|---------|
-| `NODE_ENV` | Entorno de ejecucion | `development` |
-| `PORT` | Puerto HTTP de la API | `3000` |
-| `LOG_LEVEL` | Nivel de log de pino (`trace`..`fatal`, `silent`) | `info` |
-| `DB_SERVER` | Host de SQL Server | `localhost` |
-| `DB_PORT` | Puerto de SQL Server | `1433` |
-| `DB_NAME` | Nombre de la base de datos | `ShopCart` |
-| `DB_USER` | Usuario de SQL Server | `shopcart_app` |
-| `DB_PASSWORD` | Contrasena de SQL Server | `ShopCart_Dev_2026!` |
-| `DB_ENCRYPT` | Cifrar la conexion (`true`/`false`) | `true` |
-| `DB_TRUST_SERVER_CERT` | Confiar en el certificado del servidor | `true` |
-| `DB_REQUEST_TIMEOUT_MS` | Timeout de cada request a SQL Server (ms) | `30000` |
-| `CORS_ORIGIN` | Origenes permitidos (separados por coma) | `http://localhost:5173` |
-| `JWT_ACCESS_SECRET` | Secreto del access token (min. 32 chars) | `...` |
-| `JWT_REFRESH_SECRET` | Secreto del refresh token (min. 32 chars) | `...` |
-| `JWT_ACCESS_EXPIRES` | Vigencia del access token | `15m` |
-| `JWT_REFRESH_EXPIRES` | Vigencia del refresh token | `7d` |
-| `TRUST_PROXY` | Saltos de proxy de confianza para derivar la IP (Express `trust proxy`); `0` = sin proxy | `0` |
-| `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` |
-| `RATE_LIMIT_CUPON_MAX` | Aplicaciones de cupon por identidad por minuto | `10` |
-| `REPORTES_CACHE_TTL_SEGUNDOS` | Vigencia del cache de reportes (RF-08); `0` lo desactiva | `60` |
-| `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `true` |
+Esta tabla refleja 1:1 las claves que valida `api/src/config/env.ts` (y `api/.env.example`).
+"Obligatoria" = sin valor por defecto (la app no arranca si falta).
+
+| Variable | Descripcion | Default | Obligatoria |
+|----------|-------------|---------|:-----------:|
+| `NODE_ENV` | Entorno de ejecucion (`development`/`test`/`production`) | `development` | No |
+| `PORT` | Puerto HTTP de la API | `3000` | No |
+| `DB_SERVER` | Host/instancia de SQL Server | — | **Si** |
+| `DB_PORT` | Puerto de SQL Server | `1433` | No |
+| `DB_NAME` | Nombre de la base de datos | — | **Si** |
+| `DB_USER` | Usuario de SQL Server | — | **Si** |
+| `DB_PASSWORD` | Contrasena de SQL Server | — | **Si** |
+| `DB_ENCRYPT` | Cifrar la conexion (`true`/`false`) | `true` | No |
+| `DB_TRUST_SERVER_CERT` | Confiar en el certificado del servidor | `false` | No |
+| `DB_REQUEST_TIMEOUT_MS` | Timeout de cada request a SQL Server (ms) | `30000` | No |
+| `CORS_ORIGIN` | Origenes permitidos (separados por coma) | — | **Si** |
+| `JWT_ACCESS_SECRET` | Secreto del access token (min. 32 chars) | — | **Si** |
+| `JWT_REFRESH_SECRET` | Secreto del refresh token (min. 32 chars) | — | **Si** |
+| `JWT_ACCESS_EXPIRES` | Vigencia del access token | `15m` | No |
+| `JWT_REFRESH_EXPIRES` | Vigencia del refresh token | `7d` | No |
+| `RESERVA_JOB_SEGUNDOS` | Intervalo del job que libera reservas vencidas (s) | `60` | No |
+| `LOG_LEVEL` | Nivel de log de pino (`trace`..`fatal`, `silent`) | `info` | No |
+| `REPORTES_CACHE_TTL_SEGUNDOS` | Vigencia del cache de reportes (RF-08); `0` lo desactiva | `60` | No |
+| `RATE_LIMIT_AUTH_MAX` | Intentos a `/auth/*` por IP por ventana | `10` | No |
+| `RATE_LIMIT_AUTH_VENTANA_MIN` | Ventana del rate limit de auth (min) | `15` | No |
+| `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` | No |
+| `RATE_LIMIT_CUPON_MAX` | Aplicaciones de cupon por identidad por minuto | `10` | No |
+| `TRUST_PROXY` | Saltos de proxy de confianza para derivar la IP (Express `trust proxy`); `0` = sin proxy | `0` | No |
+| `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `false` | No |
+
+> La configuracion de **negocio** (minutos de reserva, horas de abandono de carrito,
+> porcentaje de IVA, stock minimo, costo de envio) NO esta en `.env`: vive en la tabla
+> `dbo.Parametro` y la leen los stored procedures.
 
 ## Scripts de base de datos
 
-Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
-`db/README.md`):
+Se aplican con `db/aplicar.ps1` (o `aplicar.sh`) en el **orden canonico unico** definido
+en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
+[`db/README.md`](db/README.md). Resumen:
 
 | Script | Descripcion |
 |--------|-------------|
@@ -109,38 +200,7 @@ Se ejecutan **en orden ascendente** sobre una instancia limpia (detalle en
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
-| `099_Semillas.sql` | Datos de ejemplo (usuarios/direccion de M1, catalogo de M2, carga inicial de inventario de M3, carritos de M4 y cupones de M5). Se aplica al final. |
-
-```bash
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/005_SP_Auth.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/006_SP_Usuarios.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/007_SP_Direcciones.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/008_VW_Inventario.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/009_SP_Categorias.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/010_SP_Catalogo.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
-# M5: la migracion y los cupones van ANTES de reaplicar 012, porque
-# FU_Carrito_CalcularTotales (en 012) usa las funciones de cupon de 014 y la
-# columna Carrito.IDCupon de 013 (una funcion en linea exige que lo referenciado
-# exista al crearse). Orden M5: 013 -> 014 -> 012 -> 099.
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/013_Migracion_CarritoCupon.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/014_SP_Cupones.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/012_SP_Carrito.sql
-# M6: reaplicar 004 (RESERVA_JOB_SEGUNDOS) y 011 (@SinResultado), luego estados y checkout.
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/004_Catalogos.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/011_SP_Inventario.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/015_Catalogo_EstadosPedido.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/016_SP_Checkout.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/017_Migracion_CarritoTokenUnico.sql
-# M7 (RF-07): pedidos, ciclo de vida y devoluciones.
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/018_SP_Pedidos.sql
-# M8 (RF-09): bitacora de auditoria (triggers + consulta).
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/019_Bitacora.sql
-# M9 (RF-08): dashboard y reportes (vistas + SPs + indice de apoyo). Requiere SQL Server 2022.
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/020_Reportes.sql
-sqlcmd -S localhost -U sa -P "<password>" -i db/scripts/099_Semillas.sql
-```
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
 
 ## Decisiones tecnicas
 
@@ -301,8 +361,8 @@ tecnicos estan en las notas de arriba y en cada modulo).
 
 - **Un unico SP escribe la existencia.** `SP_Inventario_RegistrarMovimiento` es el
   unico lugar que hace `UPDATE` sobre `Variante.Existencia`; ningun otro SP de ningun
-  modulo la toca. Checkout, cancelacion y devolucion (modulos futuros) llamaran a este
-  SP desde sus propios SPs, nunca con un update directo.
+  modulo la toca. Checkout, cancelacion y devolucion llaman a este SP desde sus propios
+  SPs (`@OrigenInterno = 1`), nunca con un update directo.
 - **Invariante `Existencia = SUM(Signo * Cantidad)` del kardex.** Cada fila de `Kardex`
   guarda `ExistenciaResultante`. `SP_Inventario_VerificarConsistencia` audita el
   invariante y el endpoint `GET /inventario/consistencia` (Administrador) debe devolver
@@ -498,21 +558,8 @@ tecnicos estan en las notas de arriba y en cada modulo).
   recalculan `BaseImponible`/`IVA` sobre `TotalConEnvio` con esa misma formula (no usan los
   de la funcion). `SP_Pedidos_CrearPedido` ya persiste el pedido con esta regla.
 - **Estados y ciclo de vida.** `015` siembra `EstadoPedido` y `TransicionEstadoPedido`.
-  El pedido nace en `PAGADO` y avanza por transiciones permitidas (las aplicara M7):
-
-  ```mermaid
-  stateDiagram-v2
-      [*] --> PAGADO: pago aprobado
-      PAGADO --> EN_PREPARACION: Operador
-      EN_PREPARACION --> DESPACHADO: Operador
-      DESPACHADO --> ENTREGADO: Operador
-      PAGADO --> CANCELADO: Cliente u Operador
-      EN_PREPARACION --> CANCELADO: Cliente u Operador
-      ENTREGADO --> DEVUELTO: Operador
-      CANCELADO --> [*]
-      DEVUELTO --> [*]
-  ```
-
+  El pedido nace en `PAGADO`; el grafo de transiciones y los roles estan en
+  [Ciclo de vida del pedido](#ciclo-de-vida-del-pedido).
 - **Liberacion de reservas por job + consulta.** `SP_Checkout_LiberarReservasVencidas`
   marca `Liberada` toda reserva `Activa` vencida (sin `session context`: actor nulo). El
   job `jobs/liberarReservas.ts` lo llama cada `RESERVA_JOB_SEGUNDOS` (default 60), loguea
@@ -573,33 +620,8 @@ tecnicos estan en las notas de arriba y en cada modulo).
 ### Pedidos y devoluciones (M7, RF-07)
 
 Ciclo de vida del pedido gobernado por el grafo de `dbo.TransicionEstadoPedido` (`015`).
-El pedido nace en `PAGADO` (lo crea el checkout de M6) y solo avanza por transiciones
-permitidas:
-
-```mermaid
-stateDiagram-v2
-    [*] --> PAGADO: pago aprobado (M6)
-    PAGADO --> EN_PREPARACION: Operador / Admin
-    EN_PREPARACION --> DESPACHADO: Operador / Admin
-    DESPACHADO --> ENTREGADO: Operador / Admin
-    PAGADO --> CANCELADO: Cliente dueno / Operador / Admin
-    EN_PREPARACION --> CANCELADO: Cliente dueno / Operador / Admin
-    ENTREGADO --> DEVUELTO: solo via devolucion (Operador / Admin)
-    CANCELADO --> [*]
-    DEVUELTO --> [*]
-```
-
-**Quien puede cada transicion** (lo valida `SP_Pedidos_CambiarEstado` con el rol que le
-pasa la API; el `Administrador` hereda lo del `Operador`):
-
-| Transicion | Cliente (dueno) | Operador | Administrador |
-|------------|:---------------:|:--------:|:-------------:|
-| PAGADO -> EN_PREPARACION | no | si | si |
-| EN_PREPARACION -> DESPACHADO | no | si | si |
-| DESPACHADO -> ENTREGADO | no | si | si |
-| PAGADO -> CANCELADO | si | si | si |
-| EN_PREPARACION -> CANCELADO | si | si | si |
-| ENTREGADO -> DEVUELTO | — (solo via devolucion) | si | si |
+El grafo de estados y la tabla de transiciones/roles estan consolidados en
+[Ciclo de vida del pedido](#ciclo-de-vida-del-pedido). Aqui se describe la mecanica:
 
 - **Cancelacion.** Solo desde `PAGADO` o `EN_PREPARACION`. Por cada linea se registra un
   movimiento `CANCELACION` (+Cantidad) via `SP_Inventario_RegistrarMovimiento`
@@ -788,14 +810,26 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
   vivo colgaria del **mismo evento de invalidacion** (`invalidarTodo()`): cada mutacion que
   invalida el cache emitiria tambien un evento al stream. No esta implementado en esta fase.
 
-## Pruebas con Postman
+## Pruebas
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M4, M5, M6, M7, M8 y M9.
+### Postman / newman
 
-> Para correr la **coleccion completa** de una sola pasada con el Collection Runner conviene
-> arrancar la API con `RATE_LIMIT_AUTH_MAX=100` y `RATE_LIMIT_CHECKOUT_MAX=100`: con los
-> valores por defecto (10 y 20) los multiples logins y checkouts de las carpetas acumuladas
-> hacen saltar el limitador (`429`).
+La coleccion `docs/postman/ShopCart.postman_collection.json` ("ShopCart API - M1 a M9")
+cubre M1 a M9. Con la API arriba y la base sembrada (incluye `099`), se corre entera con
+newman:
+
+```bash
+npx newman run docs/postman/ShopCart.postman_collection.json \
+  --env-var baseUrl=http://localhost:3000
+```
+
+> Para correr la **coleccion completa** de una pasada (Collection Runner o newman) conviene
+> arrancar la API con `RATE_LIMIT_AUTH_MAX=100`, `RATE_LIMIT_CHECKOUT_MAX=100` y
+> `RATE_LIMIT_CUPON_MAX=100`: con los defaults, los multiples logins/checkouts/cupones de
+> las carpetas acumuladas harian saltar el limitador (`429`). La carpeta **Manual (rate
+> limit)** (el request "Login x11") queda FUERA del flujo principal: se corre aparte, con
+> `RATE_LIMIT_AUTH_MAX` por defecto, para ver el `429` real. El resto de carpetas no
+> depende de ese request.
 
 1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
    variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
@@ -807,8 +841,7 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    **M7 Pedidos** -> **M8 Bitacora** -> **M9 Reportes**.
 3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
    puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   los scripts `001`-`018` y `099` en SQL Server (en el orden del bloque anterior:
-   `013`/`014` antes de reaplicar `012`, y `004`/`015`/`016`/`017` para M6, `018` para M7).
+   la base aplicada con `db/aplicar.ps1` (incluye `099`).
    La carpeta **M4 Carrito** toma el `idVariante` y el disponible del catalogo publico (sin
    IDs fijos) y es repetible. La carpeta **M5 Cupones** prepara el carrito del cliente con
    una variante de Lubricantes y deja `LUB50` aplicado al terminar. La carpeta
@@ -838,12 +871,161 @@ La coleccion `docs/postman/ShopCart.postman_collection.json` cubre M1, M2, M3, M
    (rango > 366 dias, agrupacion invalida, fecha invalida). Requiere el cache activo
    (`REPORTES_CACHE_TTL_SEGUNDOS` > 0, el default) para los asserts de `X-Cache`.
 
-> El rate limit de `/auth/*` es por IP y compartido. Para ver un `429` limpio en
-> "Login x11" conviene reiniciar la API o esperar la ventana configurada.
+### Pruebas de carga (Node puro, solo HTTP)
+
+Con la API arriba (`BASE_URL` apunta a ella; `RATE_LIMIT_*` altos como arriba):
+
+- **Concurrencia del checkout:** `BASE_URL=http://localhost:3000 npm run test:concurrencia`.
+  10 clientes compiten por 1 unidad: 1x201 / 9x409, replay idempotente, consistencia de
+  inventario, 402 -> 201, reuso de clave ajena 409. Sale con codigo 1 si algo falla.
+- **Rendimiento de reportes:** `BASE_URL=http://localhost:3000 npm run test:rendimiento`.
+  20 llamadas por reporte; reporta p50/p95/max y una fase concurrente; **sale con codigo 2
+  si detecta un `X-Cache: HIT` en la fase base** y con codigo 1 si algun p95 >= 1000 ms.
+  Para medir el SP puro hay que arrancar la API con el cache desactivado:
+  **lo mas simple es poner `REPORTES_CACHE_TTL_SEGUNDOS=0` en `api/.env`** y reiniciar;
+  como alternativa, al vuelo segun el shell:
+  `($env:REPORTES_CACHE_TTL_SEGUNDOS="0"; npm run dev)` en PowerShell,
+  `set REPORTES_CACHE_TTL_SEGUNDOS=0 && npm run dev` en cmd, o
+  `REPORTES_CACHE_TTL_SEGUNDOS=0 npm run dev` en bash. Numeros medidos (TTL=0, rango de
+  90 dias, SQL Server 2022 local):
+
+  | Reporte | p50 (ms) | p95 (ms) |
+  |---------|---------:|---------:|
+  | resumen | 11.8 | 23.0 |
+  | ventas DIA | 26.0 | 30.0 |
+  | ventas SEMANA | 19.1 | 29.4 |
+  | ventas MES | 25.5 | 32.3 |
+  | categorias | 25.9 | 37.4 |
+  | top-productos | 17.7 | 22.5 |
+  | carritos-abandonados | 28.6 | 35.6 |
+
+  RNF `p95 < 1000 ms`: se cumple con amplio margen.
 
 ## Diagrama ER
 
-Pendiente.
+Modelo relacional de `001_CreateDatabase.sql`: **26 tablas**. El diagrama de abajo
+muestra las columnas de las 8 tablas centrales (Usuario, Producto, Variante, Carrito,
+Pedido, PedidoDetalle, Pago, Kardex) y todas las relaciones; el diagrama **completo** con
+las columnas de las 26 tablas esta en [`docs/er.mmd`](docs/er.mmd)
+(render: `npx @mermaid-js/mermaid-cli -i docs/er.mmd -o er.svg`).
+
+```mermaid
+erDiagram
+    Rol ||--o{ Usuario : IDRol
+    Rol ||--o{ TransicionEstadoPedido : IDRolRequerido
+    Usuario ||--o{ RefreshToken : IDUsuario
+    Usuario ||--o{ Direccion : IDUsuario
+    Usuario ||--o{ Carrito : IDUsuario
+    Usuario ||--o{ Pedido : IDUsuario
+    Usuario ||--o{ PedidoHistorialEstado : IDUsuario
+    Usuario ||--o{ Pago : IDUsuario
+    Usuario ||--o{ CuponUso : IDUsuario
+    Usuario ||--o{ Kardex : IDUsuario
+    Usuario ||--o{ Devolucion : IDUsuario
+    Usuario ||--o{ Bitacora : IDUsuario
+    Categoria ||--o{ Producto : IDCategoria
+    Categoria ||--o{ Cupon : IDCategoria
+    Categoria ||--o{ PedidoDetalle : IDCategoria
+    Producto ||--o{ ProductoImagen : IDProducto
+    Producto ||--o{ Variante : IDProducto
+    Variante ||--o{ VarianteAtributo : IDVariante
+    Variante ||--o{ CarritoDetalle : IDVariante
+    Variante ||--o{ Reserva : IDVariante
+    Variante ||--o{ PedidoDetalle : IDVariante
+    Variante ||--o{ Kardex : IDVariante
+    Carrito ||--o{ CarritoDetalle : IDCarrito
+    Carrito ||--o{ Reserva : IDCarrito
+    Carrito ||--o{ Pago : IDCarrito
+    Cupon ||--o{ Carrito : IDCupon
+    Cupon ||--o{ Pedido : IDCupon
+    Cupon ||--o{ CuponUso : IDCupon
+    EstadoPedido ||--o{ TransicionEstadoPedido : IDEstadoOrigen
+    EstadoPedido ||--o{ TransicionEstadoPedido : IDEstadoDestino
+    EstadoPedido ||--o{ Pedido : IDEstadoPedido
+    EstadoPedido ||--o{ PedidoHistorialEstado : IDEstadoAnterior
+    EstadoPedido ||--o{ PedidoHistorialEstado : IDEstadoNuevo
+    Direccion ||--o{ Pedido : IDDireccion
+    Pedido ||--o{ PedidoDetalle : IDPedido
+    Pedido ||--o{ PedidoHistorialEstado : IDPedido
+    Pedido ||--o{ Pago : IDPedido
+    Pedido ||--o{ CuponUso : IDPedido
+    Pedido ||--o{ Kardex : IDPedido
+    Pedido ||--o{ Devolucion : IDPedido
+    PedidoDetalle ||--o{ DevolucionDetalle : IDPedidoDetalle
+    Devolucion ||--o{ DevolucionDetalle : IDDevolucion
+    TipoMovimientoInventario ||--o{ Kardex : IDTipoMovimientoInventario
+
+    Usuario {
+        int IDUsuario PK
+        int IDRol FK
+        nvarchar Correo
+        nvarchar Nombre
+        bit Activo
+        int IntentosFallidos
+        datetime2 BloqueadoHasta
+    }
+    Producto {
+        int IDProducto PK
+        int IDCategoria FK
+        nvarchar Nombre
+        bit Activo
+    }
+    Variante {
+        int IDVariante PK
+        int IDProducto FK
+        nvarchar SKU
+        decimal Precio
+        int Existencia
+        bit Activo
+    }
+    Carrito {
+        int IDCarrito PK
+        int IDUsuario FK
+        uniqueidentifier TokenInvitado
+        nvarchar Estado
+        int IDCupon FK
+    }
+    Pedido {
+        int IDPedido PK
+        nvarchar NumeroPedido
+        int IDUsuario FK
+        int IDEstadoPedido FK
+        int IDDireccion FK
+        int IDCupon FK
+        decimal Subtotal
+        decimal Descuento
+        decimal Total
+        decimal IVA
+    }
+    PedidoDetalle {
+        int IDPedidoDetalle PK
+        int IDPedido FK
+        int IDVariante FK
+        int IDCategoria FK
+        int Cantidad
+        decimal PrecioUnitario
+        decimal TotalLinea
+        int CantidadDevuelta
+    }
+    Pago {
+        int IDPago PK
+        int IDCarrito FK
+        int IDPedido FK
+        int IDUsuario FK
+        nvarchar ClaveIdempotencia
+        decimal Monto
+        nvarchar Estado
+    }
+    Kardex {
+        int IDKardex PK
+        int IDVariante FK
+        int IDTipoMovimientoInventario FK
+        int Cantidad
+        int ExistenciaResultante
+        int IDPedido FK
+        datetime2 Fecha
+    }
+```
 
 ## Credenciales de prueba
 
@@ -855,6 +1037,12 @@ tablas directamente.
 
 > **Es una credencial de desarrollo.** Debe cambiarse por un secreto fuerte y
 > rotarse fuera del control de versiones en cualquier ambiente real.
+
+> **Secretos JWT.** Los valores de `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` que trae
+> `api/.env.example` sirven **solo para evaluacion local** (tienen la longitud minima de
+> 32 caracteres, asi que la API arranca copiando el ejemplo tal cual). En cualquier otro
+> ambiente deben reemplazarse por secretos aleatorios propios, gestionados y rotados fuera
+> del control de versiones.
 
 ### Usuarios de ejemplo (M1)
 
@@ -876,4 +1064,92 @@ cost 10). El cliente incluye una direccion activa.
 
 ## Ciclo de vida del pedido
 
-Pendiente.
+Gobernado por el grafo `dbo.TransicionEstadoPedido` (`015`). El pedido nace en `PAGADO`
+(lo crea el checkout de M6) y solo avanza por transiciones permitidas; `SP_Pedidos_CambiarEstado`
+las valida contra el grafo y el rol. `DEVUELTO` se alcanza solo via devolucion.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PAGADO: pago aprobado (M6)
+    PAGADO --> EN_PREPARACION: Operador / Admin
+    EN_PREPARACION --> DESPACHADO: Operador / Admin
+    DESPACHADO --> ENTREGADO: Operador / Admin
+    PAGADO --> CANCELADO: Cliente dueno / Operador / Admin
+    EN_PREPARACION --> CANCELADO: Cliente dueno / Operador / Admin
+    ENTREGADO --> DEVUELTO: solo via devolucion (Operador / Admin)
+    CANCELADO --> [*]
+    DEVUELTO --> [*]
+```
+
+**Quien puede cada transicion** (el `Administrador` hereda lo del `Operador`):
+
+| Transicion | Cliente (dueno) | Operador | Administrador |
+|------------|:---------------:|:--------:|:-------------:|
+| PAGADO -> EN_PREPARACION | no | si | si |
+| EN_PREPARACION -> DESPACHADO | no | si | si |
+| DESPACHADO -> ENTREGADO | no | si | si |
+| PAGADO -> CANCELADO | si | si | si |
+| EN_PREPARACION -> CANCELADO | si | si | si |
+| ENTREGADO -> DEVUELTO | — (solo via devolucion) | si | si |
+
+La cancelacion repone inventario y devuelve el uso del cupon; la devolucion (parcial o
+total) repone inventario por las lineas devueltas y, si todas quedan devueltas, pasa el
+pedido a `DEVUELTO`. Detalle en [Pedidos y devoluciones (M7)](#pedidos-y-devoluciones-m7-rf-07).
+
+## Supuestos y decisiones abiertas
+
+Decisiones de alcance tomadas en Fase 1, consolidadas de M1 a M9:
+
+- **IVA incluido en el precio.** Los precios ya incluyen IVA; el pedido desglosa
+  `BaseImponible` e `IVA` a partir del total (`PorcentajeIVA` del parametro de IVA en
+  `dbo.Parametro`). El **envio tambien grava IVA**: el desglose se calcula sobre el total
+  con envio.
+- **`COSTO_ENVIO = 0` por defecto** (parametro en `dbo.Parametro`). La logica soporta un
+  costo de envio > 0, pero la demo usa 0.
+- **Reembolso simulado.** Cancelaciones y devoluciones reponen inventario y documentan el
+  monto, pero no hay pasarela ni tabla de reembolsos (el pago es simulado).
+- **Fusion de carrito.** Al autenticarse con un `X-Cart-Token`, el carrito de invitado se
+  fusiona en el del usuario; si una linea ya no cabe en el disponible, se reporta como
+  advertencia y no se pierde el resto.
+- **Idempotencia de pago global por clave.** `Pago.ClaveIdempotencia` es unica a nivel
+  global (no por usuario); un segundo pago con la misma clave del mismo usuario es un
+  **replay** que devuelve el mismo pedido **sin comparar el body** (se asume que el cliente
+  reintenta la misma operacion). Una clave de otro usuario responde 409.
+- **Reinicio libre del checkout.** `SP_Checkout_Iniciar` es reiniciable: libera las
+  reservas previas del carrito y vuelve a reservar.
+- **Ventana de 15 min del access token.** Tras logout, desactivacion o cambio de rol se
+  revocan los refresh tokens, pero el access token vigente dura hasta 15 min (ver
+  [Decisiones de seguridad](#decisiones-de-seguridad)).
+- **Sin recuperacion de contrasena en Fase 1.** Fuera de alcance; cuando se implemente
+  llevara rate limit por correo y por IP y un token de un solo uso.
+
+## Estructura del repositorio
+
+```
+shopcart/
+  db/
+    aplicar.ps1            # instalador (PowerShell) en el orden canonico
+    aplicar.sh             # instalador equivalente (bash)
+    README.md              # scripts, orden, idempotencia, convenciones
+    scripts/               # 001..020 + 099 (DDL, SPs, vistas, triggers, semillas)
+  api/
+    src/
+      app.ts, server.ts    # arranque de Express y del servidor
+      config/              # env (zod), db (pool mssql), logger (pino)
+      middlewares/         # authenticate, authorize, validate, rate limits, requestContext, errorHandler
+      routes/              # un router por modulo, montados bajo /api/v1
+      controllers/         # orquestan request -> service -> response
+      services/            # llaman a los SPs via executeSp (unico acceso a datos)
+      schemas/             # validacion zod por modulo (+ common: textoPlano/textoLargo)
+      data/spExecutor.ts   # request.execute(sp) tipado; nunca SQL en strings
+      errors/              # AppError y mapeo de errores SQL -> HTTP
+      utils/reportesCache.ts
+      docs/openapi.ts      # documento OpenAPI 3 (Swagger UI)
+      jobs/                # job de liberacion de reservas vencidas
+    tests/                 # concurrencia.mjs, rendimiento.mjs (Node puro, solo HTTP)
+    .env.example
+  docs/
+    er.mmd                 # diagrama ER completo (Mermaid)
+    postman/ShopCart.postman_collection.json
+  README.md                # este documento
+```

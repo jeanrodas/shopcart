@@ -1,0 +1,16 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# Scripts SQL: con BOM UTF-8 para que SSMS los abra como Unicode.
+[*.sql]
+charset = utf-8-bom
+
+# En Markdown dos espacios al final son un salto de linea: no recortar.
+[*.md]
+trim_trailing_whitespace = false
