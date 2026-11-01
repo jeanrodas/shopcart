@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
+import { invalidarTodo } from '../utils/reportesCache.js';
 import type { DevolucionInput, ListarPedidosQuery } from '../schemas/pedidos.schema.js';
 
 interface DevolucionRow {
@@ -84,6 +85,8 @@ export async function cambiarEstado(
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuarioEjecuta },
     { name: 'RolEjecuta', type: sql.NVarChar(30), value: rolEjecuta },
   ]);
+  // Un cambio de estado (incluida la cancelacion) altera ventas/inventario netos.
+  invalidarTodo();
   return ensamblarPedido(result.recordsets as unknown[][]);
 }
 
@@ -98,6 +101,9 @@ export async function registrarDevolucion(
     { name: 'Lineas', value: tvpLineas(datos.lineas) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuarioEjecuta },
   ]);
+
+  // La devolucion descuenta la venta neta: invalida el cache de reportes.
+  invalidarTodo();
 
   const recordsets = result.recordsets as unknown[][];
   const pedido = ensamblarPedido(recordsets);

@@ -10,6 +10,7 @@ import cuponesRoutes from './cupones.routes.js';
 import checkoutRoutes from './checkout.routes.js';
 import pedidosRoutes from './pedidos.routes.js';
 import bitacoraRoutes from './bitacora.routes.js';
+import reportesRoutes from './reportes.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,8 @@ apiV1.use('/checkout', checkoutRoutes);
 apiV1.use('/pedidos', pedidosRoutes);
 // Bitacora de auditoria (RF-09): consulta por Administrador.
 apiV1.use('/bitacora', bitacoraRoutes);
+// Dashboard y reportes (RF-08): Administrador.
+apiV1.use('/reportes', reportesRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;

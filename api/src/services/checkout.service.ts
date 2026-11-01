@@ -1,6 +1,7 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { env } from '../config/env.js';
+import { invalidarTodo } from '../utils/reportesCache.js';
 import type { PagarInput } from '../schemas/checkout.schema.js';
 
 /** Fila de resumen de checkout (recordset 1 de Iniciar/Resumen). */
@@ -154,6 +155,9 @@ export async function pagar(
   const lineas = (recordsets[1] ?? []) as unknown[];
   const replay = Boolean((recordsets[2]?.[0] as { Replay?: boolean } | undefined)?.Replay);
   const aprobado = Boolean(cab?.Aprobado);
+
+  // Un pedido aprobado cambia ventas e inventario: invalida el cache de reportes.
+  if (aprobado) invalidarTodo();
 
   return {
     aprobado,
