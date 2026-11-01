@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "ShopCart API - M1 (Auth, Usuarios, Direcciones) + M2 (Catalogo)",
-    "description": "Coleccion de los endpoints del modulo M1 (RF-01). Incluye casos felices y negativos. Variables: baseUrl, accessToken, refreshToken, prevRefreshToken, adminAccessToken, clienteAccessToken, operadorAccessToken, direccionId. Aplicar antes los scripts 001-007 y 099 en SSMS.",
+    "name": "ShopCart API - M1 a M9",
+    "description": "Coleccion de pruebas de la API ShopCart (Fase 1, RF-01 a RF-09). Cubre M1 a M9 con casos felices y negativos. Requiere la base aplicada con los scripts 001-020 y 099 (ver db/aplicar.ps1). Variables en la coleccion (baseUrl, tokens por rol e IDs que los setups capturan solos). La carpeta \"Manual (rate limit)\" se corre aparte. Para correr todo de una pasada: RATE_LIMIT_AUTH_MAX=100 y RATE_LIMIT_CHECKOUT_MAX=100.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1213,51 +1213,6 @@
                   "language": "json"
                 }
               }
-            }
-          }
-        },
-        {
-          "name": "Login x11 -> rate limit (429)",
-          "description": "Ejecutar este request 11 veces seguidas (Collection Runner con 11 iteraciones, o Send 11 veces). Con RATE_LIMIT_AUTH_MAX=10, la 11a respuesta es 429 con code RATE_LIMITED. Usa credenciales invalidas para no alterar el lockout de una cuenta real.",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// La 11a (y siguientes dentro de la ventana) deben ser 429.",
-                  "if (pm.response.code === 429) {",
-                  "  pm.test('429 rate limited', () => pm.expect(pm.response.json().code).to.eql('RATE_LIMITED'));",
-                  "} else {",
-                  "  pm.test('aun dentro del limite (401)', () => pm.expect(pm.response.code).to.eql(401));",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}"
             }
           }
         },
@@ -12178,6 +12133,57 @@
                   "value": "{{m9Hasta}}"
                 }
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Manual (rate limit)",
+      "description": "Pruebas que dependen de los limites de rate limit POR DEFECTO y por eso NO van en el flujo principal (que se corre con RATE_LIMIT_AUTH_MAX alto). Correr aparte con la API arrancada con RATE_LIMIT_AUTH_MAX por defecto (10): repetir \"Login x11\" >10 veces en la ventana para ver el 429. No captura variables que otros requests necesiten.",
+      "item": [
+        {
+          "name": "Login x11 -> rate limit (429)",
+          "description": "Ejecutar este request 11 veces seguidas (Collection Runner con 11 iteraciones, o Send 11 veces). Con RATE_LIMIT_AUTH_MAX=10, la 11a respuesta es 429 con code RATE_LIMITED. Usa credenciales invalidas para no alterar el lockout de una cuenta real.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// La 11a (y siguientes dentro de la ventana) deben ser 429.",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('429 rate limited', () => pm.expect(pm.response.json().code).to.eql('RATE_LIMITED'));",
+                  "} else {",
+                  "  pm.test('aun dentro del limite (401)', () => pm.expect(pm.response.code).to.eql(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}"
             }
           }
         }

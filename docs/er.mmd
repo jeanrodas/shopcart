@@ -1,0 +1,291 @@
+%% ShopCart - Diagrama entidad-relacion completo (26 tablas de 001_CreateDatabase.sql).
+%% Render: npx @mermaid-js/mermaid-cli -i docs/er.mmd -o er.svg
+erDiagram
+    Rol ||--o{ Usuario : IDRol
+    Rol ||--o{ TransicionEstadoPedido : IDRolRequerido
+    Usuario ||--o{ RefreshToken : IDUsuario
+    Usuario ||--o{ Direccion : IDUsuario
+    Usuario ||--o{ Carrito : IDUsuario
+    Usuario ||--o{ Pedido : IDUsuario
+    Usuario ||--o{ PedidoHistorialEstado : IDUsuario
+    Usuario ||--o{ Pago : IDUsuario
+    Usuario ||--o{ CuponUso : IDUsuario
+    Usuario ||--o{ Kardex : IDUsuario
+    Usuario ||--o{ Devolucion : IDUsuario
+    Usuario ||--o{ Bitacora : IDUsuario
+    RefreshToken ||--o{ RefreshToken : IDTokenReemplazo
+    Categoria ||--o{ Producto : IDCategoria
+    Categoria ||--o{ Cupon : IDCategoria
+    Categoria ||--o{ PedidoDetalle : IDCategoria
+    Producto ||--o{ ProductoImagen : IDProducto
+    Producto ||--o{ Variante : IDProducto
+    Variante ||--o{ VarianteAtributo : IDVariante
+    Variante ||--o{ CarritoDetalle : IDVariante
+    Variante ||--o{ Reserva : IDVariante
+    Variante ||--o{ PedidoDetalle : IDVariante
+    Variante ||--o{ Kardex : IDVariante
+    Carrito ||--o{ CarritoDetalle : IDCarrito
+    Carrito ||--o{ Reserva : IDCarrito
+    Carrito ||--o{ Pago : IDCarrito
+    Cupon ||--o{ Carrito : IDCupon
+    Cupon ||--o{ Pedido : IDCupon
+    Cupon ||--o{ CuponUso : IDCupon
+    EstadoPedido ||--o{ TransicionEstadoPedido : IDEstadoOrigen
+    EstadoPedido ||--o{ TransicionEstadoPedido : IDEstadoDestino
+    EstadoPedido ||--o{ Pedido : IDEstadoPedido
+    EstadoPedido ||--o{ PedidoHistorialEstado : IDEstadoAnterior
+    EstadoPedido ||--o{ PedidoHistorialEstado : IDEstadoNuevo
+    Direccion ||--o{ Pedido : IDDireccion
+    Pedido ||--o{ PedidoDetalle : IDPedido
+    Pedido ||--o{ PedidoHistorialEstado : IDPedido
+    Pedido ||--o{ Pago : IDPedido
+    Pedido ||--o{ CuponUso : IDPedido
+    Pedido ||--o{ Kardex : IDPedido
+    Pedido ||--o{ Devolucion : IDPedido
+    PedidoDetalle ||--o{ DevolucionDetalle : IDPedidoDetalle
+    Devolucion ||--o{ DevolucionDetalle : IDDevolucion
+    TipoMovimientoInventario ||--o{ Kardex : IDTipoMovimientoInventario
+
+    Parametro {
+        nvarchar Clave PK
+        nvarchar Valor
+        nvarchar Descripcion
+    }
+    Rol {
+        int IDRol PK
+        nvarchar Nombre
+        nvarchar Descripcion
+    }
+    Usuario {
+        int IDUsuario PK
+        int IDRol FK
+        nvarchar Correo
+        nvarchar HashContrasena
+        nvarchar Nombre
+        bit Activo
+        int IntentosFallidos
+        datetime2 BloqueadoHasta
+        datetime2 FechaCreacion
+        datetime2 FechaActualizacion
+    }
+    RefreshToken {
+        int IDRefreshToken PK
+        int IDUsuario FK
+        char TokenHash
+        datetime2 FechaExpira
+        datetime2 FechaRevocado
+        int IDTokenReemplazo FK
+        nvarchar DireccionIP
+        datetime2 FechaCreacion
+    }
+    Direccion {
+        int IDDireccion PK
+        int IDUsuario FK
+        nvarchar Alias
+        nvarchar NombreReceptor
+        nvarchar Telefono
+        nvarchar Linea1
+        nvarchar Linea2
+        nvarchar Municipio
+        nvarchar Departamento
+        nvarchar CodigoPostal
+        nvarchar Referencia
+        bit Activo
+        datetime2 FechaCreacion
+    }
+    Categoria {
+        int IDCategoria PK
+        nvarchar Nombre
+        nvarchar Descripcion
+        bit Activo
+        datetime2 FechaCreacion
+    }
+    Producto {
+        int IDProducto PK
+        int IDCategoria FK
+        nvarchar Nombre
+        nvarchar Descripcion
+        bit Activo
+        datetime2 FechaCreacion
+        datetime2 FechaActualizacion
+    }
+    ProductoImagen {
+        int IDProductoImagen PK
+        int IDProducto FK
+        nvarchar Url
+        int Orden
+        bit EsPrincipal
+    }
+    Variante {
+        int IDVariante PK
+        int IDProducto FK
+        nvarchar SKU
+        decimal Precio
+        int Existencia
+        bit Activo
+        datetime2 FechaCreacion
+        datetime2 FechaActualizacion
+    }
+    VarianteAtributo {
+        int IDVarianteAtributo PK
+        int IDVariante FK
+        nvarchar Nombre
+        nvarchar Valor
+    }
+    Carrito {
+        int IDCarrito PK
+        int IDUsuario FK
+        uniqueidentifier TokenInvitado
+        nvarchar Estado
+        int IDCupon FK
+        datetime2 FechaCreacion
+        datetime2 FechaUltimaActividad
+    }
+    CarritoDetalle {
+        int IDCarritoDetalle PK
+        int IDCarrito FK
+        int IDVariante FK
+        int Cantidad
+        datetime2 FechaAgregado
+    }
+    Reserva {
+        int IDReserva PK
+        int IDCarrito FK
+        int IDVariante FK
+        int Cantidad
+        nvarchar Estado
+        datetime2 FechaExpira
+        datetime2 FechaCreacion
+    }
+    Cupon {
+        int IDCupon PK
+        nvarchar Codigo
+        nvarchar TipoDescuento
+        decimal Valor
+        int IDCategoria FK
+        decimal MontoMinimo
+        datetime2 FechaInicio
+        datetime2 FechaFin
+        int LimiteUsosTotal
+        int LimiteUsosPorCliente
+        int UsosActuales
+        bit Activo
+        datetime2 FechaCreacion
+        datetime2 FechaActualizacion
+    }
+    EstadoPedido {
+        int IDEstadoPedido PK
+        nvarchar Codigo
+        nvarchar Nombre
+        bit EsFinal
+        int Orden
+    }
+    TransicionEstadoPedido {
+        int IDTransicionEstadoPedido PK
+        int IDEstadoOrigen FK
+        int IDEstadoDestino FK
+        int IDRolRequerido FK
+    }
+    Pedido {
+        int IDPedido PK
+        nvarchar NumeroPedido
+        int IDUsuario FK
+        int IDEstadoPedido FK
+        int IDDireccion FK
+        int IDCupon FK
+        nvarchar DireccionEntrega
+        decimal Subtotal
+        decimal Descuento
+        decimal CostoEnvio
+        decimal Total
+        decimal BaseImponible
+        decimal IVA
+        decimal PorcentajeIVA
+        datetime2 FechaCreacion
+        datetime2 FechaActualizacion
+    }
+    PedidoDetalle {
+        int IDPedidoDetalle PK
+        int IDPedido FK
+        int IDVariante FK
+        nvarchar SKU
+        nvarchar NombreProducto
+        nvarchar DescripcionVariante
+        int IDCategoria FK
+        int Cantidad
+        decimal PrecioUnitario
+        decimal DescuentoLinea
+        decimal TotalLinea
+        int CantidadDevuelta
+    }
+    PedidoHistorialEstado {
+        int IDPedidoHistorialEstado PK
+        int IDPedido FK
+        int IDEstadoAnterior FK
+        int IDEstadoNuevo FK
+        int IDUsuario FK
+        nvarchar Comentario
+        datetime2 Fecha
+    }
+    Pago {
+        int IDPago PK
+        int IDCarrito FK
+        int IDPedido FK
+        int IDUsuario FK
+        nvarchar ClaveIdempotencia
+        decimal Monto
+        nvarchar MetodoPago
+        nvarchar Estado
+        nvarchar MensajeResultado
+        datetime2 Fecha
+    }
+    CuponUso {
+        int IDCuponUso PK
+        int IDCupon FK
+        int IDUsuario FK
+        int IDPedido FK
+        datetime2 Fecha
+    }
+    TipoMovimientoInventario {
+        int IDTipoMovimientoInventario PK
+        nvarchar Codigo
+        nvarchar Nombre
+        smallint Signo
+    }
+    Kardex {
+        int IDKardex PK
+        int IDVariante FK
+        int IDTipoMovimientoInventario FK
+        int Cantidad
+        int ExistenciaResultante
+        nvarchar Motivo
+        int IDUsuario FK
+        int IDPedido FK
+        datetime2 Fecha
+    }
+    Devolucion {
+        int IDDevolucion PK
+        int IDPedido FK
+        int IDUsuario FK
+        nvarchar Motivo
+        decimal MontoReintegrado
+        datetime2 Fecha
+    }
+    DevolucionDetalle {
+        int IDDevolucionDetalle PK
+        int IDDevolucion FK
+        int IDPedidoDetalle FK
+        int Cantidad
+        decimal MontoLinea
+    }
+    Bitacora {
+        bigint IDBitacora PK
+        nvarchar Modulo
+        nvarchar Entidad
+        int IDEntidad
+        nvarchar Accion
+        nvarchar ValorAnterior
+        nvarchar ValorNuevo
+        int IDUsuario FK
+        datetime2 Fecha
+    }

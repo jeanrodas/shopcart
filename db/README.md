@@ -1,128 +1,113 @@
 # Base de datos — ShopCart
 
-Scripts SQL para SQL Server 2019+. Se aplican sobre una **instancia limpia**.
+Scripts SQL de ShopCart y su instalador. La logica de negocio vive en stored
+procedures; el backend solo los ejecuta.
 
-## Numeracion y orden de ejecucion
+## Requisitos
 
-Los scripts se ejecutan **en orden ascendente por su prefijo numerico**. Cada
-script es idempotente o pensado para una instancia nueva, segun su rol:
+- **SQL Server 2022** (se usa `DATETRUNC`, disponible desde 2022).
+- **`sqlcmd`** del cliente **ODBC 18** o **go-sqlcmd**. El instalador invoca `sqlcmd`
+  con `-C` (confiar en el certificado del servidor, requerido por ODBC 18) y `-b`
+  (abortar al primer error del script).
+
+## Instalacion limpia (un comando)
+
+Sobre una instancia **sin** la base `ShopCart`, desde la carpeta `db/`:
+
+```powershell
+.\aplicar.ps1                         # Windows auth contra localhost, con semillas
+.\aplicar.ps1 -Server "host\INSTANCIA"
+.\aplicar.ps1 -User sa -Password '<pass>' -IncluirSemillas:$false
+```
+
+Equivalente en bash: `./aplicar.sh` (opciones `-s/--server`, `-u/--user`, `-p/--password`,
+`--sin-semillas`). El instalador aplica los scripts en el **orden canonico unico**
+definido en una sola lista dentro de `aplicar.ps1`/`aplicar.sh`, se detiene en el primer
+error mostrando el script, y al final imprime conteos de verificacion (26 tablas,
+procedimientos, triggers, vistas y el login `shopcart_app`).
+
+### Orden canonico y el equivalente manual
+
+```
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 016 017 018 019 020 [099]
+```
+
+`012` va **despues** de `013` y `014`: `FU_Carrito_CalcularTotales` (en `012`) referencia
+la columna `Carrito.IDCupon` (que agrega `013`) y las funciones de cupon (`014`), y una
+funcion en linea exige que lo referenciado exista al momento de crearse. El `099`
+(semillas) es opcional y va al final. Equivalente manual con `sqlcmd` (una linea por
+script, en ese orden):
+
+```bash
+sqlcmd -S localhost -E -C -b -i scripts/001_CreateDatabase.sql
+sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
+# ... continuar en el orden de arriba hasta 020, y 099 al final.
+```
+
+## Idempotencia
+
+- **`001_CreateDatabase.sql` NO es idempotente**: crea la base y el modelo; se aplica
+  una sola vez sobre una instancia que todavia no tiene la base `ShopCart`.
+- **El resto es reaplicable**: los SPs, funciones, vistas y triggers usan
+  `CREATE OR ALTER`; los datos (`004`, `015`, `099`) y los indices/migraciones
+  (`013`, `017`, el indice de `020`) comprueban existencia antes de crear o insertar.
+  `099` ademas salta su seccion de pedidos demo si ya existe el pago `SEED-001`.
+
+## Scripts
 
 | Script | Descripcion |
 |--------|-------------|
-| `001_CreateDatabase.sql` | Crea la base de datos `ShopCart` y todo el modelo relacional (tablas, constraints, indices, secuencia). |
-| `002_SP_Sistema_Ping.sql` | Procedimiento `dbo.SP_Sistema_Ping` usado por el endpoint `/health`. |
-| `003_Security.sql` | Login/usuario de aplicacion `shopcart_app` (solo `EXECUTE` sobre `dbo`) y blindaje de `dbo.Bitacora` como append-only (DENY UPDATE/DELETE + trigger `TR_Bitacora_Inmutable`). |
-| `004_Catalogos.sql` | Datos base: roles (Cliente, Operador, Administrador), tipos de movimiento de inventario, parametros de configuracion (incluye `STOCK_MINIMO` = 5, umbral de bajo stock) e indice `IX_Usuario_Rol`. |
-| `005_SP_Auth.sql` | SPs de autenticacion (RF-01): registro de cliente, consulta por correo/ID, intentos fallidos y lockout, login exitoso, y ciclo de refresh tokens (guardar, rotar con deteccion de reutilizacion, revocar). |
-| `006_SP_Usuarios.sql` | SPs de gestion de usuarios por Administrador: listar (paginado/filtrado), crear, cambiar rol, cambiar estado. |
-| `007_SP_Direcciones.sql` | SPs de direcciones del usuario (ownership validado en el SP): listar, obtener, crear, actualizar, desactivar (baja logica). |
-| `008_VW_Inventario.sql` | Vista `VW_Inventario_Disponible` (Disponible = Existencia - reservas activas), indice `IX_Producto_Nombre` y tipo de tabla `TVP_VarianteAtributo`. |
-| `009_SP_Categorias.sql` | SPs de categorias del catalogo (RF-02): listar (con conteo de productos activos), crear, actualizar, cambiar estado (baja logica). |
-| `010_SP_Catalogo.sql` | SPs de productos, variantes e imagenes (RF-02): busqueda paginada, detalle, altas/cambios y gestion de imagenes. |
-| `011_SP_Inventario.sql` | SPs de inventario y kardex (RF-03): registrar movimiento (unico que escribe Existencia), listar existencias, listar kardex y verificar consistencia. |
-| `012_SP_Carrito.sql` | Carrito de compras (RF-04): `FU_Carrito_CalcularTotales` (totales e IVA en linea) y SPs obtener, agregar, actualizar, eliminar, vaciar y fusionar. El carrito solo lee el disponible (no reserva existencia). En M5 la funcion de totales descuenta el cupon vigente, por lo que se **reaplica despues de `014`**. |
-| `013_Migracion_CarritoCupon.sql` | Migracion posterior al `001` (RF-05): agrega `Carrito.IDCupon` (nullable) y la FK `FK_Carrito_Cupon`, para que el carrito recuerde el cupon aplicado antes del checkout. Idempotente. |
-| `014_SP_Cupones.sql` | Cupones (RF-05): `FU_Cupones_CalculoDescuento` y `FU_Cupones_Estado` (en linea) y SPs validar, aplicar/quitar al carrito y CRUD de administracion (listar, obtener, crear, actualizar, cambiar estado). No consume usos (eso es del checkout, M6). |
-| `015_Catalogo_EstadosPedido.sql` | Estados de pedido (`EstadoPedido`) y transiciones permitidas (`TransicionEstadoPedido`) que gobiernan el ciclo de vida del pedido (RF-06, base de RF-07). Idempotente por codigo y por par origen/destino. |
-| `016_SP_Checkout.sql` | Checkout y pago (RF-06): `SP_Inventario_ReservarExistencia` (interno), `SP_Checkout_Iniciar`, `SP_Checkout_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente con replay) y `SP_Checkout_LiberarReservasVencidas` (job). Usa `SP_Inventario_RegistrarMovimiento` (`@OrigenInterno = 1`) para el kardex. |
-| `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001` (RF-06): reemplaza `UQ_Carrito_TokenInvitado` (UNIQUE admite un solo NULL, rompia el segundo carrito de usuario) por el indice unico filtrado `UX_Carrito_TokenInvitado ... WHERE TokenInvitado IS NOT NULL`. Idempotente. |
-| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): `SP_Pedidos_CambiarEstado` (transiciones del grafo de `015` + cancelacion que repone inventario y devuelve el uso del cupon), `SP_Pedidos_RegistrarDevolucion` (TVP `TVP_DevolucionLinea`; parcial o total), `SP_Pedidos_Obtener`, `SP_Pedidos_Listar` y el trigger `TR_Pedido_TransicionValida`. Usa `SP_Inventario_RegistrarMovimiento` (CANCELACION/DEVOLUCION, `@OrigenInterno = 1`). |
-| `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers `AFTER` set-based (sin cursores) que registran altas/cambios/bajas en `Producto`, `Variante`, `Kardex`, `Cupon` y `PedidoHistorialEstado`, con el autor via `SESSION_CONTEXT(N'IDUsuario')`; la existencia se audita por `Kardex` (no por `Variante`) y el consumo de usos del cupon no se registra. `SP_Bitacora_Consultar` (filtros + paginacion), `SP_Bitacora_Modulos` y el helper `SP_Bitacora_Registrar`. Solo `INSERT`: respeta el blindaje de `003`. |
-| `020_Reportes.sql` | Dashboard y reportes (RF-08, requiere SQL Server 2022): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta descontando devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (`DATETRUNC` DIA/SEMANA/MES), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (comparativo con el periodo anterior). Agrega el indice de apoyo `IX_Devolucion_Pedido_Monto`. Solo lectura. |
-| `099_Semillas.sql` | Datos de ejemplo para desarrollo (usuarios/direccion de M1; catalogo de M2; carga inicial de inventario de M3 via SP; carritos de M4 via SP; cupones de M5). Crece con cada modulo; se aplica al final. |
+| `001_CreateDatabase.sql` | Base de datos `ShopCart` y modelo relacional: 26 tablas, constraints, indices y la secuencia del numero de pedido. |
+| `002_SP_Sistema_Ping.sql` | `SP_Sistema_Ping` para el endpoint `/health`. |
+| `003_Security.sql` | Login/usuario `shopcart_app` (solo `EXECUTE` sobre `dbo`) y blindaje append-only de `dbo.Bitacora` (DENY UPDATE/DELETE + trigger `TR_Bitacora_Inmutable`). |
+| `004_Catalogos.sql` | Datos base: roles, tipos de movimiento de inventario, parametros (`dbo.Parametro`) e indice `IX_Usuario_Rol`. |
+| `005_SP_Auth.sql` | Autenticacion (RF-01): registro, consulta por correo/ID, intentos fallidos y lockout, login exitoso, ciclo de refresh tokens. |
+| `006_SP_Usuarios.sql` | Gestion de usuarios por Administrador: listar, crear, cambiar rol, cambiar estado (ambos revocan refresh tokens). |
+| `007_SP_Direcciones.sql` | Direcciones del usuario (ownership en el SP; dir. ajena -> 404 uniforme). |
+| `008_VW_Inventario.sql` | Vista `VW_Inventario_Disponible`, indice `IX_Producto_Nombre` y el TVP `TVP_VarianteAtributo`. |
+| `009_SP_Categorias.sql` | Categorias del catalogo (RF-02). |
+| `010_SP_Catalogo.sql` | Productos, variantes e imagenes (RF-02). |
+| `011_SP_Inventario.sql` | Inventario y kardex (RF-03): `SP_Inventario_RegistrarMovimiento` (unico que escribe `Existencia`), existencias, kardex y verificacion de consistencia. |
+| `013_Migracion_CarritoCupon.sql` | Migracion: agrega `Carrito.IDCupon` + FK (RF-05). |
+| `014_SP_Cupones.sql` | Funciones y SPs de cupones (RF-05): validar, aplicar/quitar al carrito y CRUD de administracion. |
+| `012_SP_Carrito.sql` | Carrito (RF-04): `FU_Carrito_CalcularTotales` y SPs del carrito. Se aplica despues de `013`/`014` (ver orden canonico). |
+| `015_Catalogo_EstadosPedido.sql` | `EstadoPedido` y `TransicionEstadoPedido`: grafo del ciclo de vida (RF-06/07). |
+| `016_SP_Checkout.sql` | Checkout y pago (RF-06): reserva, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente), liberacion de reservas. |
+| `017_Migracion_CarritoTokenUnico.sql` | Migracion: indice unico filtrado para el token de invitado (tolera multiples NULL). |
+| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. |
+| `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based en Producto/Variante/Kardex/Cupon/PedidoHistorialEstado/Devolucion, consulta (`SP_Bitacora_Consultar`), modulos y helper. Solo `INSERT`. |
+| `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas de venta neta y SPs de ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; indice `IX_Devolucion_Pedido_Monto`. |
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
 
-La numeracion sigue el patron `001`, `002`, `003`, ... Cada modulo de negocio
-(catalogo, carrito, pedidos, etc.) agregara sus propios scripts con el siguiente
-numero disponible. **No se reutilizan ni reordenan numeros ya publicados.**
+## Convenciones
 
-> **Excepcion de orden en M5.** `012` se **reaplica despues** de `013` y `014`:
-> `FU_Carrito_CalcularTotales` (en `012`) usa las funciones de cupon de `014` y la
-> columna `Carrito.IDCupon` de `013`, y una funcion en linea exige que lo
-> referenciado exista al momento de crearse. Orden de M5: **013 -> 014 -> 012 -> 099**.
->
-> **M6.** Se **reaplican `004`** (agrega el parametro `RESERVA_JOB_SEGUNDOS`) y **`011`**
-> (agrega el parametro `@SinResultado` a `SP_Inventario_RegistrarMovimiento`), y luego se
-> aplican `015` y `016`. `016` usa `FU_Carrito_CalcularTotales`/`FU_Cupones_Estado`
-> (012/014), `SP_Inventario_RegistrarMovimiento` (011) y los estados de `015`, todos ya
-> presentes. Tambien se aplica `017`, migracion de modelo que corrige la unicidad
-> del token de invitado (ver tabla). Orden de M6:
-> **004 -> 011 -> 015 -> 016 -> 017 -> 099 (si cambio)**.
->
-> **M7.** Se aplica `018` (pedidos, ciclo de vida y devoluciones) despues de `017`. Usa
-> los estados de `015`, `SP_Inventario_RegistrarMovimiento` (011) y las tablas de pedido
-> del `001`, todos ya presentes. Orden de M7: **018 -> 099 (si cambio)**.
+- **Nomenclatura.** Tablas en singular PascalCase, PK `IDNombre`, montos `DECIMAL(18,2)`,
+  fechas `DATETIME2(0)` en UTC. SPs `SP_Modulo_Accion`, funciones `FU_...`, vistas `VW_...`,
+  triggers `TR_...`, tipos de tabla `TVP_...`.
+- **Errores de negocio `50400`–`50499`.** El numero codifica el HTTP (`50404` -> 404,
+  `50409` -> 409, `50422` -> 422); el backend lo traduce. Mensajes en espanol sin acentos.
+- **Auditoria por `SESSION_CONTEXT`.** Todo SP que escribe recibe `@IDUsuarioEjecuta` y,
+  como primera instruccion, `EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;`.
+  Los triggers de bitacora leen al autor con `SESSION_CONTEXT(N'IDUsuario')`; el backend
+  solo pasa el parametro, no fija el contexto.
+- **`XACT_ABORT ON`** en los SPs con transaccion; `TRY/CATCH` con `ROLLBACK` si
+  `@@TRANCOUNT > 0` y `;THROW;`. `SET NOCOUNT ON` en todos.
+- **Sin SQL dinamico** (ni `sp_executesql` ni `EXEC(...)`): las combinaciones de filtros
+  usan el patron `(@P IS NULL OR ...)` con `OPTION (RECOMPILE)`.
+- **TVP.** El estandar del reto no define tipos de tabla; el proyecto adopta `TVP_<Nombre>`
+  (`TVP_VarianteAtributo` en `008`, `TVP_DevolucionLinea` en `018`). Como `CREATE TYPE` no
+  admite `OR ALTER`, se crean comprobando `sys.table_types`.
 
-> **M8.** Se aplica `019` (bitacora de auditoria) despues de `018`. Crea triggers sobre
-> tablas ya existentes del `001` y lee el autor del session context que ya fijan los SPs
-> de escritura; `dbo.Bitacora` y su blindaje vienen de `001`/`003`. Orden de M8:
-> **019 -> 099 (si cambio)**.
+## Evolucion por modulo (historial)
 
-> **M9.** Se aplica `020` (dashboard y reportes) despues de `019`. Crea vistas y SPs de solo
-> lectura sobre tablas ya existentes y un indice de apoyo; requiere SQL Server 2022
-> (`DATETRUNC`). Orden de M9: **020 -> 099 (si cambio)**.
+Las migraciones y reaplicaciones que en su momento se hicieron modulo a modulo ya estan
+plegadas en el orden canonico unico de arriba; no hace falta reaplicar `004`/`011`/`012`
+a mano. Se dejan como historial:
 
-## Como aplicarlos
-
-Ejecutar cada archivo, en orden, con `sqlcmd` o SQL Server Management Studio.
-Ejemplo con `sqlcmd`:
-
-```bash
-sqlcmd -S localhost -U sa -P "<password>" -i 001_CreateDatabase.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 002_SP_Sistema_Ping.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 003_Security.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 004_Catalogos.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 005_SP_Auth.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 006_SP_Usuarios.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 007_SP_Direcciones.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 008_VW_Inventario.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 009_SP_Categorias.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 010_SP_Catalogo.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
-# M5 (RF-05): 013 y 014 antes de reaplicar 012 (dependencia de funciones/columna).
-sqlcmd -S localhost -U sa -P "<password>" -i 013_Migracion_CarritoCupon.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 014_SP_Cupones.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 012_SP_Carrito.sql
-# M6 (RF-06): reaplicar 004 (nuevo parametro) y 011 (@SinResultado), luego estados y checkout.
-sqlcmd -S localhost -U sa -P "<password>" -i 004_Catalogos.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 011_SP_Inventario.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 015_Catalogo_EstadosPedido.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 016_SP_Checkout.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 017_Migracion_CarritoTokenUnico.sql
-# M7 (RF-07): pedidos, ciclo de vida y devoluciones.
-sqlcmd -S localhost -U sa -P "<password>" -i 018_SP_Pedidos.sql
-# M8 (RF-09): bitacora de auditoria (triggers + consulta).
-sqlcmd -S localhost -U sa -P "<password>" -i 019_Bitacora.sql
-# M9 (RF-08): dashboard y reportes (requiere SQL Server 2022).
-sqlcmd -S localhost -U sa -P "<password>" -i 020_Reportes.sql
-sqlcmd -S localhost -U sa -P "<password>" -i 099_Semillas.sql
-```
-
-> Los scripts con `CREATE OR ALTER` (como el `002`) y los idempotentes que
-> comprueban existencia antes de crear (como el `003`) pueden reaplicarse sin
-> error. El `001` esta pensado para una instancia sin la base `ShopCart` creada.
-
-## Convencion de auditoria (bitacora)
-
-Todo stored procedure que **escribe** datos recibe `@IDUsuarioEjecuta INT` como
-un parametro tipado mas (puede ser `NULL` solo en el registro de clientes, donde
-aun no hay actor) y, en su primera instruccion, publica ese valor en el contexto
-de sesion:
-
-```sql
-EXEC sys.sp_set_session_context @key = N'IDUsuario', @value = @IDUsuarioEjecuta;
-```
-
-Los triggers de bitacora leen al autor del cambio con
-`SESSION_CONTEXT(N'IDUsuario')`. El backend no fija el contexto de sesion: solo
-pasa `@IDUsuarioEjecuta` como un parametro mas al ejecutar el SP
-(`request.input`).
-
-## Parametros de tipo tabla (TVP)
-
-El estandar de nomenclatura del reto no define tipos de tabla, asi que el
-proyecto adopta la convencion propia `TVP_<Nombre>`. El unico TVP de M2 es
-`dbo.TVP_VarianteAtributo` (`008_VW_Inventario.sql`), con columnas
-`Nombre NVARCHAR(50)` y `Valor NVARCHAR(100)`; sirve para enviar el conjunto de
-atributos de una variante en una sola llamada a `SP_Catalogo_CrearVariante` /
-`SP_Catalogo_ActualizarVariante`. Como `CREATE TYPE` no admite `OR ALTER`, se
-crea solo si no existe comprobando `sys.table_types`.
+- **M5 (RF-05).** Introdujo `013` (columna `Carrito.IDCupon`) y `014` (cupones), y obligo a
+  colocar `012` despues de ambos.
+- **M6 (RF-06).** Amplio `004` (parametro `RESERVA_JOB_SEGUNDOS`) y `011` (parametro
+  `@SinResultado`), y agrego `015`, `016` y la migracion `017`.
+- **M7 (RF-07).** Agrego `018` (pedidos y devoluciones).
+- **M8 (RF-09).** Agrego `019` (bitacora).
+- **M9 (RF-08).** Agrego `020` (reportes) y amplio `099` con pedidos de demostracion.
