@@ -65,6 +65,14 @@ cd db
 Equivalente en bash: `./aplicar.sh` (mismas opciones). Al terminar imprime los conteos
 de verificacion (26 tablas, procedimientos, triggers, vistas y el login `shopcart_app`).
 
+> **Avisos esperados durante la instalacion (no son errores).** Al aplicar `014` SQL
+> Server emite "The module '…' depends on the missing object 'dbo.SP_Carrito_Obtener'…
+> will still be created": es normal porque en el orden canonico `012` (que crea ese SP)
+> se aplica **despues** de `014`; la resolucion es diferida y queda correcta. Ademas,
+> `099` imprime varios result sets (`(N rows affected)` y tablas) al generar los pedidos
+> demo via los SPs de checkout/pedidos: es ruido de salida, no un error. La instalacion
+> termina bien si ves "Instalacion completada" y los conteos de verificacion.
+
 ### 3. API
 
 ```bash
@@ -89,12 +97,32 @@ La API queda en `http://localhost:3000` (segun `PORT`). Verificacion:
 ### Instalacion para evaluacion
 
 Para correr la coleccion de Postman/newman completa de una pasada sin topar los limites,
-arranque con:
+use estos valores. **Lo mas simple es ponerlos en `api/.env`** (la API los lee de ahi):
+
+```ini
+NODE_ENV=development
+PAGO_SIMULADO=true
+RATE_LIMIT_AUTH_MAX=100
+RATE_LIMIT_CHECKOUT_MAX=100
+RATE_LIMIT_CUPON_MAX=100
+```
+
+y luego `npm run dev`. Como alternativa, se pueden pasar al vuelo al arrancar (segun el
+shell):
+
+```powershell
+# PowerShell
+$env:NODE_ENV="development"; $env:PAGO_SIMULADO="true"; $env:RATE_LIMIT_AUTH_MAX="100"; $env:RATE_LIMIT_CHECKOUT_MAX="100"; $env:RATE_LIMIT_CUPON_MAX="100"; npm run dev
+```
+
+```bat
+:: cmd
+set NODE_ENV=development && set PAGO_SIMULADO=true && set RATE_LIMIT_AUTH_MAX=100 && set RATE_LIMIT_CHECKOUT_MAX=100 && set RATE_LIMIT_CUPON_MAX=100 && npm run dev
+```
 
 ```bash
-NODE_ENV=development PAGO_SIMULADO=true \
-RATE_LIMIT_AUTH_MAX=100 RATE_LIMIT_CHECKOUT_MAX=100 RATE_LIMIT_CUPON_MAX=100 \
-npm run dev
+# bash
+NODE_ENV=development PAGO_SIMULADO=true RATE_LIMIT_AUTH_MAX=100 RATE_LIMIT_CHECKOUT_MAX=100 RATE_LIMIT_CUPON_MAX=100 npm run dev
 ```
 
 ### Produccion
@@ -852,9 +880,14 @@ Con la API arriba (`BASE_URL` apunta a ella; `RATE_LIMIT_*` altos como arriba):
   inventario, 402 -> 201, reuso de clave ajena 409. Sale con codigo 1 si algo falla.
 - **Rendimiento de reportes:** `BASE_URL=http://localhost:3000 npm run test:rendimiento`.
   20 llamadas por reporte; reporta p50/p95/max y una fase concurrente; **sale con codigo 2
-  si detecta un `X-Cache: HIT` en la fase base** (hay que correrlo con
-  `REPORTES_CACHE_TTL_SEGUNDOS=0` para medir el SP puro) y con codigo 1 si algun
-  p95 >= 1000 ms. Numeros medidos (TTL=0, rango de 90 dias, SQL Server 2022 local):
+  si detecta un `X-Cache: HIT` en la fase base** y con codigo 1 si algun p95 >= 1000 ms.
+  Para medir el SP puro hay que arrancar la API con el cache desactivado:
+  **lo mas simple es poner `REPORTES_CACHE_TTL_SEGUNDOS=0` en `api/.env`** y reiniciar;
+  como alternativa, al vuelo segun el shell:
+  `($env:REPORTES_CACHE_TTL_SEGUNDOS="0"; npm run dev)` en PowerShell,
+  `set REPORTES_CACHE_TTL_SEGUNDOS=0 && npm run dev` en cmd, o
+  `REPORTES_CACHE_TTL_SEGUNDOS=0 npm run dev` en bash. Numeros medidos (TTL=0, rango de
+  90 dias, SQL Server 2022 local):
 
   | Reporte | p50 (ms) | p95 (ms) |
   |---------|---------:|---------:|
@@ -1004,6 +1037,12 @@ tablas directamente.
 
 > **Es una credencial de desarrollo.** Debe cambiarse por un secreto fuerte y
 > rotarse fuera del control de versiones en cualquier ambiente real.
+
+> **Secretos JWT.** Los valores de `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` que trae
+> `api/.env.example` sirven **solo para evaluacion local** (tienen la longitud minima de
+> 32 caracteres, asi que la API arranca copiando el ejemplo tal cual). En cualquier otro
+> ambiente deben reemplazarse por secretos aleatorios propios, gestionados y rotados fuera
+> del control de versiones.
 
 ### Usuarios de ejemplo (M1)
 

@@ -53,6 +53,17 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
   (`013`, `017`, el indice de `020`) comprueban existencia antes de crear o insertar.
   `099` ademas salta su seccion de pedidos demo si ya existe el pago `SEED-001`.
 
+## Avisos esperados (no son errores)
+
+- **`014`:** SQL Server emite "The module 'SP_Cupones_AplicarACarrito'/'SP_Cupones_QuitarDeCarrito'
+  depends on the missing object 'dbo.SP_Carrito_Obtener'… will still be created". Es
+  normal: en el orden canonico `012` (que crea `SP_Carrito_Obtener`) se aplica **despues**
+  de `014`. La resolucion de dependencias es diferida; los modulos quedan correctos.
+- **`099`:** al generar los pedidos de demostracion llama a los SPs de checkout, cambio de
+  estado y devolucion, que **devuelven result sets**; `sqlcmd` los imprime (`(N rows
+  affected)` y tablas). Es ruido de salida, no un error; la verificacion final aparece al
+  terminar.
+
 ## Scripts
 
 | Script | Descripcion |
