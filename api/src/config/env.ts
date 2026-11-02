@@ -57,17 +57,23 @@ const envSchema = z
   // 0 = sin proxy (usa la IP del socket). Ver app.ts.
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
 
-  // Pago simulado: el backend decide el resultado. Solo desarrollo/demo; en
-  // produccion debe quedar en false (ver la validacion de abajo).
+  // Modo demo: habilita el pago simulado en un ambiente de produccion PUBLICO de
+  // demostracion. En un ambiente real debe quedar en false.
+  MODO_DEMO: booleanFromString.default(false),
+
+  // Pago simulado: el backend decide el resultado. En produccion solo se permite si
+  // MODO_DEMO=true (ambiente de demostracion); si no, prohibido (ver validacion abajo).
   PAGO_SIMULADO: booleanFromString.default(false),
   })
   .superRefine((cfg, ctx) => {
-    if (cfg.NODE_ENV === 'production' && cfg.PAGO_SIMULADO) {
+    // PAGO_SIMULADO=true se permite si NO es produccion, o si es produccion en MODO_DEMO.
+    if (cfg.NODE_ENV === 'production' && cfg.PAGO_SIMULADO && !cfg.MODO_DEMO) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['PAGO_SIMULADO'],
         message:
-          'no puede estar activo en produccion (el pago simulado es solo para desarrollo/demo)',
+          'no puede estar activo en produccion salvo en un ambiente de demostracion ' +
+          '(ponga MODO_DEMO=true para permitirlo, o PAGO_SIMULADO=false)',
       });
     }
   });

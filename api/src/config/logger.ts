@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -6,10 +7,27 @@ import { env } from './env.js';
 const level = env.LOG_LEVEL;
 const isDevelopment = env.NODE_ENV === 'development';
 
-/** Logger de aplicacion. Salida JSON en todos los entornos; legible solo en dev. */
+/**
+ * pino-pretty es dependencia de desarrollo. La imagen de produccion se construye con
+ * `npm ci --omit=dev`, por lo que puede NO estar instalada aun con NODE_ENV=development.
+ * Solo se usa el transport si es desarrollo Y el modulo se resuelve; si no, salida JSON.
+ * Asi el logger nunca cae por "unable to determine transport target for pino-pretty".
+ */
+function prettyDisponible(): boolean {
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const usarPretty = isDevelopment && prettyDisponible();
+
+/** Logger de aplicacion. Salida JSON; legible (pino-pretty) solo en dev y si existe. */
 export const logger = pino({
   level,
-  ...(isDevelopment
+  ...(usarPretty
     ? {
         transport: {
           target: 'pino-pretty',

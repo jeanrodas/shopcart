@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "ShopCart API - M1 a M9",
-    "description": "Coleccion de pruebas de la API ShopCart (Fase 1, RF-01 a RF-09). Cubre M1 a M9 con casos felices y negativos. Requiere la base aplicada con los scripts 001-020 y 099 (ver db/aplicar.ps1). Variables en la coleccion (baseUrl, tokens por rol e IDs que los setups capturan solos). La carpeta \"Manual (rate limit)\" se corre aparte. Para correr todo de una pasada: RATE_LIMIT_AUTH_MAX=100 y RATE_LIMIT_CHECKOUT_MAX=100.",
+    "description": "Coleccion de pruebas de la API ShopCart (Fase 1, RF-01 a RF-09). Cubre M1 a M9 con casos felices y negativos, mas la carpeta \"00 Recorrido guiado\" (narrativa de extremo a extremo). Empiece por docs/GUIA-EVALUACION.md. Requiere la base aplicada (scripts 001-020 y 099) y la API arriba; variables en la coleccion (baseUrl, tokens, IDs capturados por los setups). Para correr todo de una pasada: RATE_LIMIT_AUTH_MAX=100 y RATE_LIMIT_CHECKOUT_MAX=100.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -332,9 +332,1024 @@
     {
       "key": "m8PedDetalleId",
       "value": ""
+    },
+    {
+      "key": "r0Sufijo",
+      "value": ""
+    },
+    {
+      "key": "r0K1",
+      "value": ""
+    },
+    {
+      "key": "r0Desde",
+      "value": ""
+    },
+    {
+      "key": "r0Hasta",
+      "value": ""
+    },
+    {
+      "key": "r0AdminToken",
+      "value": ""
+    },
+    {
+      "key": "r0OperadorToken",
+      "value": ""
+    },
+    {
+      "key": "r0ClienteToken",
+      "value": ""
+    },
+    {
+      "key": "r0ProductoId",
+      "value": ""
+    },
+    {
+      "key": "r0VarianteId",
+      "value": ""
+    },
+    {
+      "key": "r0DireccionId",
+      "value": ""
+    },
+    {
+      "key": "r0PedidoId",
+      "value": ""
+    },
+    {
+      "key": "r0NumeroPedido",
+      "value": ""
+    },
+    {
+      "key": "r0DetalleId",
+      "value": ""
     }
   ],
   "item": [
+    {
+      "name": "00 Recorrido guiado",
+      "description": "Narrativa de extremo a extremo (RF-01 a RF-09) en 17 requests, repetible por sufijo. Ejecute con Send de arriba hacia abajo (o con el Collection Runner solo esta carpeta). Cuenta la historia: registro de cliente, catalogo, carrito, cupon PROMO10, checkout con reserva, pago idempotente y su replay, avance de estados por el operador, devolucion parcial, bitacora del pedido y resumen de reportes. Guia: docs/GUIA-EVALUACION.md.",
+      "item": [
+        {
+          "name": "01 Login admin (setup)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = Date.now().toString(36);",
+                  "pm.collectionVariables.set('r0Sufijo', s);",
+                  "pm.collectionVariables.set('r0K1', 'rec-' + s + '-' + (pm.variables.replaceIn('{{$guid}}')));",
+                  "const now = new Date();",
+                  "pm.collectionVariables.set('r0Desde', new Date(now.getTime()-60*864e5).toISOString());",
+                  "pm.collectionVariables.set('r0Hasta', new Date(now.getTime()+864e5).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 login admin', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if(j.accessToken) pm.collectionVariables.set('r0AdminToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "02 Login operador (setup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 login operador', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if(j.accessToken) pm.collectionVariables.set('r0OperadorToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "03 Registro de cliente (RF-01)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0Sufijo no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0Sufijo\"), \"r0Sufijo\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 cliente registrado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('devuelve accessToken y usuario', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.usuario && j.usuario.rol).to.eql('Cliente'); });",
+                  "if(j.accessToken) pm.collectionVariables.set('r0ClienteToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"recorrido_{{r0Sufijo}}@shopcart.local\",\n  \"contrasena\": \"Cliente123\",\n  \"nombre\": \"Cliente Recorrido\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "04 Catalogo publico: buscar productos (RF-02)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 busqueda publica', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const dispo = (j.filas||[]).filter(p => p.HayDisponible === true);",
+                  "pm.test('hay producto disponible', () => pm.expect(dispo.length).to.be.above(0));",
+                  "if(dispo.length) pm.collectionVariables.set('r0ProductoId', dispo[0].IDProducto);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos?soloDisponibles=true&pagina=1&tamanoPagina=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "soloDisponibles",
+                  "value": "true"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanoPagina",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "05 Ver detalle y variante disponible (RF-02/03)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0ProductoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0ProductoId\"), \"r0ProductoId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const vars = (j.variantes||[]).filter(v => v.Activo===true && Number(v.Disponible) >= 2);",
+                  "vars.sort((a,b)=>Number(b.Disponible)-Number(a.Disponible));",
+                  "pm.test('hay variante con 2+ disponibles', () => pm.expect(vars.length).to.be.above(0));",
+                  "if(vars.length) pm.collectionVariables.set('r0VarianteId', vars[0].IDVariante);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/productos/{{r0ProductoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "productos",
+                "{{r0ProductoId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "06 Cliente crea direccion (RF-01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 direccion creada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "if(j.IDDireccion) pm.collectionVariables.set('r0DireccionId', j.IDDireccion);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/direcciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "direcciones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"Casa\",\n  \"nombreReceptor\": \"Cliente Recorrido\",\n  \"telefono\": \"+502 5555-0000\",\n  \"linea1\": \"1a Calle 2-34 Zona 1\",\n  \"municipio\": \"Guatemala\",\n  \"departamento\": \"Guatemala\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 Agregar 2 al carrito (RF-04)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0VarianteId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0VarianteId\"), \"r0VarianteId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 agregado al carrito', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idVariante\": {{r0VarianteId}},\n  \"cantidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "08 Aplicar cupon PROMO10 (RF-05)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 cupon aplicado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('cupon PROMO10 con descuento', () => { pm.expect(j.cupon && j.cupon.Codigo).to.eql('PROMO10'); pm.expect(Number((j.carrito&&j.carrito.totales||{}).Descuento)).to.be.above(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/carrito/cupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "carrito",
+                "cupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PROMO10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "09 Iniciar checkout: reserva (RF-06)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0DireccionId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0DireccionId\"), \"r0DireccionId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 checkout iniciado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('reserva con ExpiraEn', () => pm.expect(j.resumen && j.resumen.ExpiraEn).to.not.be.oneOf([undefined,null]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/iniciar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "iniciar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{r0DireccionId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "10 Pagar con Idempotency-Key (RF-06)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0DireccionId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0DireccionId\"), \"r0DireccionId\").to.not.be.oneOf([undefined,null,\"\"]));",
+                  "pm.test(\"variable r0K1 no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0K1\"), \"r0K1\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('aprobado y NumeroPedido SC-', () => { pm.expect(j.aprobado).to.eql(true); pm.expect(String(j.pedido&&j.pedido.NumeroPedido)).to.match(/^SC-/); });",
+                  "if(j.pedido){ pm.collectionVariables.set('r0PedidoId', j.pedido.IDPedido); pm.collectionVariables.set('r0NumeroPedido', j.pedido.NumeroPedido); }",
+                  "if(j.lineas && j.lineas[0]) pm.collectionVariables.set('r0DetalleId', j.lineas[0].IDPedidoDetalle);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{r0K1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{r0DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "11 Repetir el pago: replay idempotente (RF-06)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0DireccionId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0DireccionId\"), \"r0DireccionId\").to.not.be.oneOf([undefined,null,\"\"]));",
+                  "pm.test(\"variable r0K1 no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0K1\"), \"r0K1\").to.not.be.oneOf([undefined,null,\"\"]));",
+                  "pm.test(\"variable r0NumeroPedido no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0NumeroPedido\"), \"r0NumeroPedido\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 replay', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('replay=true, mismo NumeroPedido', () => { pm.expect(j.replay).to.eql(true); pm.expect(String(j.pedido&&j.pedido.NumeroPedido)).to.eql(pm.collectionVariables.get('r0NumeroPedido')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0ClienteToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{r0K1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkout/pagar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout",
+                "pagar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idDireccion\": {{r0DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "12 Operador: PAGADO -> EN_PREPARACION (RF-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0PedidoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0PedidoId\"), \"r0PedidoId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 EN_PREPARACION', () => { pm.expect(pm.response.code).to.eql(200); pm.expect(j.pedido.EstadoCodigo).to.eql('EN_PREPARACION'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{r0PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{r0PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"EN_PREPARACION\",\n  \"comentario\": \"Recorrido guiado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "13 Operador: EN_PREPARACION -> DESPACHADO (RF-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0PedidoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0PedidoId\"), \"r0PedidoId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 DESPACHADO', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{r0PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{r0PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"DESPACHADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "14 Operador: DESPACHADO -> ENTREGADO (RF-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0PedidoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0PedidoId\"), \"r0PedidoId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 ENTREGADO', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{r0PedidoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{r0PedidoId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "15 Operador: devolucion parcial 1 de 2 (RF-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0PedidoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0PedidoId\"), \"r0PedidoId\").to.not.be.oneOf([undefined,null,\"\"]));",
+                  "pm.test(\"variable r0DetalleId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0DetalleId\"), \"r0DetalleId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('201 devolucion registrada', () => pm.expect(pm.response.code).to.eql(201));",
+                  "pm.test('sigue ENTREGADO (parcial)', () => pm.expect(j.pedido && j.pedido.EstadoCodigo).to.eql('ENTREGADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{r0PedidoId}}/devoluciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{r0PedidoId}}",
+                "devoluciones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Devolucion parcial del recorrido\",\n  \"lineas\": [ { \"idPedidoDetalle\": {{r0DetalleId}}, \"cantidad\": 1 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "16 Admin: bitacora del pedido ?modulo=PEDIDOS (RF-09)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0PedidoId no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0PedidoId\"), \"r0PedidoId\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 bitacora', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const filas = j.filas||[];",
+                  "const avance = filas.find(f=>f.ValorAnterior==='PAGADO' && f.ValorNuevo==='EN_PREPARACION');",
+                  "pm.test('registra el avance PAGADO->EN_PREPARACION', () => pm.expect(avance).to.not.be.undefined);",
+                  "const dev = filas.find(f=>f.Accion==='MODIFICAR' && typeof f.ValorNuevo==='string' && f.ValorNuevo.indexOf('IDDevolucion')!==-1);",
+                  "pm.test('registra la devolucion', () => pm.expect(dev).to.not.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bitacora?modulo=PEDIDOS&idEntidad={{r0PedidoId}}&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "modulo",
+                  "value": "PEDIDOS"
+                },
+                {
+                  "key": "idEntidad",
+                  "value": "{{r0PedidoId}}"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "17 Admin: resumen de reportes (RF-08)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"variable r0Desde no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0Desde\"), \"r0Desde\").to.not.be.oneOf([undefined,null,\"\"]));",
+                  "pm.test(\"variable r0Hasta no vacia\", () => pm.expect(pm.collectionVariables.get(\"r0Hasta\"), \"r0Hasta\").to.not.be.oneOf([undefined,null,\"\"]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j={}; try{j=pm.response.json()}catch(e){}",
+                  "pm.test('200 resumen', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('tiene Pedidos, VentaNeta y VariantesBajoStock', () => { pm.expect(Number(j.Pedidos)).to.be.at.least(1); pm.expect(j).to.have.property('VentaNeta'); pm.expect(j).to.have.property('VariantesBajoStock'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{r0AdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reportes/resumen?desde={{r0Desde}}&hasta={{r0Hasta}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reportes",
+                "resumen"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "{{r0Desde}}"
+                },
+                {
+                  "key": "hasta",
+                  "value": "{{r0Hasta}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Auth",
       "item": [
@@ -626,7 +1641,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "M1 (RF-01): registro, login, refresh rotado y logout. Casos felices; se esperan 200/201 y tokens JWT; captura los tokens por rol para el resto."
     },
     {
       "name": "Usuarios (Administrador)",
@@ -856,7 +1872,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "M1 (RF-01): gestion de usuarios por Administrador (listar, crear, cambiar rol/estado). Requiere token admin; 200/201. Cambiar rol/estado revoca refresh tokens."
     },
     {
       "name": "Direcciones (Cliente)",
@@ -1051,7 +2068,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "M1 (RF-01): direcciones del cliente con ownership validado en el SP. 200/201; una direccion ajena responde 404 uniforme."
     },
     {
       "name": "Casos negativos",
@@ -1277,7 +2295,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "M1 (RF-01): rechazos esperados -- refresh reutilizado 401, cliente a /usuarios 403, direccion ajena 404, login de cuenta desactivada 401 \"Credenciales invalidas\"."
     },
     {
       "name": "M2 Catalogo",
@@ -2406,7 +3425,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "RF-02: catalogo publico (sin token) y gestion (categorias, productos, variantes, imagenes). 200/201; los inactivos no aparecen en el catalogo publico (404)."
     },
     {
       "name": "M3 Inventario",
@@ -3052,7 +4072,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "RF-03: existencias y kardex. Entradas/ajustes por Operador, consistencia por Admin. 201/200; ajuste sin motivo 400; ajuste mayor que la existencia 422."
     },
     {
       "name": "M4 Carrito",
@@ -3885,7 +4906,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "RF-04: carrito de cliente o invitado (X-Cart-Token). Agregar/actualizar/quitar lineas, totales e IVA en SQL. Toma IDs del catalogo publico; repetible."
     },
     {
       "name": "M5 Cupones",
@@ -5065,11 +6087,12 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "RF-05: validar/aplicar/quitar cupones y CRUD de administracion. Cubre cada causa de invalidez (vencido, futuro, agotado, monto minimo, categoria)."
     },
     {
       "name": "M6 Checkout",
-      "description": "Checkout y pago (RF-06). Repetible y sin IDs fijos: toma un producto/variante disponible del catalogo publico y una direccion del cliente. Prueba checkout en dos pasos, pago sin Idempotency-Key (400), rechazado (402), aprobado (201) y replay (201, replay true). Requiere scripts 001-016 y 099. Las claves K1/K2 se generan con {{$guid}}.",
+      "description": "RF-06: reserva de existencia, pago simulado idempotente y replay. 201 con NumeroPedido SC-...; sin Idempotency-Key 400; pago rechazado 402.",
       "item": [
         {
           "name": "Setup: Login cliente",
@@ -7712,7 +8735,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "RF-07: ciclo de vida (grafo de estados), cancelacion y devoluciones parcial/total. Repetible; verifica que el inventario se reponga."
     },
     {
       "name": "M8 Bitacora",
@@ -9620,7 +10644,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "RF-09: auditoria inmutable. Verifica CREAR/MODIFICAR/DESACTIVAR por modulo con el usuario responsable y el JSON de valores; cliente y operador reciben 403."
     },
     {
       "name": "M9 Reportes",
@@ -12136,11 +13161,12 @@
             }
           }
         }
-      ]
+      ],
+      "description": "RF-08: ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; X-Cache HIT/MISS; export a .xlsx; 403/401/400 en los rechazos."
     },
     {
       "name": "Manual (rate limit)",
-      "description": "Pruebas que dependen de los limites de rate limit POR DEFECTO y por eso NO van en el flujo principal (que se corre con RATE_LIMIT_AUTH_MAX alto). Correr aparte con la API arrancada con RATE_LIMIT_AUTH_MAX por defecto (10): repetir \"Login x11\" >10 veces en la ventana para ver el 429. No captura variables que otros requests necesiten.",
+      "description": "Fuera del flujo principal: \"Login x11\" depende de los limites de rate limit por defecto. Correr aparte, con RATE_LIMIT_AUTH_MAX bajo, para ver el 429.",
       "item": [
         {
           "name": "Login x11 -> rate limit (429)",

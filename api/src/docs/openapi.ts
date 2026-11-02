@@ -547,6 +547,38 @@ export const openapiDocument = {
     },
   },
   paths: {
+    '/': {
+      get: {
+        tags: ['Sistema'],
+        summary: 'Metadatos de la API',
+        description: 'Informacion publica de la API (nombre, version, fase y enlaces). Sin autenticacion.',
+        responses: {
+          '200': {
+            description: 'Metadatos',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    nombre: { type: 'string', example: 'ShopCart API' },
+                    version: { type: 'string', example: '1.0.0' },
+                    fase: { type: 'string', example: 'Fase 1 - backend' },
+                    enlaces: {
+                      type: 'object',
+                      properties: {
+                        health: { type: 'string', example: '/health' },
+                        apiDocs: { type: 'string', example: '/api-docs' },
+                        apiBase: { type: 'string', example: '/api/v1' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/health': {
       get: {
         tags: ['Sistema'],

@@ -26,6 +26,26 @@ definido en una sola lista dentro de `aplicar.ps1`/`aplicar.sh`, se detiene en e
 error mostrando el script, y al final imprime conteos de verificacion (26 tablas,
 procedimientos, triggers, vistas y el login `shopcart_app`).
 
+### Clave del login de aplicacion (produccion)
+
+`003_Security.sql` crea el login `shopcart_app` con una contrasena **fija de desarrollo**
+(`ShopCart_Dev_2026!`) y usa `IF NOT EXISTS`, por lo que reaplicar `003` no la pisa. Para
+produccion, pase otra contrasena con `-AppPassword` (PowerShell) / `-a|--app-password`
+(bash): tras aplicar todos los scripts, el instalador ejecuta
+`ALTER LOGIN shopcart_app WITH PASSWORD = N'$(AppPassword)'` pasando el valor como
+**variable de `sqlcmd` (`-v`)**, no concatenado en el texto (la clave no debe contener
+comillas simples). Debe coincidir con `DB_PASSWORD` de la API.
+
+```powershell
+.\aplicar.ps1 -User sa -Password '<sa>' -AppPassword '<clave-app>'
+```
+```bash
+./aplicar.sh -u sa -p '<sa>' -a '<clave-app>'
+```
+
+En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools18/bin`
+(cliente ODBC 18 de la imagen de SQL Server 2022). Lo usa `deploy/instalar-bd.sh`.
+
 ### Orden canonico y el equivalente manual
 
 ```

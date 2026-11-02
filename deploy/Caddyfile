@@ -1,0 +1,11 @@
+{
+	email {$CADDY_EMAIL}
+}
+
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy api:3000
+	log {
+		output stdout
+	}
+}
