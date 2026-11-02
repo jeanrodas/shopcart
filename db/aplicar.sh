@@ -10,11 +10,15 @@
 #   ./aplicar.sh                              # Windows auth (-E) contra localhost, con semillas
 #   ./aplicar.sh -s "localhost\SQLEXPRESS"
 #   ./aplicar.sh -s db.interno -u sa -p 'MiPass!' --sin-semillas
+#   ./aplicar.sh -s localhost -u sa -p 'SaPass!' -a 'AppPass!'   # fija la clave de shopcart_app
 #
 # Opciones:
-#   -s, --server    Instancia (default localhost)
-#   -u, --user      Usuario SQL (si se omite, autenticacion de Windows -E)
-#   -p, --password  Contrasena del usuario SQL
+#   -s, --server        Instancia (default localhost)
+#   -u, --user          Usuario SQL (si se omite, autenticacion de Windows -E)
+#   -p, --password      Contrasena del usuario SQL
+#   -a, --app-password  Clave a fijar para el login shopcart_app tras aplicar 003
+#                       (ALTER LOGIN). Util en produccion: 003 lo crea con una clave de
+#                       desarrollo fija. Se pasa como variable sqlcmd (-v), no concatenada.
 #       --sin-semillas  No aplicar 099_Semillas.sql
 # ============================================================
 set -euo pipefail
@@ -22,17 +26,27 @@ set -euo pipefail
 SERVER="localhost"
 USER=""
 PASSWORD=""
+APP_PASSWORD=""
 SEMILLAS=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -s|--server)   SERVER="$2"; shift 2 ;;
-    -u|--user)     USER="$2"; shift 2 ;;
-    -p|--password) PASSWORD="$2"; shift 2 ;;
-    --sin-semillas) SEMILLAS=0; shift ;;
+    -s|--server)        SERVER="$2"; shift 2 ;;
+    -u|--user)          USER="$2"; shift 2 ;;
+    -p|--password)      PASSWORD="$2"; shift 2 ;;
+    -a|--app-password)  APP_PASSWORD="$2"; shift 2 ;;
+    --sin-semillas)     SEMILLAS=0; shift ;;
     *) echo "Argumento desconocido: $1" >&2; exit 2 ;;
   esac
 done
+
+# Resuelve sqlcmd: del PATH o de la ruta del cliente ODBC 18 (imagen de SQL Server 2022).
+SQLCMD="$(command -v sqlcmd || true)"
+if [[ -z "$SQLCMD" ]]; then
+  if [[ -x /opt/mssql-tools18/bin/sqlcmd ]]; then SQLCMD=/opt/mssql-tools18/bin/sqlcmd
+  elif [[ -x /opt/mssql-tools/bin/sqlcmd ]]; then SQLCMD=/opt/mssql-tools/bin/sqlcmd
+  else echo "No se encontro sqlcmd (ni en PATH ni en /opt/mssql-tools18/bin)." >&2; exit 3; fi
+fi
 
 DIR="$(cd "$(dirname "$0")/scripts" && pwd)"
 
@@ -53,15 +67,28 @@ if [[ -n "$USER" ]]; then AUTH=(-U "$USER" -P "$PASSWORD"); else AUTH=(-E); fi
 
 for base in "${ORDEN[@]}"; do
   echo "==> ${base}.sql"
-  if ! sqlcmd -S "$SERVER" "${AUTH[@]}" -C -b -i "$DIR/${base}.sql"; then
+  if ! "$SQLCMD" -S "$SERVER" "${AUTH[@]}" -C -b -i "$DIR/${base}.sql"; then
     echo "Fallo al aplicar ${base}.sql. Se detiene la instalacion." >&2
     exit 1
   fi
 done
 
+# Clave de aplicacion para produccion: 003 crea shopcart_app con una clave fija de
+# desarrollo; aqui se cambia por la real. El valor va como variable sqlcmd (-v), no
+# concatenado en el texto. (La clave no debe contener comillas simples.)
+if [[ -n "$APP_PASSWORD" ]]; then
+  echo "==> ALTER LOGIN shopcart_app (clave de aplicacion)"
+  if ! "$SQLCMD" -S "$SERVER" "${AUTH[@]}" -C -b \
+        -v AppPassword="$APP_PASSWORD" \
+        -Q "ALTER LOGIN shopcart_app WITH PASSWORD = N'\$(AppPassword)';"; then
+    echo "Fallo al fijar la clave de shopcart_app. Se detiene." >&2
+    exit 1
+  fi
+fi
+
 echo
 echo "== Verificacion =="
-sqlcmd -S "$SERVER" "${AUTH[@]}" -C -b -d ShopCart -Q "SET NOCOUNT ON; \
+"$SQLCMD" -S "$SERVER" "${AUTH[@]}" -C -b -d ShopCart -Q "SET NOCOUNT ON; \
 SELECT 'Tablas (se esperan 26)' AS Objeto, COUNT(*) AS Cantidad FROM sys.tables WHERE is_ms_shipped = 0 \
 UNION ALL SELECT 'Procedimientos', COUNT(*) FROM sys.procedures \
 UNION ALL SELECT 'Triggers', COUNT(*) FROM sys.triggers WHERE is_ms_shipped = 0 \

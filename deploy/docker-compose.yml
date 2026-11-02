@@ -1,0 +1,66 @@
+name: shopcart
+
+# Despliegue de ShopCart: SQL Server 2022 (solo red interna) + API Node + Caddy (HTTPS).
+# Ver deploy/README.md para el runbook. Todas las variables salen de deploy/.env.
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Express
+      MSSQL_MEMORY_LIMIT_MB: "1536"
+    volumes:
+      - shopcart_mssql_data:/var/opt/mssql
+    # Sin 'ports': la base solo es accesible desde la red interna de compose.
+    healthcheck:
+      # mssql-tools18 viene en la imagen 2022 en /opt/mssql-tools18/bin.
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b -o /dev/null
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 45s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  api:
+    build: ../api
+    env_file:
+      - ./.env
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    # Sin 'ports': solo Caddy la expone al exterior.
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      CADDY_EMAIL: ${CADDY_EMAIL}
+      DOMINIO: ${DOMINIO}
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  shopcart_mssql_data:
+  caddy_data:
+  caddy_config:

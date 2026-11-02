@@ -1123,16 +1123,31 @@ Decisiones de alcance tomadas en Fase 1, consolidadas de M1 a M9:
 - **Sin recuperacion de contrasena en Fase 1.** Fuera de alcance; cuando se implemente
   llevara rate limit por correo y por IP y un token de un solo uso.
 
+## Despliegue
+
+Despliegue en un VPS con **Docker Compose** (SQL Server 2022 + API + Caddy con HTTPS):
+runbook completo en [`deploy/README.md`](deploy/README.md). En resumen, desde `deploy/`:
+`cp .env.example .env` y rellenar, `docker compose up -d sqlserver`, esperar a *healthy*,
+`./instalar-bd.sh` (aplica la base con `db/aplicar.sh` dentro del contenedor),
+`docker compose up -d --build` y verificar con `curl https://<dominio>/health`.
+
 ## Estructura del repositorio
 
 ```
 shopcart/
   db/
     aplicar.ps1            # instalador (PowerShell) en el orden canonico
-    aplicar.sh             # instalador equivalente (bash)
+    aplicar.sh             # instalador equivalente (bash); -a/--app-password para shopcart_app
     README.md              # scripts, orden, idempotencia, convenciones
     scripts/               # 001..020 + 099 (DDL, SPs, vistas, triggers, semillas)
+  deploy/
+    docker-compose.yml     # sqlserver + api + caddy (name: shopcart)
+    Caddyfile              # HTTPS + reverse_proxy a api:3000
+    instalar-bd.sh         # corre db/aplicar.sh dentro del contenedor sqlserver
+    .env.example           # variables de produccion (API + MSSQL + Caddy)
+    README.md              # runbook del VPS
   api/
+    Dockerfile             # imagen multi-stage (build + runtime no root)
     src/
       app.ts, server.ts    # arranque de Express y del servidor
       config/              # env (zod), db (pool mssql), logger (pino)

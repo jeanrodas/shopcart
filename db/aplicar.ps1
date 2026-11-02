@@ -29,12 +29,21 @@
 
 .EXAMPLE
   .\aplicar.ps1 -Server db.interno -User sa -Password 'MiPass!' -IncluirSemillas:$false
+
+.PARAMETER AppPassword
+  Clave a fijar para el login shopcart_app tras aplicar 003 (ALTER LOGIN). Util en
+  produccion, donde 003 lo crea con una clave de desarrollo fija. Se pasa como variable
+  de sqlcmd (-v), no concatenada. La clave no debe contener comillas simples.
+
+.EXAMPLE
+  .\aplicar.ps1 -User sa -Password 'SaPass!' -AppPassword 'AppPass!'
 #>
 [CmdletBinding()]
 param(
     [string]$Server = 'localhost',
     [string]$User,
     [string]$Password,
+    [string]$AppPassword,
     [bool]$IncluirSemillas = $true
 )
 
@@ -66,6 +75,15 @@ foreach ($base in $orden) {
         Write-Error "Fallo al aplicar $base.sql (sqlcmd exit $LASTEXITCODE). Se detiene la instalacion."
         exit 1
     }
+}
+
+# Clave de aplicacion para produccion: 003 crea shopcart_app con una clave fija de
+# desarrollo; aqui se cambia por la real. El valor va como variable sqlcmd (-v), no
+# concatenado. La clave no debe contener comillas simples.
+if ($AppPassword) {
+    Write-Host '==> ALTER LOGIN shopcart_app (clave de aplicacion)'
+    & sqlcmd -S $Server @auth -C -b -v AppPassword=$AppPassword -Q 'ALTER LOGIN shopcart_app WITH PASSWORD = N''$(AppPassword)'';'
+    if ($LASTEXITCODE -ne 0) { Write-Error 'Fallo al fijar la clave de shopcart_app.'; exit 1 }
 }
 
 Write-Host "`n== Verificacion =="
