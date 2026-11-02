@@ -19,7 +19,8 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"src/**/*.ts\"",
     "test:concurrencia": "node tests/concurrencia.mjs",
-    "test:rendimiento": "node tests/rendimiento.mjs"
+    "test:rendimiento": "node tests/rendimiento.mjs",
+    "docker:check": "docker build -t shopcart-api-check . && docker run --rm -e NODE_ENV=development -e DB_SERVER=noexiste -e DB_NAME=ShopCart -e DB_USER=u -e DB_PASSWORD=p -e CORS_ORIGIN=http://localhost -e JWT_ACCESS_SECRET=0123456789012345678901234567890123 -e JWT_REFRESH_SECRET=0123456789012345678901234567890123 shopcart-api-check"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

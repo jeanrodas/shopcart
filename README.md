@@ -43,6 +43,23 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Instalacion
 
+> **Evaluadores: empiece por aqui** -> [`docs/GUIA-EVALUACION.md`](docs/GUIA-EVALUACION.md):
+> recorrido guiado de 10 minutos, mapa RF -> evidencia, pruebas automatizadas y punteros
+> de codigo para la defensa.
+
+### 0. Probar sin instalar (ambiente desplegado)
+
+La API ya esta desplegada en **https://jeanrodas.lat** (modo demo). Sin instalar nada:
+
+- https://jeanrodas.lat/ — metadatos (nombre, version, fase, enlaces)
+- https://jeanrodas.lat/health — estado del servicio y de la BD
+- https://jeanrodas.lat/api-docs — Swagger (OpenAPI 3)
+
+Para probar con Postman, importe `docs/postman/ShopCart.postman_collection.json` y ponga
+la variable `baseUrl` en `https://jeanrodas.lat`. Al correr en modo demo (rate limits
+altos y pago simulado habilitado), se puede ejecutar tanto el recorrido guiado como la
+coleccion completa. Para instalar en local, siga los pasos siguientes.
+
 ### 1. Clonar el repositorio
 
 ```bash
@@ -166,7 +183,8 @@ Esta tabla refleja 1:1 las claves que valida `api/src/config/env.ts` (y `api/.en
 | `RATE_LIMIT_CHECKOUT_MAX` | Operaciones de checkout por usuario por minuto | `20` | No |
 | `RATE_LIMIT_CUPON_MAX` | Aplicaciones de cupon por identidad por minuto | `10` | No |
 | `TRUST_PROXY` | Saltos de proxy de confianza para derivar la IP (Express `trust proxy`); `0` = sin proxy | `0` | No |
-| `PAGO_SIMULADO` | Pago simulado (solo desarrollo/demo); `false` obligatorio en produccion | `false` | No |
+| `MODO_DEMO` | Permite `PAGO_SIMULADO=true` en un ambiente de produccion de demostracion | `false` | No |
+| `PAGO_SIMULADO` | Pago simulado (desarrollo/demo); en produccion solo con `MODO_DEMO=true` | `false` | No |
 
 > La configuracion de **negocio** (minutos de reserva, horas de abandono de carrito,
 > porcentaje de IVA, stock minimo, costo de envio) NO esta en `.env`: vive en la tabla
@@ -811,6 +829,10 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
   invalida el cache emitiria tambien un evento al stream. No esta implementado en esta fase.
 
 ## Pruebas
+
+> **Empiece por aqui:** [`docs/GUIA-EVALUACION.md`](docs/GUIA-EVALUACION.md) incluye un
+> recorrido guiado (carpeta **`00 Recorrido guiado`** de la coleccion) que narra RF-01 a
+> RF-09 en ~17 requests seguidos con **Send**.
 
 ### Postman / newman
 

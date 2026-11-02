@@ -61,6 +61,21 @@ docker compose down          # conserva volumenes (datos de SQL y certificados)
 docker compose up -d
 ```
 
+### Verificar que la imagen arranca (logger)
+
+Prueba de humo de la imagen, sin base de datos, para confirmar que el logger arranca en
+cualquier `NODE_ENV` (la imagen se construye con `--omit=dev`, sin `pino-pretty`):
+
+```bash
+cd api && npm run docker:check
+```
+
+Construye la imagen y la corre con `NODE_ENV=development` y variables minimas. Debe
+imprimir el log de arranque en **JSON** (no intenta cargar `pino-pretty`) y luego **falla
+por no encontrar la base** (`DB_SERVER=noexiste`): ese fallo posterior es **esperado**; lo
+que se valida es que ya **no** cae con "unable to determine transport target for
+pino-pretty".
+
 ## Actualizar a una version nueva
 
 ```bash
@@ -87,22 +102,27 @@ Restauracion (con la base detenida): `docker compose stop sqlserver`, borrar/cre
 volumen y extraer el tar dentro de `/var/opt/mssql`, luego `docker compose up -d sqlserver`.
 Alternativa recomendable para produccion: BACKUP/RESTORE nativo de SQL Server a un `.bak`.
 
-## Ambiente de demostracion (pago simulado)
+## Ambiente de demostracion (modo demo publico)
 
-No existe una variable `DEMO`. El pago simulado se gobierna por **dos** variables de la
-API: `NODE_ENV` y `PAGO_SIMULADO`. En produccion (`NODE_ENV=production`) la app **no
-arranca** si `PAGO_SIMULADO=true` (es una salvaguarda deliberada). Para un ambiente de
-**demo** donde el cliente pueda elegir el desenlace del pago, en el `.env` del servidor
-de demo poner:
+El pago simulado se gobierna por `NODE_ENV`, `MODO_DEMO` y `PAGO_SIMULADO`. En produccion
+(`NODE_ENV=production`) la app **no arranca** con `PAGO_SIMULADO=true` **salvo** que
+`MODO_DEMO=true` (salvaguarda deliberada). Para un ambiente **publico de demostracion**
+donde el evaluador pueda elegir el desenlace del pago y correr toda la coleccion, en el
+`.env` del servidor de demo:
 
 ```ini
-NODE_ENV=development
+NODE_ENV=production
+MODO_DEMO=true
 PAGO_SIMULADO=true
+RATE_LIMIT_AUTH_MAX=100
+RATE_LIMIT_CHECKOUT_MAX=100
+RATE_LIMIT_CUPON_MAX=100
 ```
 
-y `docker compose up -d --build`. Con esto `simularResultado` del cuerpo decide el pago;
-con `PAGO_SIMULADO=false` el backend siempre cobra APROBADO e ignora ese campo. Nunca usar
-esta combinacion en el ambiente real.
+y `docker compose up -d --build`. Con esto `simularResultado` del cuerpo decide el pago y
+los limites altos permiten la coleccion completa. Un **ambiente real** usa
+`MODO_DEMO=false`, `PAGO_SIMULADO=false` y los limites por defecto; ahi el backend siempre
+cobra APROBADO e ignora `simularResultado`.
 
 ## Seguridad
 

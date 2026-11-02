@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -9,6 +10,12 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { NotFoundError } from './errors/index.js';
 import routes from './routes/index.js';
 import { openapiDocument } from './docs/openapi.js';
+
+// Version desde package.json (resuelto en runtime relativo a este archivo: funciona en
+// dev -src- y en la build -dist-, ambos a un nivel de api/package.json).
+const pkg = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+) as { version: string };
 
 const app = express();
 
@@ -46,6 +53,16 @@ app.use(requestContext);
 app.use(httpLogger);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
+
+// Raiz: metadatos publicos de la API (sin autenticacion). Se deja logueado (trafico real).
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    nombre: 'ShopCart API',
+    version: pkg.version,
+    fase: 'Fase 1 - backend',
+    enlaces: { health: '/health', apiDocs: '/api-docs', apiBase: '/api/v1' },
+  });
+});
 
 app.use('/', routes);
 

@@ -31,6 +31,8 @@ docker exec "$CID" bash /tmp/db/aplicar.sh \
   -s localhost -u sa -p "$MSSQL_SA_PASSWORD" -a "$DB_PASSWORD"
 
 echo "== Limpieza =="
-docker exec "$CID" rm -rf /tmp/db
+# docker cp deja /tmp/db como root, pero el contenedor corre como el usuario mssql:
+# borrar como root.
+docker exec -u root "$CID" rm -rf /tmp/db
 
 echo "Base de datos instalada. El login shopcart_app quedo con la clave DB_PASSWORD."
