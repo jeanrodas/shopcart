@@ -1,9 +1,40 @@
 # Guia de evaluacion — ShopCart (Fase 1)
 
-Esta guia es el punto de partida para evaluar ShopCart. Asume la base aplicada
-(`db/aplicar.ps1`, incluye las semillas `099`) y la API arriba con las variables de
-evaluacion (ver README, "Instalacion para evaluacion"). Importe en Postman
-`docs/postman/ShopCart.postman_collection.json` y ajuste `baseUrl` si hace falta.
+Esta guia es el punto de partida para evaluar ShopCart.
+
+---
+
+## Prerrequisitos (2 minutos)
+
+Siga los pasos 1 a 5 de "Instalacion" en el [README](../README.md). En resumen, antes de
+abrir esta guia debe tener:
+
+1. **Base aplicada** con `db/aplicar.ps1` (incluye las semillas `099`): deja las 26 tablas,
+   los procedimientos y los datos de demo.
+2. **API arriba** (`cd api && npm run dev`) con `.env` copiado de `api/.env.example`: la
+   plantilla ya trae `PAGO_SIMULADO=true` y los `RATE_LIMIT_*_MAX=100` para evaluacion.
+   Verifique `GET http://localhost:3000/health` -> `db: "ok"`.
+3. **Coleccion importada** en Postman: `docs/postman/ShopCart.postman_collection.json`
+   (boton **Import**). Ajuste la variable **`baseUrl`** si la API no corre en
+   `http://localhost:3000`.
+
+Credenciales de semilla para el primer login:
+
+| Correo | Contrasena | Rol |
+|--------|-----------|-----|
+| `admin@shopcart.local` | `Admin123!` | Administrador |
+| `operador@shopcart.local` | `Operador123!` | Operador |
+| `cliente@shopcart.local` | `Cliente123!` | Cliente |
+
+## Como leer los resultados
+
+- **Un request:** pulse **Send**; mire el **status** (arriba a la derecha) y la pestana
+  **Body** de la respuesta.
+- **Asserts:** la pestana **Test Results** muestra cada verificacion en verde (**PASS**) o
+  rojo (**FAIL**). Cada request de esta coleccion trae sus asserts de status y de campos.
+- **Varios a la vez:** use el **Collection Runner** (boton **Run**) sobre una carpeta o
+  sobre toda la coleccion; al terminar lista cada request con sus PASS/FAIL. Todo en verde =
+  modulo correcto.
 
 ---
 
@@ -125,3 +156,14 @@ real, en cambio, usa `MODO_DEMO=false`, `PAGO_SIMULADO=false` y los limites por 
 Para evaluar contra el ambiente desplegado, cambie la variable `baseUrl` de la coleccion a
 `https://jeanrodas.lat`. Como corre en modo demo (limites en 100), tanto el **recorrido
 guiado** como la **coleccion completa** se pueden ejecutar ahi sin topar el rate limit.
+
+---
+
+## Si algo falla
+
+| Sintoma | Causa probable | Que hacer |
+|---------|----------------|-----------|
+| `429 Too Many Requests` | Rate limit: esta corriendo con los limites por defecto (10/20/10), no con los de evaluacion | Arranque la API con los `RATE_LIMIT_*_MAX=100` de `api/.env.example`. "Login x11" (`Manual`) **debe** dar 429: ahi es lo esperado. |
+| `404` en el catalogo publico | Las semillas `099` no se aplicaron | Reaplique la base con `db/aplicar.ps1` **sin** `-IncluirSemillas:$false`. |
+| `401 Unauthorized` donde antes funcionaba | El `accessToken` expiro (dura 15 min) | Vuelva a correr el login de la carpeta (o el `01 Login` del recorrido): los requests re-capturan el token. |
+| `409 Conflict` al iniciar checkout | La variante quedo sin disponible (reservas o compras previas) | Use una corrida nueva (las carpetas repetibles toman una variante/sufijo frescos) o reaplique las semillas. |

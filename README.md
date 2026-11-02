@@ -58,7 +58,9 @@ La API ya esta desplegada en **https://jeanrodas.lat** (modo demo). Sin instalar
 Para probar con Postman, importe `docs/postman/ShopCart.postman_collection.json` y ponga
 la variable `baseUrl` en `https://jeanrodas.lat`. Al correr en modo demo (rate limits
 altos y pago simulado habilitado), se puede ejecutar tanto el recorrido guiado como la
-coleccion completa. Para instalar en local, siga los pasos siguientes.
+coleccion completa.
+
+Para instalar en local, siga los pasos 1 a 5 en orden.
 
 ### 1. Clonar el repositorio
 
@@ -67,88 +69,93 @@ git clone <url-del-repo> shopcart
 cd shopcart
 ```
 
-### 2. Base de datos (un comando)
+### 2. Base de datos
 
-Desde `db/`, el instalador aplica los scripts en el unico orden canonico valido y
-verifica el resultado (ver `db/README.md`):
+Requiere SQL Server 2022. Desde `db/`, el instalador aplica los scripts en el unico orden
+canonico valido y verifica el resultado (detalle en [`db/README.md`](db/README.md)).
+Elija segun como autentique contra su SQL Server:
 
 ```powershell
 cd db
-.\aplicar.ps1                         # autenticacion de Windows contra localhost, con semillas
-# o:  .\aplicar.ps1 -Server "localhost\SQLEXPRESS"
-# o:  .\aplicar.ps1 -User sa -Password '<pass>' -IncluirSemillas:$false
+.\aplicar.ps1                                  # autenticacion de Windows (la mas comun en local)
+.\aplicar.ps1 -User sa -Password '<pass>'      # autenticacion SQL (usuario sa)
 ```
 
-Equivalente en bash: `./aplicar.sh` (mismas opciones). Al terminar imprime los conteos
-de verificacion (26 tablas, procedimientos, triggers, vistas y el login `shopcart_app`).
+- **Instancia con nombre:** agregue `-Server 'localhost\SQLEXPRESS'`.
+- **Sin semillas de demo:** agregue `-IncluirSemillas:$false`.
+- **En bash/Linux:** `./aplicar.sh` con las mismas opciones (`-u sa -p '<pass>'`, `-s`).
 
-> **Avisos esperados durante la instalacion (no son errores).** Al aplicar `014` SQL
-> Server emite "The module '…' depends on the missing object 'dbo.SP_Carrito_Obtener'…
-> will still be created": es normal porque en el orden canonico `012` (que crea ese SP)
-> se aplica **despues** de `014`; la resolucion es diferida y queda correcta. Ademas,
-> `099` imprime varios result sets (`(N rows affected)` y tablas) al generar los pedidos
-> demo via los SPs de checkout/pedidos: es ruido de salida, no un error. La instalacion
-> termina bien si ves "Instalacion completada" y los conteos de verificacion.
+Al terminar imprime los conteos de verificacion: **26 tablas**, procedimientos, triggers,
+vistas y el login `shopcart_app`. Si ves "Instalacion completada", esta lista.
+
+> **Avisos esperados (no son errores).** Al aplicar `014`, SQL Server emite "The module '…'
+> depends on the missing object 'dbo.SP_Carrito_Obtener'… will still be created": es normal
+> porque en el orden canonico `012` (que crea ese SP) va **despues** de `014`; la resolucion
+> es diferida. Ademas `099` imprime varios result sets al generar los pedidos demo: es ruido
+> de salida, no un error.
+
+**Si falla:**
+
+- **`sqlcmd: command not found` / no se reconoce:** instale el cliente de linea de comando.
+  [Microsoft ODBC Driver 18 + sqlcmd](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server)
+  o el nuevo [go-sqlcmd](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility).
+- **Error de certificado (SSL/trust):** el instalador ya pasa `-C` (confia en el certificado);
+  si usa otra herramienta, agregue esa opcion.
+- **Error de login / permisos:** el `001` crea la base, asi que el usuario con el que corre
+  `aplicar` necesita permiso de **`CREATE DATABASE`** (p. ej. `sa`, o un login con rol
+  `dbcreator`/`sysadmin`). Con un usuario sin ese permiso, `001` falla.
 
 ### 3. API
 
 ```bash
 cd api
 npm ci                      # instala dependencias exactas del package-lock
-cp .env.example .env        # y edite .env (ver "Variables de entorno")
+cp .env.example .env        # copie la plantilla
 npm run dev                 # desarrollo con recarga (tsx watch)
 ```
 
-Variables minimas que hay que completar en `.env`: `DB_SERVER`, `DB_NAME`, `DB_USER`,
-`DB_PASSWORD`, `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` (>= 32 caracteres). El resto
-tiene default (ver tabla). Otros scripts: `npm run build` (compila a `dist/`),
-`npm start` (corre la build), `npm run lint`, `npm run format`.
+`api/.env.example` ya trae valores listos para **evaluacion local**: la clave de
+desarrollo de `shopcart_app`, secretos JWT validos (>= 32 chars), `PAGO_SIMULADO=true` y
+los tres `RATE_LIMIT_*_MAX=100` (permiten correr toda la coleccion de Postman de una
+pasada). **Solo** edite `DB_SERVER`, `DB_USER` o `DB_PASSWORD` en `.env` si su SQL Server
+difiere del ejemplo. (Estas variables tambien pueden pasarse como variables de entorno al
+arrancar; ver "Variables de entorno".)
 
-La API queda en `http://localhost:3000` (segun `PORT`). Verificacion:
+Otros scripts: `npm run build` (compila a `dist/`), `npm start` (corre la build),
+`npm run lint`, `npm run format`.
 
-- `GET /health` — estado del servicio y de la BD.
-- `GET /api-docs` — documentacion Swagger (OpenAPI 3).
-- **Todo el resto de la API vive bajo `http://localhost:3000/api/v1`** (auth, usuarios,
-  catalogo, inventario, carrito, cupones, checkout, pedidos, bitacora, reportes).
+### 4. Verificar
 
-### Instalacion para evaluacion
+La API queda en `http://localhost:3000` (segun `PORT`):
 
-Para correr la coleccion de Postman/newman completa de una pasada sin topar los limites,
-use estos valores. **Lo mas simple es ponerlos en `api/.env`** (la API los lee de ahi):
+- `GET http://localhost:3000/health` — estado del servicio y de la BD (`db: "ok"`).
+- `GET http://localhost:3000/api-docs` — documentacion Swagger (OpenAPI 3).
+- Todo el resto vive bajo `http://localhost:3000/api/v1` (auth, usuarios, catalogo,
+  inventario, carrito, cupones, checkout, pedidos, bitacora, reportes).
 
-```ini
-NODE_ENV=development
-PAGO_SIMULADO=true
-RATE_LIMIT_AUTH_MAX=100
-RATE_LIMIT_CHECKOUT_MAX=100
-RATE_LIMIT_CUPON_MAX=100
-```
+Para el primer login (datos de semilla, ver [Credenciales de prueba](#credenciales-de-prueba)):
 
-y luego `npm run dev`. Como alternativa, se pueden pasar al vuelo al arrancar (segun el
-shell):
+| Correo | Contrasena | Rol |
+|--------|-----------|-----|
+| `admin@shopcart.local` | `Admin123!` | Administrador |
+| `operador@shopcart.local` | `Operador123!` | Operador |
+| `cliente@shopcart.local` | `Cliente123!` | Cliente |
 
-```powershell
-# PowerShell
-$env:NODE_ENV="development"; $env:PAGO_SIMULADO="true"; $env:RATE_LIMIT_AUTH_MAX="100"; $env:RATE_LIMIT_CHECKOUT_MAX="100"; $env:RATE_LIMIT_CUPON_MAX="100"; npm run dev
-```
+### 5. Probar
 
-```bat
-:: cmd
-set NODE_ENV=development && set PAGO_SIMULADO=true && set RATE_LIMIT_AUTH_MAX=100 && set RATE_LIMIT_CHECKOUT_MAX=100 && set RATE_LIMIT_CUPON_MAX=100 && npm run dev
-```
-
-```bash
-# bash
-NODE_ENV=development PAGO_SIMULADO=true RATE_LIMIT_AUTH_MAX=100 RATE_LIMIT_CHECKOUT_MAX=100 RATE_LIMIT_CUPON_MAX=100 npm run dev
-```
+Importe `docs/postman/ShopCart.postman_collection.json` en Postman y siga la
+**[Guia de evaluacion](docs/GUIA-EVALUACION.md)**: empiece por la carpeta
+**`00 Recorrido guiado`** (narrativa de RF-01 a RF-09 en ~17 requests con Send). Ver tambien
+la seccion [Pruebas](#pruebas).
 
 ### Produccion
 
-Diferencias respecto a desarrollo: `NODE_ENV=production`, `PAGO_SIMULADO=false`
-(obligatorio: la app no arranca con pago simulado en produccion), `TRUST_PROXY` igual al
-numero de proxies propios delante de la API, secretos JWT y contrasena de BD fuertes y
-**rotados** fuera del control de versiones, y los limites de rate limit en sus valores
-reales (no 100). El archivo de semillas `099` no se aplica en produccion.
+Diferencias respecto a la evaluacion local: `NODE_ENV=production`; `MODO_DEMO=false` y
+`PAGO_SIMULADO=false` (en produccion el pago simulado solo se permite con `MODO_DEMO=true`,
+reservado a un ambiente publico de demostracion); `TRUST_PROXY` igual al numero de proxies
+propios delante de la API; secretos JWT y contrasena de BD fuertes y **rotados** fuera del
+control de versiones; y los `RATE_LIMIT_*_MAX` en sus valores reales (no 100). El archivo de
+semillas `099` no se aplica en produccion. Ver [Despliegue](#despliegue) y `deploy/README.md`.
 
 ## Variables de entorno
 
@@ -836,66 +843,53 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
 
 ### Postman / newman
 
-La coleccion `docs/postman/ShopCart.postman_collection.json` ("ShopCart API - M1 a M9")
-cubre M1 a M9. Con la API arriba y la base sembrada (incluye `099`), se corre entera con
-newman:
+La coleccion `docs/postman/ShopCart.postman_collection.json` ("ShopCart API - M1 a M9").
+Importela en Postman (boton **Import**): no requiere un entorno aparte, las variables viven
+en la coleccion (`baseUrl`, tokens por rol e IDs que los requests capturan solos). Ajuste
+`baseUrl` si la API no corre en `http://localhost:3000`. Requiere la API arriba y la base
+sembrada (`db/aplicar.ps1`, incluye `099`).
 
-```bash
-npx newman run docs/postman/ShopCart.postman_collection.json \
-  --env-var baseUrl=http://localhost:3000
-```
+Dos formas de usarla, de menor a mayor cobertura:
 
-> Para correr la **coleccion completa** de una pasada (Collection Runner o newman) conviene
-> arrancar la API con `RATE_LIMIT_AUTH_MAX=100`, `RATE_LIMIT_CHECKOUT_MAX=100` y
-> `RATE_LIMIT_CUPON_MAX=100`: con los defaults, los multiples logins/checkouts/cupones de
-> las carpetas acumuladas harian saltar el limitador (`429`). La carpeta **Manual (rate
-> limit)** (el request "Login x11") queda FUERA del flujo principal: se corre aparte, con
-> `RATE_LIMIT_AUTH_MAX` por defecto, para ver el `429` real. El resto de carpetas no
-> depende de ese request.
+1. **Recorrido guiado (empiece aqui).** La carpeta **`00 Recorrido guiado`** narra RF-01 a
+   RF-09 en ~17 requests seguidos con **Send** (ver [Guia de evaluacion](docs/GUIA-EVALUACION.md)).
+   Es la demostracion; no reemplaza la verificacion exhaustiva.
+2. **Verificacion exhaustiva (coleccion completa).** Cubre los casos felices, negativos y de
+   borde de cada modulo. Con el **Collection Runner** o con newman:
 
-1. Importela en Postman (boton **Import**). No requiere un entorno aparte: las
-   variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los
-   requests capturan solos). Ajuste `baseUrl` si la API no corre en
-   `http://localhost:3000`.
-2. Carpetas, en orden sugerido: **Auth** -> **Usuarios (Administrador)** ->
-   **Direcciones (Cliente)** -> **Casos negativos** -> **M2 Catalogo** ->
-   **M3 Inventario** -> **M4 Carrito** -> **M5 Cupones** -> **M6 Checkout** ->
-   **M7 Pedidos** -> **M8 Bitacora** -> **M9 Reportes**.
-3. Cada carpeta inicia sesion y guarda los tokens/IDs que necesita, de modo que
-   puede ejecutarse con el **Collection Runner** de principio a fin tras aplicar
-   la base aplicada con `db/aplicar.ps1` (incluye `099`).
-   La carpeta **M4 Carrito** toma el `idVariante` y el disponible del catalogo publico (sin
-   IDs fijos) y es repetible. La carpeta **M5 Cupones** prepara el carrito del cliente con
-   una variante de Lubricantes y deja `LUB50` aplicado al terminar. La carpeta
-   **M6 Checkout** prepara su propio carrito, inicia el checkout, prueba el pago sin
-   `Idempotency-Key` (400), un pago rechazado (402), uno aprobado (201) y su replay
-   (201, `replay: true`), y genera las claves de idempotencia con `{{$guid}}`. La carpeta
-   **M7 Pedidos** es repetible (sufijo por corrida): crea una variante con stock, un pedido
-   via M6 y recorre todo el ciclo de vida, la cancelacion y las devoluciones (parcial y
-   total), verificando que el inventario se reponga. La carpeta **M8 Bitacora** es repetible
-   (sufijo por corrida): el admin crea producto/variante, cambia el precio y desactiva el
-   producto; crea y desactiva un cupon; el operador registra una entrada de inventario; se
-   corre un pedido completo via checkout (2 unidades), el operador lo lleva de `PAGADO` a
-   `ENTREGADO` y registra una devolucion parcial. Luego consulta `GET /bitacora` por modulo
-   (`CATALOGO`, `INVENTARIO`, `CUPONES`, `PEDIDOS`), verifica las acciones, el usuario (por
-   correo) y el JSON de valores -incluida la fila de la devolucion en `PEDIDOS`-, que un modulo
-   inexistente responde `200` con 0 filas, que `GET /bitacora/modulos` incluye los cuatro
-   modulos, y que el cliente y el operador reciben `403` al consultar la bitacora.
-   La carpeta **M9 Reportes** es repetible (sufijo por corrida): crea una variante (precio
-   100, stock 10) y tres clientes; el cliente 1 compra 3 (pedido A), el cliente 2 compra 2 y
-   cancela (pedido B), el cliente 3 compra 1 y el operador lo lleva a `ENTREGADO` y registra
-   la devolucion de 1 (pedido C). Luego verifica: ventas `DIA` de hoy (A = 300, C neto 0, B
-   excluido), categorias y top-productos (`UnidadesNetas` = 3), `resumen` (`Pedidos >= 2` y
-   campos del comparativo), carritos-abandonados (`Total >= 1` por el carrito de invitado de
-   `099`, con 3 dias de inactividad), `X-Cache` MISS -> HIT en `resumen` y vuelta a MISS tras
-   crear un pedido nuevo (invalidacion por evento), el export de ventas (`.xlsx` con
-   `Content-Disposition`), y los rechazos `403` (operador/cliente), `401` (sin token) y `400`
-   (rango > 366 dias, agrupacion invalida, fecha invalida). Requiere el cache activo
-   (`REPORTES_CACHE_TTL_SEGUNDOS` > 0, el default) para los asserts de `X-Cache`.
+   ```bash
+   npx --yes newman run docs/postman/ShopCart.postman_collection.json \
+     --env-var baseUrl=http://localhost:3000
+   ```
+
+   Requiere los `RATE_LIMIT_*_MAX=100` (los trae `api/.env.example`): con los defaults, los
+   multiples logins/checkouts/cupones acumulados harian saltar el limitador (`429`). Tambien
+   requiere el cache activo (`REPORTES_CACHE_TTL_SEGUNDOS` > 0, el default) para los asserts
+   de `X-Cache` en M9.
+
+Contenido por carpeta (en el orden sugerido):
+
+| Carpeta | Que demuestra | Repetible |
+|---------|---------------|:---------:|
+| `00 Recorrido guiado` | Narrativa RF-01 a RF-09 de una compra y su post-venta | Si |
+| `Auth` | Login/registro/refresh; sesiones; respuestas uniformes `401`/`404` | Si |
+| `Usuarios (Administrador)` | Alta y gestion de usuarios; cambio de rol/estado | Si |
+| `Direcciones (Cliente)` | Direcciones del cliente | Si |
+| `Casos negativos` | Validaciones y rechazos transversales (incluye refresh reutilizado) | Si |
+| `M2 Catalogo` | Categorias/productos/variantes; inactivos no listan en publico | Si |
+| `M3 Inventario` | Entrada, ajuste, kardex y consistencia (sin stock negativo) | Si |
+| `M4 Carrito` | Toma `idVariante` y disponible del catalogo publico; totales/IVA en SQL | Si |
+| `M5 Cupones` | Prepara carrito con variante de Lubricantes; deja `LUB50` aplicado | Si |
+| `M6 Checkout` | Prepara su carrito; pago sin clave (400), rechazado (402), aprobado (201), replay (201 `replay:true`); claves con `{{$guid}}` | Si |
+| `M7 Pedidos` | Ciclo de vida, cancelacion y devoluciones (parcial/total); repone inventario | Si (sufijo) |
+| `M8 Bitacora` | Genera eventos en 4 modulos y los consulta por `GET /bitacora`; `403` a no-admin; modulo inexistente `200`+0 filas | Si (sufijo) |
+| `M9 Reportes` | 3 pedidos (A compra, B cancela, C devuelve); ventas/categorias/top/resumen/abandonados; `X-Cache` MISS->HIT; export `.xlsx`; rechazos `403`/`401`/`400` | Si (sufijo) |
+| `Manual (rate limit)` | "Login x11" -> `429`. **Fuera del flujo principal**: correr aparte con `RATE_LIMIT_AUTH_MAX` por defecto | Si |
 
 ### Pruebas de carga (Node puro, solo HTTP)
 
-Con la API arriba (`BASE_URL` apunta a ella; `RATE_LIMIT_*` altos como arriba):
+Scripts de `api/`: **con la API ya arriba** (en otra terminal) y `BASE_URL` apuntando a
+ella (`RATE_LIMIT_*` altos como arriba), desde `cd api`:
 
 - **Concurrencia del checkout:** `BASE_URL=http://localhost:3000 npm run test:concurrencia`.
   10 clientes compiten por 1 unidad: 1x201 / 9x409, replay idempotente, consistencia de
