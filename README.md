@@ -963,6 +963,23 @@ Decisiones de esta entrega (F0: base + pagina de Inicio):
 - **Imagenes** servidas por el frontend desde `web/public/img` y referenciadas con rutas
   relativas (`/img/productos/...`) desde la BD (semillas `099`).
 
+Decisiones de esta entrega (Pantalla 2: Catalogo y Detalle):
+
+- **Filtros, orden y paginacion 100 % del lado del servidor** (`SP_Catalogo_BuscarProductos`)
+  y **reflejados en la URL** (`useSearchParams`): la vista es compartible y recargable, y
+  cambiar cualquier filtro reinicia la pagina a 1. El total y las filas vienen del SP (no se
+  filtra ni ordena en el navegador).
+- **Una categoria a la vez**: el SP acepta un unico `@IDCategoria`, asi que la categoria es de
+  seleccion unica (lista de opciones, no casillas multiples).
+- **El front nunca calcula precios con cupon**: en el catalogo solo muestra una **insignia**
+  (`-15 % con ADIT15`) para cupones de categoria PORCENTAJE, y en el detalle una linea de texto
+  ("con el cupon ADIT15 ahorras 15 %"); el **descuento real lo calcula la BD en el carrito**.
+  Las cifras de cupones de monto se muestran tal cual las devuelve `/cupones/vigentes`.
+- **Agregar al carrito disponible como invitado**: el `X-Cart-Token` lo **acuna el servidor**
+  en el primer `POST /carrito/items` y el cliente HTTP lo guarda (localStorage) y lo reenvia;
+  el contador del encabezado usa `CantidadUnidades` de `GET /carrito` (`staleTime` 10 s) y la
+  pastilla hace una animacion al subir.
+
 ## Diagrama ER
 
 Modelo relacional de `001_CreateDatabase.sql`: **26 tablas**. El diagrama de abajo

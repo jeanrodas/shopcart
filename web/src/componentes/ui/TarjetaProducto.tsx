@@ -23,6 +23,12 @@ interface Props {
   posicion?: number;
   /** Datos de oferta; si viene, la tarjeta muestra precio con cupon. */
   oferta?: OfertaTarjeta;
+  /**
+   * Insignia de cupon (p. ej. "-15 % con ADIT15") arriba a la izquierda, SIN mostrar
+   * precio con cupon. Para el catalogo, donde no se calcula el precio descontado.
+   * Se ignora si viene `oferta`.
+   */
+  insignia?: string;
   /** Accion del boton "+". Si no viene, no se muestra. */
   alAgregar?: () => void;
   /** Ancho fijo (p. ej. '272px') para el carrusel. */
@@ -39,6 +45,7 @@ export function TarjetaProducto({
   enlace,
   posicion,
   oferta,
+  insignia,
   alAgregar,
   ancho,
   className,
@@ -84,6 +91,12 @@ export function TarjetaProducto({
         {oferta && (
           <span className="absolute left-3 top-3 rounded-pill bg-degradado-acento px-2.5 py-1 text-xs font-extrabold text-marino-900 shadow-acento">
             {etiquetaDescuento(oferta)}
+          </span>
+        )}
+
+        {!oferta && insignia && (
+          <span className="absolute left-3 top-3 rounded-pill bg-degradado-acento px-2.5 py-1 text-xs font-extrabold text-marino-900 shadow-acento">
+            {insignia}
           </span>
         )}
 

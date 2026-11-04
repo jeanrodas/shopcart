@@ -2,18 +2,41 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../../auth/useAuth';
-import { useCuponesVigentes } from '../../lib/consultas';
+import { useCarrito, useCategorias, useCuponesVigentes } from '../../lib/consultas';
 import { formatearFechaCorta } from '../../lib/formato';
 import { BarraInferiorMovil } from './BarraInferiorMovil';
+import type { Categoria } from '../../api/tipos';
 import { IconoBuscar, IconoCarrito, IconoUsuario } from '../iconos';
 
-const ENLACES_NAV = [
-  { a: '/catalogo', texto: 'Catálogo' },
-  { a: '/#ofertas', texto: 'Ofertas', destacar: true },
-  { a: '/catalogo?categoria=Lubricantes', texto: 'Lubricantes' },
-  { a: '/catalogo?categoria=Accesorios', texto: 'Accesorios' },
-  { a: '/mis-pedidos', texto: 'Mis pedidos' },
-];
+interface EnlaceNav {
+  a: string;
+  texto: string;
+  destacar?: boolean;
+}
+
+/**
+ * Enlace a una categoria por nombre: /catalogo?idCategoria=<id>. Devuelve null si la
+ * categoria no existe (o aun no carga), para que quien lo use lo omita.
+ */
+function enlaceCategoria(categorias: Categoria[] | undefined, nombre: string): EnlaceNav | null {
+  const cat = categorias?.find((c) => c.Nombre === nombre);
+  return cat ? { a: `/catalogo?idCategoria=${cat.IDCategoria}`, texto: nombre } : null;
+}
+
+/**
+ * Enlaces del menu. "Lubricantes"/"Accesorios" se resuelven a su idCategoria por
+ * nombre; si la categoria no existe (o aun no carga), el enlace no se muestra.
+ */
+function construirEnlaces(categorias: Categoria[] | undefined): EnlaceNav[] {
+  return [
+    { a: '/catalogo', texto: 'Catálogo' },
+    { a: '/#ofertas', texto: 'Ofertas', destacar: true },
+    ...['Lubricantes', 'Accesorios']
+      .map((n) => enlaceCategoria(categorias, n))
+      .filter((e): e is EnlaceNav => e !== null),
+    { a: '/mis-pedidos', texto: 'Mis pedidos' },
+  ];
+}
 
 function Logo() {
   return (
@@ -128,8 +151,11 @@ function MenuUsuario() {
 
 export function LayoutTienda() {
   const { data } = useCuponesVigentes();
+  const { data: categorias } = useCategorias();
+  const { data: carrito } = useCarrito();
   const general = data?.cupones.find((c) => c.IDCategoria === null);
-  const contadorCarrito = 0; // El contador real llega con el modulo de carrito.
+  const enlacesNav = construirEnlaces(categorias);
+  const contadorCarrito = carrito?.carrito?.totales.CantidadUnidades ?? 0;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -154,7 +180,7 @@ export function LayoutTienda() {
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
           <Logo />
           <nav className="hidden items-center gap-5 lg:flex" aria-label="Navegacion principal">
-            {ENLACES_NAV.map((e) => (
+            {enlacesNav.map((e) => (
               <NavLink
                 key={e.a}
                 to={e.a}
@@ -187,8 +213,11 @@ export function LayoutTienda() {
             enlaces={[
               { a: '/catalogo', t: 'Catálogo' },
               { a: '/#ofertas', t: 'Ofertas' },
-              { a: '/catalogo?categoria=Lubricantes', t: 'Lubricantes' },
-              { a: '/catalogo?categoria=Accesorios', t: 'Accesorios' },
+              // Mismas categorias resueltas que el menu: se omiten si no existen.
+              ...['Lubricantes', 'Accesorios']
+                .map((n) => enlaceCategoria(categorias, n))
+                .filter((e): e is EnlaceNav => e !== null)
+                .map((e) => ({ a: e.a, t: e.texto })),
             ]}
           />
           <ColumnaPie

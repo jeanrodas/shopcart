@@ -1,7 +1,30 @@
-import { type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { IconoBolsa, IconoBuscar, IconoCarrito, IconoInicio, IconoUsuario } from '../iconos';
+
+/** Pill del contador del carrito: anima pulse una vez cuando el numero sube. */
+function PillCarrito({ contador }: { contador: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const previo = useRef(contador);
+  useEffect(() => {
+    if (contador > previo.current && ref.current) {
+      ref.current.classList.remove('anim-pulse');
+      void ref.current.offsetWidth; // reinicia la animacion
+      ref.current.classList.add('anim-pulse');
+    }
+    previo.current = contador;
+  }, [contador]);
+  if (contador <= 0) return null;
+  return (
+    <span
+      ref={ref}
+      className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-pill bg-degradado-acento px-1 text-[10px] font-extrabold text-marino-900"
+    >
+      {contador}
+    </span>
+  );
+}
 
 interface ItemNav {
   a: string;
@@ -43,11 +66,7 @@ export function BarraInferiorMovil({ contadorCarrito = 0 }: Props) {
             >
               <span className="relative">
                 <Icono className="h-6 w-6" />
-                {a === '/carrito' && contadorCarrito > 0 && (
-                  <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-pill bg-degradado-acento px-1 text-[10px] font-extrabold text-marino-900">
-                    {contadorCarrito}
-                  </span>
-                )}
+                {a === '/carrito' && <PillCarrito contador={contadorCarrito} />}
               </span>
               {texto}
             </NavLink>

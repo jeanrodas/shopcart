@@ -100,6 +100,28 @@ body {
   }
 }
 
+/* Entrada/salida del toast. El centrado lo da translateX(-50%) en el contenedor,
+   por eso el keyframe solo mueve el eje Y del propio toast (no del contenedor). */
+@keyframes sc-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sc-toast-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .anim-fade {
   opacity: 0;
   animation: sc-fade 0.6s ease forwards;
@@ -112,6 +134,44 @@ body {
 }
 .anim-pop {
   animation: sc-pop 0.5s ease 1;
+}
+.toast-entra {
+  animation: sc-toast-in 0.22s ease forwards;
+}
+.toast-sale {
+  animation: sc-toast-out 0.18s ease forwards;
+}
+
+/* Control de rango para el precio maximo: pista degradada ambar->naranja, pulgar
+   blanco con borde naranja. Se estiliza con vendor-prefixes (Tailwind no cubre el thumb). */
+.rango-precio {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f6a21e, #f97316);
+  outline: none;
+}
+.rango-precio::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #f97316;
+  box-shadow: 0 2px 6px -1px rgba(249, 115, 22, 0.6);
+  cursor: pointer;
+}
+.rango-precio::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #f97316;
+  box-shadow: 0 2px 6px -1px rgba(249, 115, 22, 0.6);
+  cursor: pointer;
 }
 
 /* Esqueleto de carga con shimmer. */

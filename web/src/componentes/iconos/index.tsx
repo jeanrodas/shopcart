@@ -143,6 +143,18 @@ export const IconoOjoCerrado = ({ className }: PropsIcono) => (
   </Svg>
 );
 
+export const IconoMenos = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <path d="M5 12h14" />
+  </Svg>
+);
+
+export const IconoFiltro = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <path d="M3 5h18l-7 8v5l-4 2v-7L3 5Z" />
+  </Svg>
+);
+
 export const IconoCopiar = ({ className }: PropsIcono) => (
   <Svg className={className}>
     <rect x="9" y="9" width="11" height="11" rx="2" />

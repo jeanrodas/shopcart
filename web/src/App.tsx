@@ -14,6 +14,8 @@ import { Prohibido } from './paginas/Prohibido';
 // Lazy por pagina real.
 const Inicio = lazy(() => import('./paginas/Inicio'));
 const Login = lazy(() => import('./paginas/Login'));
+const Catalogo = lazy(() => import('./paginas/Catalogo'));
+const Producto = lazy(() => import('./paginas/Producto'));
 
 export function App() {
   return (
@@ -28,8 +30,8 @@ export function App() {
 
                 <Route element={<LayoutTienda />}>
                   <Route path="/" element={<Inicio />} />
-                  <Route path="/catalogo" element={<EnConstruccion titulo="Catálogo" />} />
-                  <Route path="/producto/:id" element={<EnConstruccion titulo="Detalle de producto" />} />
+                  <Route path="/catalogo" element={<Catalogo />} />
+                  <Route path="/producto/:id" element={<Producto />} />
                   <Route path="/carrito" element={<EnConstruccion titulo="Carrito" />} />
                   <Route path="/registro" element={<EnConstruccion titulo="Crear cuenta" />} />
                   <Route
