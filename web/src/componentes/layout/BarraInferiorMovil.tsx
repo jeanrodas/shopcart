@@ -1,0 +1,59 @@
+import { type ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
+import clsx from 'clsx';
+import { IconoBolsa, IconoBuscar, IconoCarrito, IconoInicio, IconoUsuario } from '../iconos';
+
+interface ItemNav {
+  a: string;
+  texto: string;
+  Icono: (p: { className?: string }) => ReactNode;
+}
+
+const ITEMS: ItemNav[] = [
+  { a: '/', texto: 'Inicio', Icono: IconoInicio },
+  { a: '/catalogo', texto: 'Catálogo', Icono: IconoBuscar },
+  { a: '/carrito', texto: 'Carrito', Icono: IconoCarrito },
+  { a: '/mis-pedidos', texto: 'Pedidos', Icono: IconoBolsa },
+  { a: '/cuenta', texto: 'Cuenta', Icono: IconoUsuario },
+];
+
+interface Props {
+  contadorCarrito?: number;
+}
+
+/** Barra de navegacion inferior fija (solo movil, < 900 px). */
+export function BarraInferiorMovil({ contadorCarrito = 0 }: Props) {
+  return (
+    <nav
+      aria-label="Navegacion principal (movil)"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-borde bg-white/85 backdrop-blur lg:hidden"
+    >
+      <ul className="mx-auto flex max-w-xl items-stretch justify-around">
+        {ITEMS.map(({ a, texto, Icono }) => (
+          <li key={a} className="flex-1">
+            <NavLink
+              to={a}
+              end={a === '/'}
+              className={({ isActive }) =>
+                clsx(
+                  'relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold',
+                  isActive ? 'text-marino-700' : 'text-apagado',
+                )
+              }
+            >
+              <span className="relative">
+                <Icono className="h-6 w-6" />
+                {a === '/carrito' && contadorCarrito > 0 && (
+                  <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-pill bg-degradado-acento px-1 text-[10px] font-extrabold text-marino-900">
+                    {contadorCarrito}
+                  </span>
+                )}
+              </span>
+              {texto}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}

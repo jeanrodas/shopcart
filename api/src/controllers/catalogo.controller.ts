@@ -35,6 +35,11 @@ export const getProductoPublico: RequestHandler = async (req, res) => {
   res.status(200).json(await catalogoService.obtenerProducto(id, false));
 };
 
+export const getDestacados: RequestHandler = async (req, res) => {
+  const { limite } = req.query as unknown as { limite: number };
+  res.status(200).json(await catalogoService.destacados(limite));
+};
+
 /* ----------------------------- Lectura admin ------------------------------ */
 
 export const getCategoriasAdmin: RequestHandler = async (req, res) => {

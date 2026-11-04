@@ -103,6 +103,18 @@ export async function obtenerProducto(
   };
 }
 
+export async function destacados(
+  limite: number,
+): Promise<{ masVendidos: unknown[]; ofertas: unknown[] }> {
+  const result = await executeSp('SP_Catalogo_Destacados', [
+    { name: 'Limite', type: sql.Int, value: limite },
+  ]);
+  return {
+    masVendidos: (result.recordsets[0] ?? []) as unknown[],
+    ofertas: (result.recordsets[1] ?? []) as unknown[],
+  };
+}
+
 /* ------------------------------- Categorias ------------------------------- */
 
 export async function crearCategoria(datos: CategoriaInput, actorId: number): Promise<unknown> {

@@ -59,7 +59,7 @@ ORDEN=(
   009_SP_Categorias 010_SP_Catalogo 011_SP_Inventario
   013_Migracion_CarritoCupon 014_SP_Cupones 012_SP_Carrito
   015_Catalogo_EstadosPedido 016_SP_Checkout 017_Migracion_CarritoTokenUnico
-  018_SP_Pedidos 019_Bitacora 020_Reportes
+  018_SP_Pedidos 019_Bitacora 020_Reportes 021_SP_Catalogo_Publico
 )
 [[ $SEMILLAS -eq 1 ]] && ORDEN+=(099_Semillas)
 

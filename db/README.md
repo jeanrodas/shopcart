@@ -49,7 +49,7 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 016 017 018 019 020 [099]
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 016 017 018 019 020 021 [099]
 ```
 
 `012` va **despues** de `013` y `014`: `FU_Carrito_CalcularTotales` (en `012`) referencia
@@ -61,7 +61,7 @@ script, en ese orden):
 ```bash
 sqlcmd -S localhost -E -C -b -i scripts/001_CreateDatabase.sql
 sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
-# ... continuar en el orden de arriba hasta 020, y 099 al final.
+# ... continuar en el orden de arriba hasta 021, y 099 al final.
 ```
 
 ## Idempotencia
@@ -108,6 +108,7 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based en Producto/Variante/Kardex/Cupon/PedidoHistorialEstado/Devolucion, consulta (`SP_Bitacora_Consultar`), modulos y helper. Solo `INSERT`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas de venta neta y SPs de ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; indice `IX_Devolucion_Pedido_Monto`. |
+| `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda: `SP_Cupones_Vigentes` y `SP_Catalogo_Destacados` (mas vendidos + ofertas). Solo lectura. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
 
 ## Convenciones

@@ -86,7 +86,7 @@ verificacion (ver seccion 3).
 | RF-02 Catalogo | Categorias/productos/variantes con atributos e imagenes | `M2 Catalogo` | buscar publico, detalle, crear producto/variante | Postman; inactivos no listan en publico (404) |
 | RF-03 Inventario/kardex | Existencia con kardex; sin stock negativo | `M3 Inventario` | entrada, ajuste, kardex, consistencia | Postman + `GET /inventario/consistencia` (`consistente:true`) |
 | RF-04 Carrito | Carrito de cliente e invitado; totales/IVA | `M4 Carrito` | agregar/actualizar/quitar; fusion al login | Postman; totales calculados en SQL |
-| RF-05 Cupones | Validacion (vigencia, limites, categoria) | `M5 Cupones` | aplicar PROMO10/LUB50; vencido/futuro/agotado | Postman (cada causa de invalidez) |
+| RF-05 Cupones | Validacion (vigencia, limites, categoria) | `M5 Cupones` | aplicar PROMO10/LUB50/ADIT15; vencido/futuro/agotado | Postman (cada causa de invalidez) |
 | RF-06 Checkout/pago | Reserva + pago idempotente | `M6 Checkout`, recorrido 09-11 | iniciar, pagar, replay | Postman + `npm run test:concurrencia` |
 | RF-07 Pedidos/devoluciones | Maquina de estados; devoluciones | `M7 Pedidos`, recorrido 12-15 | avanzar, cancelar, devolucion parcial/total | Postman; `TR_Pedido_TransicionValida` como respaldo en BD |
 | RF-08 Dashboard/reportes | Ventas, top, abandonados, comparativo | `M9 Reportes`, recorrido 17 | resumen, ventas, categorias, top, carritos | Postman + `npm run test:rendimiento`; datos de semilla |

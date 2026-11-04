@@ -10,6 +10,10 @@ import * as c from '../controllers/cupones.controller.js';
 
 const router = Router();
 
+// Publico (tienda): cupones vigentes. DEBE ir antes de las rutas de admin y antes de
+// '/:id' para no quedar detras de authorize ni ser capturada por el parametro.
+router.get('/vigentes', c.getCuponesVigentes);
+
 // Gestion de cupones: exclusiva de Administrador.
 const admin: RequestHandler[] = [authenticate, authorize(ROLES.Administrador)];
 

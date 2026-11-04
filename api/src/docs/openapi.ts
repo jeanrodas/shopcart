@@ -95,6 +95,7 @@ const categoriaSchema = {
     Activo: { type: 'boolean', example: true },
     FechaCreacion: { type: 'string', format: 'date-time' },
     CantidadProductosActivos: { type: 'integer', example: 3 },
+    ProductosVisibles: { type: 'integer', example: 2 },
   },
 };
 
@@ -112,7 +113,44 @@ const productoResumenSchema = {
     PrecioMaximo: { type: 'number', nullable: true, example: 149.0 },
     VariantesActivas: { type: 'integer', example: 2 },
     HayDisponible: { type: 'boolean', example: false },
-    ImagenPrincipal: { type: 'string', nullable: true, example: 'https://picsum.photos/seed/CAM-OXF/600/600' },
+    DisponibleTotal: { type: 'integer', example: 4 },
+    BajoStock: { type: 'boolean', example: true },
+    ImagenPrincipal: { type: 'string', nullable: true, example: '/img/productos/LUB-SIN.jpeg' },
+  },
+};
+
+const masVendidoSchema = {
+  type: 'object',
+  properties: {
+    ...productoResumenSchema.properties,
+    UnidadesVendidas: { type: 'integer', example: 42 },
+    Posicion: { type: 'integer', example: 1 },
+  },
+};
+
+const ofertaSchema = {
+  type: 'object',
+  properties: {
+    ...productoResumenSchema.properties,
+    CuponCodigo: { type: 'string', example: 'ADIT15' },
+    TipoDescuento: { type: 'string', enum: ['PORCENTAJE'], example: 'PORCENTAJE' },
+    Valor: { type: 'number', example: 15.0 },
+    MontoMinimo: { type: 'number', example: 0.0 },
+    PrecioConCupon: { type: 'number', example: 72.25 },
+  },
+};
+
+const cuponVigenteSchema = {
+  type: 'object',
+  properties: {
+    IDCupon: { type: 'integer', example: 1 },
+    Codigo: { type: 'string', example: 'PROMO10' },
+    TipoDescuento: { type: 'string', enum: ['PORCENTAJE', 'MONTO'], example: 'PORCENTAJE' },
+    Valor: { type: 'number', example: 10.0 },
+    IDCategoria: { type: 'integer', nullable: true, example: null },
+    Categoria: { type: 'string', nullable: true, example: null },
+    MontoMinimo: { type: 'number', example: 0.0 },
+    FechaFin: { type: 'string', format: 'date-time' },
   },
 };
 
@@ -163,7 +201,7 @@ const productoDetalleSchema = {
         properties: {
           IDProductoImagen: { type: 'integer', example: 1 },
           IDProducto: { type: 'integer', example: 1 },
-          Url: { type: 'string', example: 'https://picsum.photos/seed/CAM-OXF/600/600' },
+          Url: { type: 'string', example: '/img/productos/LUB-SIN.jpeg' },
           Orden: { type: 'integer', example: 0 },
           EsPrincipal: { type: 'boolean', example: true },
         },
@@ -263,7 +301,7 @@ const carritoLineaSchema = {
     IDProducto: { type: 'integer', example: 1 },
     Producto: { type: 'string', example: 'Aceite Sintetico Motor' },
     Categoria: { type: 'string', example: 'Lubricantes' },
-    ImagenPrincipal: { type: 'string', nullable: true, example: 'https://picsum.photos/seed/LUB-SIN/600/600' },
+    ImagenPrincipal: { type: 'string', nullable: true, example: '/img/productos/LUB-SIN.jpeg' },
     Cantidad: { type: 'integer', example: 2 },
     PrecioUnitario: { type: 'number', example: 320.0 },
     TotalLinea: { type: 'number', example: 640.0 },
@@ -563,6 +601,7 @@ export const openapiDocument = {
                     nombre: { type: 'string', example: 'ShopCart API' },
                     version: { type: 'string', example: '1.0.0' },
                     fase: { type: 'string', example: 'Fase 1 - backend' },
+                    modoDemo: { type: 'boolean', example: true },
                     enlaces: {
                       type: 'object',
                       properties: {
@@ -901,6 +940,29 @@ export const openapiDocument = {
           '401': errRef,
           '403': errRef,
           '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/catalogo/destacados': {
+      get: {
+        tags: ['Catalogo'],
+        summary: 'Productos destacados de la tienda (publico): mas vendidos y ofertas',
+        parameters: [
+          { name: 'limite', in: 'query', schema: { type: 'integer', default: 8, minimum: 1, maximum: 24 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Mas vendidos (30 dias) y ofertas por cupon de categoria vigente',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                masVendidos: { type: 'array', items: masVendidoSchema },
+                ofertas: { type: 'array', items: ofertaSchema },
+              },
+            }),
+          },
+          '400': errRef,
         },
       },
     },
@@ -1248,7 +1310,7 @@ export const openapiDocument = {
             type: 'object',
             required: ['url'],
             properties: {
-              url: { type: 'string', maxLength: 500, example: 'https://picsum.photos/seed/nueva/600/600' },
+              url: { type: 'string', maxLength: 500, example: '/img/productos/LUB-SIN.jpeg' },
               orden: { type: 'integer', default: 0 },
               esPrincipal: { type: 'boolean', default: false },
             },
@@ -1624,6 +1686,24 @@ export const openapiDocument = {
           '404': errRef,
           '422': errRef,
           '429': errRef,
+        },
+      },
+    },
+
+    '/api/v1/cupones/vigentes': {
+      get: {
+        tags: ['Cupones'],
+        summary: 'Cupones vigentes para la tienda (publico)',
+        description:
+          'Cupones aplicables ahora mismo. No expone limites de uso, usos actuales ni limite por cliente.',
+        responses: {
+          '200': {
+            description: 'Cupones vigentes (generales primero, luego por FechaFin)',
+            ...jsonBody({
+              type: 'object',
+              properties: { cupones: { type: 'array', items: cuponVigenteSchema } },
+            }),
+          },
         },
       },
     },

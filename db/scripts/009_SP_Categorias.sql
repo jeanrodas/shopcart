@@ -21,7 +21,9 @@ GO
    SP_Catalogo_ListarCategorias
    Parametros: @IncluirInactivas (0 = solo activas; 1 = todas, uso admin).
    Devuelve: IDCategoria, Nombre, Descripcion, Activo, FechaCreacion,
-             CantidadProductosActivos. Orden por Nombre.
+             CantidadProductosActivos, ProductosVisibles. Orden por Nombre.
+   ProductosVisibles = productos activos de la categoria con al menos una variante activa
+   (lo que la tienda realmente muestra); columna extra, no rompe el contrato admin.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ListarCategorias
     @IncluirInactivas BIT = 0
@@ -32,7 +34,12 @@ BEGIN
     SELECT c.IDCategoria, c.Nombre, c.Descripcion, c.Activo, c.FechaCreacion,
            (SELECT COUNT(1)
               FROM dbo.Producto p
-             WHERE p.IDCategoria = c.IDCategoria AND p.Activo = 1) AS CantidadProductosActivos
+             WHERE p.IDCategoria = c.IDCategoria AND p.Activo = 1) AS CantidadProductosActivos,
+           (SELECT COUNT(1)
+              FROM dbo.Producto p
+             WHERE p.IDCategoria = c.IDCategoria AND p.Activo = 1
+               AND EXISTS (SELECT 1 FROM dbo.Variante v
+                            WHERE v.IDProducto = p.IDProducto AND v.Activo = 1)) AS ProductosVisibles
     FROM dbo.Categoria c
     WHERE (@IncluirInactivas = 1 OR c.Activo = 1)
     ORDER BY c.Nombre ASC;

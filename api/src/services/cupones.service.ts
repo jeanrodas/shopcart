@@ -46,6 +46,14 @@ export async function validar(idUsuario: number, codigo: string): Promise<unknow
   return result.recordset[0] ?? null;
 }
 
+/* ------------------------------- Publico (tienda) ------------------------- */
+
+/** Cupones vigentes para la tienda. Nunca expone limites ni usos (ver SP). */
+export async function vigentes(): Promise<{ cupones: unknown[] }> {
+  const result = await executeSp('SP_Cupones_Vigentes', []);
+  return { cupones: result.recordset };
+}
+
 /* ---------------------------- CRUD Administrador -------------------------- */
 
 export async function listar(q: ListarCuponesQuery): Promise<{

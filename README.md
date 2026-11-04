@@ -225,6 +225,7 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
+| `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -916,6 +917,51 @@ ella (`RATE_LIMIT_*` altos como arriba), desde `cd api`:
   | carritos-abandonados | 28.6 | 35.6 |
 
   RNF `p95 < 1000 ms`: se cumple con amplio margen.
+
+## Frontend (web/)
+
+La tienda (React 18 + Vite + TypeScript strict) vive en [`web/`](web/) y consume la API.
+
+Instalacion:
+
+```bash
+cd web
+npm install
+cp .env.example .env      # VITE_API_URL=http://localhost:3000 (el front agrega /api/v1)
+npm run dev               # http://localhost:5173
+```
+
+`web/.env` se crea desde `web/.env.example`. **Sin ese archivo el front no alcanza la API**
+(usa `VITE_API_URL` para construir las URLs; el valor por defecto es `http://localhost:3000`).
+
+El CORS de la API ya permite `http://localhost:5173` (ver `api/.env.example`, `CORS_ORIGIN`).
+Detalle y scripts en [`web/README.md`](web/README.md).
+
+Decisiones de esta entrega (F0: base + pagina de Inicio):
+
+- **Vite + React 18 + TypeScript strict** (`noUncheckedIndexedAccess`), sin `any`.
+- **React Router 6** con carga diferida (lazy) por pagina.
+- **TanStack Query** para el estado de servidor (catalogo, categorias, cupones), con claves
+  por modulo y `staleTime` de 30 s.
+- **Context** para la sesion (`useAuth`), con `RutaProtegida` por rol y pagina 403 propia.
+- **react-hook-form + zod** para formularios (login).
+- **Tailwind** con tokens de diseno propios (colores marino/ambar/naranja, radios, sombras,
+  degradados y animaciones), fuente Plus Jakarta Sans.
+- **Sesion:** access token en memoria y refresh token en `localStorage`; ante un `401`
+  `TOKEN_EXPIRED` se renueva con **single-flight** (una sola llamada a `/auth/refresh` aunque
+  fallen varias peticiones) y se reintenta la original una vez; si el refresh falla, se cierra
+  la sesion y se redirige a `/login`.
+- **"Mas vendidos"** se calcula por unidades netas de los ultimos 30 dias; si no hay ventas,
+  por fecha de creacion.
+- **"Ofertas"** se derivan de los cupones de categoria vigentes **de tipo PORCENTAJE** (no hay
+  un precio de oferta por producto en el modelo): `PrecioConCupon = ROUND(PrecioMinimo * (1 -
+  Valor/100), 2)`. Los cupones de **monto fijo** no entran en la cuadricula de ofertas —
+  aplican una vez por carrito y pueden exigir un monto minimo, asi que un "precio con cupon"
+  por unidad seria falso; se muestran como una **franja informativa** con su codigo y
+  condiciones. En las semillas el cupon de ofertas es `ADIT15` (15 % sobre *Aditivos y
+  Fluidos*) y la franja de monto fijo muestra `LUB50` (Q50 sobre *Lubricantes*, desde Q300).
+- **Imagenes** servidas por el frontend desde `web/public/img` y referenciadas con rutas
+  relativas (`/img/productos/...`) desde la BD (semillas `099`).
 
 ## Diagrama ER
 

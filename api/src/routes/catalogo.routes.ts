@@ -7,6 +7,7 @@ import { idParamSchema } from '../schemas/common.schema.js';
 import {
   busquedaSchema,
   busquedaAdminSchema,
+  destacadosSchema,
   listarCategoriasSchema,
   obtenerProductoAdminSchema,
   categoriaSchema,
@@ -25,6 +26,7 @@ const lectura: RequestHandler[] = [authenticate, authorize(ROLES.Administrador, 
 const escritura: RequestHandler[] = [authenticate, authorize(ROLES.Administrador)];
 
 /* ------------------------------ Publico (tienda) -------------------------- */
+router.get('/catalogo/destacados', validate({ query: destacadosSchema }), c.getDestacados);
 router.get('/catalogo/categorias', c.getCategoriasPublico);
 router.get('/catalogo/productos', validate({ query: busquedaSchema }), c.getProductosPublico);
 router.get('/catalogo/productos/:id', validate({ params: idParamSchema }), c.getProductoPublico);

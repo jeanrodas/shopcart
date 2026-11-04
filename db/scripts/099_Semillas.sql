@@ -101,8 +101,8 @@ FROM (VALUES
     (N'Accesorios',         N'Filtro de Aceite',           N'Filtro de aceite para motor',                 1),
     (N'Accesorios',         N'Limpiaparabrisas',           N'Liquido limpiaparabrisas listo para usar',    1),
     (N'Accesorios',         N'Ambientador para Auto',      N'Ambientador de aroma para vehiculo',          1),
-    (N'Conveniencia',       N'Cafe Oasis',                 N'Cafe caliente de la linea Oasis',             1),
-    (N'Conveniencia',       N'Agua Pura Embotellada',      N'Agua pura embotellada',                       1),
+    (N'Conveniencia',       N'Cafe Oasis Molido',          N'Cafe tostado y molido de la linea Oasis, en bolsa', 1),
+    (N'Conveniencia',       N'Agua Pura en Fardo',         N'Fardo de agua pura embotellada',              1),
     (N'Descontinuados',     N'Aceite Edicion Anterior',    N'Producto inactivo de ejemplo',                0)
 ) x(Categoria, Nombre, Descripcion, Activo)
 INNER JOIN dbo.Categoria c ON c.Nombre = x.Categoria
@@ -131,10 +131,10 @@ FROM (VALUES
     (N'Limpiaparabrisas',           N'ACC-LIM-UNIV-1GAL',  35.00, 1),
     (N'Ambientador para Auto',      N'ACC-AMB-NUEVO-UNI',  28.00, 1),
     (N'Ambientador para Auto',      N'ACC-AMB-LAVANDA-UNI',28.00, 1),
-    (N'Cafe Oasis',                 N'CON-CAF-12OZ-REG',   12.00, 1),
-    (N'Cafe Oasis',                 N'CON-CAF-16OZ-REG',   15.00, 1),
-    (N'Agua Pura Embotellada',      N'CON-AGU-600-SF',      8.00, 1),
-    (N'Agua Pura Embotellada',      N'CON-AGU-1L-SF',      10.00, 1),
+    (N'Cafe Oasis Molido',          N'CON-CAF-250G-REG',   35.00, 1),
+    (N'Cafe Oasis Molido',          N'CON-CAF-500G-REG',   65.00, 1),
+    (N'Agua Pura en Fardo',         N'CON-AGU-600-F24',    60.00, 1),
+    (N'Agua Pura en Fardo',         N'CON-AGU-1L-F12',     55.00, 1),
     (N'Aceite Edicion Anterior',    N'LUB-EDA-5W30-1QT',   80.00, 0)
 ) x(Producto, SKU, Precio, Activo)
 INNER JOIN dbo.Producto p ON p.Nombre = x.Producto
@@ -162,10 +162,10 @@ FROM (VALUES
     (N'ACC-LIM-UNIV-1GAL',  N'Compatibilidad', N'Universal'),   (N'ACC-LIM-UNIV-1GAL',  N'Presentacion', N'1 Galon'),
     (N'ACC-AMB-NUEVO-UNI',  N'Compatibilidad', N'Universal'),   (N'ACC-AMB-NUEVO-UNI',  N'Presentacion', N'Aroma Auto Nuevo'),
     (N'ACC-AMB-LAVANDA-UNI',N'Compatibilidad', N'Universal'),   (N'ACC-AMB-LAVANDA-UNI',N'Presentacion', N'Aroma Lavanda'),
-    (N'CON-CAF-12OZ-REG',   N'Tamano', N'12 oz'),         (N'CON-CAF-12OZ-REG',   N'Variedad', N'Regular'),
-    (N'CON-CAF-16OZ-REG',   N'Tamano', N'16 oz'),         (N'CON-CAF-16OZ-REG',   N'Variedad', N'Regular'),
-    (N'CON-AGU-600-SF',     N'Tamano', N'600 ml'),        (N'CON-AGU-600-SF',     N'Variedad', N'Sin Gas'),
-    (N'CON-AGU-1L-SF',      N'Tamano', N'1 Litro'),       (N'CON-AGU-1L-SF',      N'Variedad', N'Sin Gas'),
+    (N'CON-CAF-250G-REG',   N'Tamano', N'250 g'),         (N'CON-CAF-250G-REG',   N'Variedad', N'Regular'),
+    (N'CON-CAF-500G-REG',   N'Tamano', N'500 g'),         (N'CON-CAF-500G-REG',   N'Variedad', N'Regular'),
+    (N'CON-AGU-600-F24',    N'Tamano', N'600 ml'),        (N'CON-AGU-600-F24',    N'Presentacion', N'Fardo de 24'),
+    (N'CON-AGU-1L-F12',     N'Tamano', N'1 Litro'),       (N'CON-AGU-1L-F12',     N'Presentacion', N'Fardo de 12'),
     (N'LUB-EDA-5W30-1QT',   N'Viscosidad', N'5W-30'),     (N'LUB-EDA-5W30-1QT',   N'Presentacion', N'1 Cuarto')
 ) x(SKU, Nombre, Valor)
 INNER JOIN dbo.Variante v ON v.SKU = x.SKU
@@ -174,27 +174,28 @@ WHERE NOT EXISTS (
     WHERE a.IDVariante = v.IDVariante AND a.Nombre = x.Nombre);
 GO
 
-/* Imagenes (placeholder picsum.photos). Una principal por producto; imagen
-   secundaria extra en Aceite Sintetico Motor, Aditivo Ultra y Cafe Oasis. */
+/* Imagenes servidas por el frontend desde web/public/img/productos (rutas relativas,
+   no URLs externas). Una principal por producto; imagen secundaria extra en Aceite
+   Sintetico Motor, Aditivo Ultra y Cafe Oasis Molido. */
 INSERT dbo.ProductoImagen (IDProducto, Url, Orden, EsPrincipal)
 SELECT p.IDProducto, x.Url, x.Orden, x.EsPrincipal
 FROM (VALUES
-    (N'Aceite Sintetico Motor',     N'https://picsum.photos/seed/LUB-SIN/600/600',   0, 1),
-    (N'Aceite Sintetico Motor',     N'https://picsum.photos/seed/LUB-SIN-2/600/600', 1, 0),
-    (N'Aceite Semisintetico Motor', N'https://picsum.photos/seed/LUB-SEM/600/600',   0, 1),
-    (N'Aceite para Moto',           N'https://picsum.photos/seed/LUB-MOT/600/600',   0, 1),
-    (N'Aceite de Transmision',      N'https://picsum.photos/seed/LUB-TRA/600/600',   0, 1),
-    (N'Aditivo Ultra',              N'https://picsum.photos/seed/ADI-ULT/600/600',   0, 1),
-    (N'Aditivo Ultra',              N'https://picsum.photos/seed/ADI-ULT-2/600/600', 1, 0),
-    (N'Refrigerante de Motor',      N'https://picsum.photos/seed/ADI-REF/600/600',   0, 1),
-    (N'Liquido de Frenos',          N'https://picsum.photos/seed/ADI-FRE/600/600',   0, 1),
-    (N'Filtro de Aceite',           N'https://picsum.photos/seed/ACC-FIL/600/600',   0, 1),
-    (N'Limpiaparabrisas',           N'https://picsum.photos/seed/ACC-LIM/600/600',   0, 1),
-    (N'Ambientador para Auto',      N'https://picsum.photos/seed/ACC-AMB/600/600',   0, 1),
-    (N'Cafe Oasis',                 N'https://picsum.photos/seed/CON-CAF/600/600',   0, 1),
-    (N'Cafe Oasis',                 N'https://picsum.photos/seed/CON-CAF-2/600/600', 1, 0),
-    (N'Agua Pura Embotellada',      N'https://picsum.photos/seed/CON-AGU/600/600',   0, 1),
-    (N'Aceite Edicion Anterior',    N'https://picsum.photos/seed/LUB-EDA/600/600',   0, 1)
+    (N'Aceite Sintetico Motor',     N'/img/productos/LUB-SIN.jpeg',   0, 1),
+    (N'Aceite Sintetico Motor',     N'/img/productos/LUB-SIN-2.jpeg', 1, 0),
+    (N'Aceite Semisintetico Motor', N'/img/productos/LUB-SEM.jpeg',   0, 1),
+    (N'Aceite para Moto',           N'/img/productos/LUB-MOT.jpeg',   0, 1),
+    (N'Aceite de Transmision',      N'/img/productos/LUB-TRA.jpeg',   0, 1),
+    (N'Aditivo Ultra',              N'/img/productos/ADI-ULT.jpeg',   0, 1),
+    (N'Aditivo Ultra',              N'/img/productos/ADI-ULT-2.jpeg', 1, 0),
+    (N'Refrigerante de Motor',      N'/img/productos/ADI-REF.jpeg',   0, 1),
+    (N'Liquido de Frenos',          N'/img/productos/ADI-FRE.jpeg',   0, 1),
+    (N'Filtro de Aceite',           N'/img/productos/ACC-FIL.jpeg',   0, 1),
+    (N'Limpiaparabrisas',           N'/img/productos/ACC-LIM.jpeg',   0, 1),
+    (N'Ambientador para Auto',      N'/img/productos/ACC-AMB.jpeg',   0, 1),
+    (N'Cafe Oasis Molido',          N'/img/productos/CON-CAF.jpeg',   0, 1),
+    (N'Cafe Oasis Molido',          N'/img/productos/CON-CAF-2.jpeg', 1, 0),
+    (N'Agua Pura en Fardo',         N'/img/productos/CON-AGU.jpeg',   0, 1),
+    (N'Aceite Edicion Anterior',    N'/img/productos/LUB-EDA.jpeg',   0, 1)
 ) x(Producto, Url, Orden, EsPrincipal)
 INNER JOIN dbo.Producto p ON p.Nombre = x.Producto
 WHERE NOT EXISTS (
@@ -295,7 +296,7 @@ DECLARE @TokenInvitadoSeed UNIQUEIDENTIFIER = N'11111111-1111-1111-1111-11111111
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Carrito WHERE TokenInvitado = @TokenInvitadoSeed)
 BEGIN
-    DECLARE @IDVarInvitado INT = (SELECT IDVariante FROM dbo.Variante WHERE SKU = N'CON-AGU-1L-SF');
+    DECLARE @IDVarInvitado INT = (SELECT IDVariante FROM dbo.Variante WHERE SKU = N'CON-AGU-1L-F12');
 
     IF @IDVarInvitado IS NOT NULL
     BEGIN
@@ -325,17 +326,25 @@ GO
    ============================================================ */
 
 DECLARE @IDCatLub INT = (SELECT IDCategoria FROM dbo.Categoria WHERE Nombre = N'Lubricantes');
+DECLARE @IDCatAdi INT = (SELECT IDCategoria FROM dbo.Categoria WHERE Nombre = N'Aditivos y Fluidos');
 DECLARE @AhoraCup DATETIME2(0) = SYSUTCDATETIME();
 
-/* PROMO10: 10% sin categoria, vigente ~1 anio, sin limites. */
+/* PROMO10: 10% sin categoria, vigente, sin limites. La vigencia arranca 60 dias atras para
+   cubrir los pedidos de demostracion que lo usan (SEED-004 a 44 dias, SEED-007 a 28). */
 IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'PROMO10')
     INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
-    VALUES (N'PROMO10', N'PORCENTAJE', 10.00, NULL, 0.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), NULL, NULL);
+    VALUES (N'PROMO10', N'PORCENTAJE', 10.00, NULL, 0.00, DATEADD(DAY, -60, @AhoraCup), DATEADD(DAY, 21, @AhoraCup), NULL, NULL);
 
 /* LUB50: Q50 fijos sobre Lubricantes, con monto minimo Q300, vigente. */
 IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'LUB50')
     INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
-    VALUES (N'LUB50', N'MONTO', 50.00, @IDCatLub, 300.00, DATEADD(DAY, -1, @AhoraCup), DATEADD(YEAR, 1, @AhoraCup), NULL, NULL);
+    VALUES (N'LUB50', N'MONTO', 50.00, @IDCatLub, 300.00, DATEADD(DAY, -60, @AhoraCup), DATEADD(DAY, 45, @AhoraCup), NULL, NULL);
+
+/* ADIT15: 15% sobre Aditivos y Fluidos, sin monto minimo ni limites, vigente ~10 dias.
+   Alimenta el recordset de ofertas de SP_Catalogo_Destacados (solo cupones PORCENTAJE). */
+IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'ADIT15')
+    INSERT dbo.Cupon (Codigo, TipoDescuento, Valor, IDCategoria, MontoMinimo, FechaInicio, FechaFin, LimiteUsosTotal, LimiteUsosPorCliente)
+    VALUES (N'ADIT15', N'PORCENTAJE', 15.00, @IDCatAdi, 0.00, DATEADD(DAY, -7, @AhoraCup), DATEADD(DAY, 10, @AhoraCup), NULL, NULL);
 
 /* VENCIDO: 20% cuya vigencia termino ayer. */
 IF NOT EXISTS (SELECT 1 FROM dbo.Cupon WHERE Codigo = N'VENCIDO')
@@ -403,7 +412,7 @@ BEGIN
         SELECT sku FROM (VALUES
             (N'LUB-SEM-10W40-1QT'), (N'LUB-TRA-ATF-1QT'), (N'LUB-SIN-5W30-GAL'),
             (N'ADI-ULT-CONC-1L'), (N'ADI-REF-VERDE-1GAL'),
-            (N'ACC-FIL-UNIV-STD'), (N'CON-CAF-16OZ-REG')
+            (N'ACC-FIL-UNIV-STD'), (N'CON-CAF-500G-REG')
         ) s(sku);
     OPEN cur_top;
     FETCH NEXT FROM cur_top INTO @skuTop;
@@ -431,12 +440,12 @@ BEGIN
         (N'SEED-002', N'cliente2@shopcart.local', N'ADI-ULT-CONC-1L',    1, NULL,      N'PAGADO',         N'APROBADO', 52),
         (N'SEED-003', N'cliente3@shopcart.local', N'ACC-FIL-UNIV-STD',   3, NULL,      N'EN_PREPARACION', N'APROBADO', 48),
         (N'SEED-004', N'cliente@shopcart.local',  N'LUB-TRA-ATF-1QT',    2, N'PROMO10',N'EN_PREPARACION', N'APROBADO', 44),
-        (N'SEED-005', N'cliente2@shopcart.local', N'CON-CAF-16OZ-REG',   4, NULL,      N'DESPACHADO',     N'APROBADO', 39),
+        (N'SEED-005', N'cliente2@shopcart.local', N'CON-CAF-500G-REG',   4, NULL,      N'DESPACHADO',     N'APROBADO', 39),
         (N'SEED-006', N'cliente3@shopcart.local', N'ADI-REF-VERDE-1GAL', 1, NULL,      N'DESPACHADO',     N'APROBADO', 33),
         (N'SEED-007', N'cliente@shopcart.local',  N'LUB-SIN-5W30-GAL',   1, N'PROMO10',N'ENTREGADO',      N'APROBADO', 28),
         (N'SEED-008', N'cliente2@shopcart.local', N'ACC-FIL-UNIV-STD',   2, NULL,      N'PARCIAL',        N'APROBADO', 22),
         (N'SEED-009', N'cliente3@shopcart.local', N'ADI-ULT-CONC-1L',    2, NULL,      N'DEVUELTO',       N'APROBADO', 16),
-        (N'SEED-010', N'cliente@shopcart.local',  N'CON-CAF-16OZ-REG',   3, NULL,      N'CANCELADO',      N'APROBADO', 11),
+        (N'SEED-010', N'cliente@shopcart.local',  N'CON-CAF-500G-REG',   3, NULL,      N'CANCELADO',      N'APROBADO', 11),
         (N'SEED-011', N'cliente2@shopcart.local', N'LUB-SEM-10W40-1QT',  1, NULL,      N'CANCELADO',      N'APROBADO',  6),
         (N'SEED-012', N'cliente3@shopcart.local', N'ADI-REF-VERDE-1GAL', 1, NULL,      N'RECHAZADO',      N'RECHAZADO', 3);
 

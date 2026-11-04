@@ -2453,6 +2453,83 @@
           ]
         },
         {
+          "name": "Destacados (publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/destacados?limite=8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "destacados"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "8"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 destacados', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('masVendidos y ofertas son arreglos', () => { pm.expect(j.masVendidos).to.be.an('array'); pm.expect(j.ofertas).to.be.an('array'); });",
+                  "if ((j.masVendidos || []).length) pm.test('mas vendido trae Posicion y UnidadesVendidas', () => { pm.expect(j.masVendidos[0]).to.have.property('Posicion'); pm.expect(j.masVendidos[0]).to.have.property('UnidadesVendidas'); });",
+                  "if ((j.ofertas || []).length) pm.test('oferta trae CuponCodigo y PrecioConCupon', () => { pm.expect(j.ofertas[0]).to.have.property('CuponCodigo'); pm.expect(j.ofertas[0]).to.have.property('PrecioConCupon'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cupones vigentes (publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cupones/vigentes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cupones",
+                "vigentes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) { j = {}; }",
+                  "pm.test('200 cupones vigentes', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('cupones es un arreglo', () => pm.expect(j.cupones).to.be.an('array'));",
+                  "const c = j.cupones || [];",
+                  "pm.test('no expone limites ni usos', () => c.forEach(x => { pm.expect(x).to.not.have.property('LimiteUsosTotal'); pm.expect(x).to.not.have.property('UsosActuales'); pm.expect(x).to.not.have.property('LimiteUsosPorCliente'); }));",
+                  "pm.test('incluye PROMO10', () => pm.expect(c.map(x => x.Codigo)).to.include('PROMO10'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Listar categorias (publico)",
           "request": {
             "method": "GET",
@@ -3019,7 +3096,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://picsum.photos/seed/prueba-{{sufijo}}/600/600\",\n  \"orden\": 0,\n  \"esPrincipal\": true\n}"
+              "raw": "{\n  \"url\": \"/img/productos/prueba-{{sufijo}}.jpeg\",\n  \"orden\": 0,\n  \"esPrincipal\": true\n}"
             }
           },
           "event": [

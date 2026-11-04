@@ -74,7 +74,9 @@ export const imagenSchema = z.object({
     .string()
     .trim()
     .max(500)
-    .refine((v) => /^https?:\/\//i.test(v), 'debe ser una URL http/https'),
+    // Acepta una URL http/https o una ruta relativa a la raiz del sitio (p. ej.
+    // /img/productos/LUB-SIN.jpeg), que es como el frontend sirve sus imagenes.
+    .refine((v) => /^https?:\/\//i.test(v) || /^\/[^/]/.test(v), 'debe ser una URL http/https o una ruta que empiece con /'),
   orden: z.coerce.number().int().nonnegative().default(0),
   esPrincipal: z.boolean().default(false),
 });
@@ -83,12 +85,18 @@ export const estadoSchema = z.object({
   activo: z.boolean(),
 });
 
+/** Query de productos destacados (publico): cuantos por seccion (1-24, default 8). */
+export const destacadosSchema = z.object({
+  limite: z.coerce.number().int().min(1).max(24).default(8),
+});
+
 /** Params de rutas de imagen: :id (producto) y :idImagen. */
 export const imagenParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
   idImagen: z.coerce.number().int().positive(),
 });
 
+export type DestacadosQuery = z.infer<typeof destacadosSchema>;
 export type BusquedaQuery = z.infer<typeof busquedaSchema>;
 export type BusquedaAdminQuery = z.infer<typeof busquedaAdminSchema>;
 export type CategoriaInput = z.infer<typeof categoriaSchema>;

@@ -41,6 +41,13 @@ export const postValidarCupon: RequestHandler = async (req, res) => {
   res.status(200).json(await cuponesService.validar(clienteId(req), codigo));
 };
 
+/* ------------------------------- Publico (tienda) ------------------------- */
+
+/** Cupones aplicables ahora mismo, para mostrarlos en la tienda. Sin autenticacion. */
+export const getCuponesVigentes: RequestHandler = async (_req, res) => {
+  res.status(200).json(await cuponesService.vigentes());
+};
+
 /* ---------------------------- CRUD Administrador -------------------------- */
 
 export const getCupones: RequestHandler = async (req, res) => {
