@@ -155,6 +155,14 @@ export const IconoFiltro = ({ className }: PropsIcono) => (
   </Svg>
 );
 
+export const IconoBasura = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <path d="M4 7h16M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2" />
+    <path d="M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7" />
+    <path d="M10 11v6M14 11v6" />
+  </Svg>
+);
+
 export const IconoCopiar = ({ className }: PropsIcono) => (
   <Svg className={className}>
     <rect x="9" y="9" width="11" height="11" rx="2" />

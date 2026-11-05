@@ -6,8 +6,12 @@ import {
   refrescarSesion,
   registrarAlExpirarSesion,
 } from '../api/clienteHttp';
-import { iniciarSesion as apiIniciarSesion, cerrarSesion as apiCerrarSesion } from '../api/auth';
-import type { RespuestaSesion, Rol, Usuario } from '../api/tipos';
+import {
+  iniciarSesion as apiIniciarSesion,
+  registrar as apiRegistrar,
+  cerrarSesion as apiCerrarSesion,
+} from '../api/auth';
+import type { CarritoFusionado, RespuestaSesion, Rol, Usuario } from '../api/tipos';
 import { PantallaCarga } from '../componentes/PantallaCarga';
 
 export interface AuthContextValor {
@@ -15,10 +19,27 @@ export interface AuthContextValor {
   rol: Rol | null;
   cargando: boolean;
   iniciarSesion: (correo: string, contrasena: string) => Promise<RespuestaSesion>;
+  registrar: (datos: { nombre: string; correo: string; contrasena: string }) => Promise<RespuestaSesion>;
   cerrarSesion: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValor | null>(null);
+
+/**
+ * Tras fusionar el carrito al entrar, deja una pista en sessionStorage para que la
+ * pagina del carrito muestre el aviso una sola vez. Guarda solo conteos (no datos).
+ */
+function guardarFusion(cf?: CarritoFusionado | null): void {
+  if (!cf || (cf.lineas <= 0 && cf.advertencias.length === 0)) return;
+  try {
+    sessionStorage.setItem(
+      'shopcart.fusion',
+      JSON.stringify({ lineas: cf.lineas, advertencias: cf.advertencias.length }),
+    );
+  } catch {
+    /* almacenamiento no disponible: el aviso simplemente no se mostrara */
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
@@ -58,8 +79,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const iniciarSesion = useCallback(async (correo: string, contrasena: string) => {
     const sesion = await apiIniciarSesion(correo, contrasena);
     setUsuario(sesion.usuario);
+    guardarFusion(sesion.carritoFusionado);
     return sesion;
   }, []);
+
+  const registrar = useCallback(
+    async (datos: { nombre: string; correo: string; contrasena: string }) => {
+      const sesion = await apiRegistrar(datos);
+      setUsuario(sesion.usuario);
+      guardarFusion(sesion.carritoFusionado);
+      return sesion;
+    },
+    [],
+  );
 
   const cerrarSesion = useCallback(async () => {
     await apiCerrarSesion();
@@ -68,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const valor = useMemo<AuthContextValor>(
-    () => ({ usuario, rol: usuario?.rol ?? null, cargando, iniciarSesion, cerrarSesion }),
-    [usuario, cargando, iniciarSesion, cerrarSesion],
+    () => ({ usuario, rol: usuario?.rol ?? null, cargando, iniciarSesion, registrar, cerrarSesion }),
+    [usuario, cargando, iniciarSesion, registrar, cerrarSesion],
   );
 
   if (cargando) {

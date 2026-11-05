@@ -22,6 +22,24 @@ export async function iniciarSesion(correo: string, contrasena: string): Promise
   return data;
 }
 
+/** Crea una cuenta. Envia el X-Cart-Token para fusionar el carrito de invitado. */
+export async function registrar(datos: {
+  nombre: string;
+  correo: string;
+  contrasena: string;
+}): Promise<RespuestaSesion> {
+  const data = await peticion<RespuestaSesion>('/api/v1/auth/registro', {
+    method: 'POST',
+    body: datos,
+    sinRefresh: true,
+  });
+  fijarAccessToken(data.accessToken);
+  fijarRefreshToken(data.refreshToken);
+  // El carrito de invitado ya quedo fusionado en la cuenta: el token deja de servir.
+  fijarCartToken(null);
+  return data;
+}
+
 /** Cierra la sesion (revoca el refresh en el servidor y limpia el estado local). */
 export async function cerrarSesion(): Promise<void> {
   const rt = obtenerRefreshToken();

@@ -980,6 +980,29 @@ Decisiones de esta entrega (Pantalla 2: Catalogo y Detalle):
   el contador del encabezado usa `CantidadUnidades` de `GET /carrito` (`staleTime` 10 s) y la
   pastilla hace una animacion al subir.
 
+Decisiones de esta entrega (Pantalla 3: Carrito y Crear cuenta):
+
+- **Carrito resuelto por identidad, no por ID en la URL**: invitado con el `X-Cart-Token`
+  acunado por el servidor, cliente por su JWT (`cartIdentity`). El front nunca pasa un
+  `IDCarrito`.
+- **Totales 100 % de la base de datos** (`FU_Carrito_CalcularTotales` via los SP del carrito):
+  Subtotal, Descuento, IVA, Total y `TotalLinea` se **muestran tal cual** llegan en
+  `carrito.totales` y `lineas[]`; el navegador solo cuenta, compara y formatea.
+- **Cantidad con debounce de 400 ms y sin estado optimista de totales**: varios clics en
+  `+/-` cambian solo el numero local y envian un unico `PUT`; mientras hay una mutacion en
+  vuelo para esa linea sus botones se bloquean, y los totales se actualizan al invalidar
+  `['carrito']` con la respuesta de la API (nunca se recalculan en el cliente).
+- **Cupones solo con sesion de Cliente** (la API responde 401 al invitado) y
+  **re-validados por la BD en cada lectura**: la caja del cupon muestra la causa exacta
+  (`descuento.causa`) sin interpretarla, y el ahorro es el que calcula la BD
+  (`descuento.descuento`).
+- **Advertencias de linea provenientes del SP** (`Advertencia`, `VarianteActiva`,
+  `Disponible`): bloquean el paso a pagar y, cuando la variante esta inactiva, atenuan la
+  linea y dejan solo "Quitar".
+- **Fusion de carrito al entrar**: login y registro envian el `X-Cart-Token`; si el
+  `carritoFusionado` trae lineas o advertencias, se deja una pista en
+  `sessionStorage["shopcart.fusion"]` y el carrito muestra el aviso una sola vez.
+
 ## Diagrama ER
 
 Modelo relacional de `001_CreateDatabase.sql`: **26 tablas**. El diagrama de abajo

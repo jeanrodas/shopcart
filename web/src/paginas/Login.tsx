@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,6 +35,11 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const estado = (location.state ?? {}) as { desde?: string; mensaje?: string };
+  const [sp] = useSearchParams();
+  // Destino tras entrar: el state de RutaProtegida o el ?volver (solo rutas internas).
+  const volverRaw = sp.get('volver');
+  const volver = volverRaw && volverRaw.startsWith('/') ? volverRaw : null;
+  const destino = estado.desde ?? volver ?? '/';
   const { data: metadatos } = useMetadatos();
 
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
@@ -54,7 +59,7 @@ export default function Login() {
       if (sesion.carritoFusionado && sesion.carritoFusionado.lineas > 0) {
         mostrar('Tu carrito se unió a tu cuenta', 'exito');
       }
-      navigate(estado.desde ?? '/', { replace: true });
+      navigate(destino, { replace: true });
     } catch (err) {
       setErrorGeneral(err instanceof ErrorApi ? err.mensaje : 'No se pudo iniciar sesión');
     }
@@ -157,7 +162,10 @@ export default function Login() {
 
           <p className="mt-5 text-center text-sm text-apagado">
             ¿No tienes cuenta?{' '}
-            <Link to="/registro" className="font-semibold text-marino-700 hover:text-marino-600">
+            <Link
+              to={`/registro${volverRaw ? `?volver=${encodeURIComponent(volverRaw)}` : ''}`}
+              className="font-semibold text-marino-700 hover:text-marino-600"
+            >
               Crear cuenta
             </Link>
           </p>

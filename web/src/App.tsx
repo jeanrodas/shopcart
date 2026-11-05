@@ -16,6 +16,8 @@ const Inicio = lazy(() => import('./paginas/Inicio'));
 const Login = lazy(() => import('./paginas/Login'));
 const Catalogo = lazy(() => import('./paginas/Catalogo'));
 const Producto = lazy(() => import('./paginas/Producto'));
+const Carrito = lazy(() => import('./paginas/Carrito'));
+const Registro = lazy(() => import('./paginas/Registro'));
 
 export function App() {
   return (
@@ -25,15 +27,23 @@ export function App() {
           <ToastProvider>
             <Suspense fallback={<PantallaCarga />}>
               <Routes>
-                {/* Login: pagina autonoma, sin el marco de la tienda. */}
+                {/* Login y Registro: paginas autonomas, sin el marco de la tienda. */}
                 <Route path="/login" element={<Login />} />
+                <Route path="/registro" element={<Registro />} />
 
                 <Route element={<LayoutTienda />}>
                   <Route path="/" element={<Inicio />} />
                   <Route path="/catalogo" element={<Catalogo />} />
                   <Route path="/producto/:id" element={<Producto />} />
-                  <Route path="/carrito" element={<EnConstruccion titulo="Carrito" />} />
-                  <Route path="/registro" element={<EnConstruccion titulo="Crear cuenta" />} />
+                  <Route path="/carrito" element={<Carrito />} />
+                  <Route
+                    path="/checkout"
+                    element={
+                      <RutaProtegida roles={['Cliente']}>
+                        <EnConstruccion titulo="Pago" />
+                      </RutaProtegida>
+                    }
+                  />
                   <Route
                     path="/mis-pedidos"
                     element={
