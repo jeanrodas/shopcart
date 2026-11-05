@@ -509,6 +509,8 @@ const pagoResultadoSchema = {
           },
         },
         cupon: { type: 'string', nullable: true, example: 'LUB50' },
+        NombreFactura: { type: 'string', nullable: true, example: 'Consumidor Final', description: 'Snapshot de facturacion' },
+        NITFactura: { type: 'string', nullable: true, example: 'CF', description: 'CF o NIT del pedido (snapshot)' },
       },
     },
     lineas: { type: 'array', items: pedidoLineaSchema },
@@ -1882,6 +1884,8 @@ export const openapiDocument = {
               idDireccion: { type: 'integer', example: 3 },
               metodoPago: { type: 'string', enum: ['TARJETA', 'TRANSFERENCIA', 'EFECTIVO'], example: 'TARJETA' },
               simularResultado: { type: 'string', enum: ['APROBADO', 'RECHAZADO'], default: 'APROBADO' },
+              nombreFactura: { type: 'string', minLength: 2, maxLength: 150, nullable: true, example: 'Prueba S.A.', description: 'Obligatorio si nitFactura != CF' },
+              nitFactura: { type: 'string', nullable: true, example: 'CF', description: 'CF o NIT (ej. 1234567-8); solo validacion de formato, sin consulta a la SAT' },
             },
           }),
         },
@@ -1970,7 +1974,7 @@ export const openapiDocument = {
             ...jsonBody({
               type: 'object',
               properties: {
-                pedido: { type: 'object' },
+                pedido: { type: 'object', description: 'Cabecera del pedido; incluye NombreFactura y NITFactura (snapshot de facturacion).' },
                 lineas: { type: 'array', items: { $ref: '#/components/schemas/PedidoLinea' } },
                 historial: { type: 'array', items: { type: 'object' } },
                 devoluciones: { type: 'array', items: { type: 'object' } },

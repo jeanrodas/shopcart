@@ -155,7 +155,9 @@ export function LayoutTienda() {
   const { data: carrito } = useCarrito();
   const general = data?.cupones.find((c) => c.IDCategoria === null);
   const enlacesNav = construirEnlaces(categorias);
-  const contadorCarrito = carrito?.carrito?.totales.CantidadUnidades ?? 0;
+  // Conteo del badge desde la MISMA consulta ['carrito']: suma de las cantidades de las
+  // lineas (mismo criterio que la pagina). Sin estado ni consulta paralela.
+  const contadorCarrito = (carrito?.lineas ?? []).reduce((n, l) => n + l.Cantidad, 0);
 
   return (
     <div className="flex min-h-screen flex-col">

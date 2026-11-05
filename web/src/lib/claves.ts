@@ -12,6 +12,10 @@ export const claves = {
     vigentes: ['cupones', 'vigentes'] as const,
   },
   carrito: ['carrito'] as const,
+  direcciones: ['direcciones'] as const,
+  checkout: {
+    resumen: ['checkout', 'resumen'] as const,
+  },
   sistema: {
     metadatos: ['sistema', 'metadatos'] as const,
   },

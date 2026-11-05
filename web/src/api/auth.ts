@@ -1,11 +1,4 @@
-import {
-  peticion,
-  fijarAccessToken,
-  fijarRefreshToken,
-  fijarCartToken,
-  obtenerRefreshToken,
-  cerrarSesionLocal,
-} from './clienteHttp';
+import { peticion, fijarAccessToken, fijarRefreshToken, fijarCartToken } from './clienteHttp';
 import type { RespuestaSesion } from './tipos';
 
 /** Inicia sesion. Envia el X-Cart-Token para fusionar el carrito de invitado. */
@@ -40,18 +33,16 @@ export async function registrar(datos: {
   return data;
 }
 
-/** Cierra la sesion (revoca el refresh en el servidor y limpia el estado local). */
-export async function cerrarSesion(): Promise<void> {
-  const rt = obtenerRefreshToken();
-  try {
-    if (rt) {
-      await peticion('/api/v1/auth/logout', {
-        method: 'POST',
-        body: { refreshToken: rt },
-        sinRefresh: true,
-      });
-    }
-  } finally {
-    cerrarSesionLocal();
-  }
+/**
+ * Revoca el refresh en el servidor. NO toca el estado local (tokens, cache ni sesion):
+ * de eso se encarga AuthContext ANTES de llamar aqui, de forma sincrona, para que el
+ * cierre no dependa de la respuesta de /auth/logout. Recibe el refresh ya capturado.
+ */
+export async function cerrarSesionServidor(refreshToken: string | null): Promise<void> {
+  if (!refreshToken) return;
+  await peticion('/api/v1/auth/logout', {
+    method: 'POST',
+    body: { refreshToken },
+    sinRefresh: true,
+  });
 }

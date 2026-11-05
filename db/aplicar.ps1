@@ -59,8 +59,12 @@ $orden = @(
     '005_SP_Auth', '006_SP_Usuarios', '007_SP_Direcciones', '008_VW_Inventario',
     '009_SP_Categorias', '010_SP_Catalogo', '011_SP_Inventario',
     '013_Migracion_CarritoCupon', '014_SP_Cupones', '012_SP_Carrito',
-    '015_Catalogo_EstadosPedido', '016_SP_Checkout', '017_Migracion_CarritoTokenUnico',
-    '018_SP_Pedidos', '019_Bitacora', '020_Reportes', '021_SP_Catalogo_Publico'
+    '015_Catalogo_EstadosPedido', '017_Migracion_CarritoTokenUnico',
+    '019_Bitacora', '020_Reportes', '021_SP_Catalogo_Publico',
+    # 022 agrega NombreFactura/NITFactura a dbo.Pedido; 016 y 018 referencian esas
+    # columnas, por eso se aplican DESPUES de 022 (mismo motivo por el que 012 va
+    # despues de 013). CREATE OR ALTER valida las columnas al compilar el SP.
+    '022_Migracion_PedidoFacturacion', '016_SP_Checkout', '018_SP_Pedidos'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

@@ -202,6 +202,142 @@ export interface Metadatos {
   modoDemo: boolean;
 }
 
+/** Direccion de entrega del usuario (GET /direcciones). */
+export interface Direccion {
+  IDDireccion: number;
+  IDUsuario: number;
+  Alias: string;
+  NombreReceptor: string;
+  Telefono: string;
+  Linea1: string;
+  Linea2: string | null;
+  Municipio: string;
+  Departamento: string;
+  CodigoPostal: string | null;
+  Referencia: string | null;
+  Activo: boolean;
+  FechaCreacion: string;
+}
+
+/** Datos que acepta el formulario de direccion (mismas reglas que direccionSchema). */
+export interface DireccionInput {
+  alias: string;
+  nombreReceptor: string;
+  telefono: string;
+  linea1: string;
+  linea2?: string;
+  municipio: string;
+  departamento: string;
+  codigoPostal?: string;
+  referencia?: string;
+}
+
+/** Linea reservada que devuelve /checkout/iniciar y /checkout/resumen (recordset 2). */
+export interface LineaReservada {
+  IDVariante: number;
+  SKU: string;
+  Cantidad: number;
+  FechaExpira: string;
+}
+
+export interface TotalesCheckout {
+  Subtotal: number;
+  Descuento: number;
+  Total: number;
+  PorcentajeIVA: number;
+  BaseImponible: number;
+  IVA: number;
+  CantidadLineas: number;
+  CantidadUnidades: number;
+}
+
+/** Respuesta de POST /checkout/iniciar y GET /checkout/resumen. */
+export interface ResumenCheckout {
+  resumen: {
+    IDCarrito: number;
+    IDDireccion: number | null;
+    DireccionTexto: string | null;
+    totales: TotalesCheckout;
+    CostoEnvio: number;
+    TotalConEnvio: number;
+    ExpiraEn: string | null;
+    Minutos: number;
+    /** Solo en GET /checkout/resumen. */
+    ReservaActiva?: boolean;
+  } | null;
+  lineas: LineaReservada[];
+}
+
+/** Cuerpo de POST /checkout/pagar. */
+export interface PagarBody {
+  idDireccion: number;
+  metodoPago: 'TARJETA' | 'TRANSFERENCIA' | 'EFECTIVO';
+  simularResultado?: 'APROBADO' | 'RECHAZADO';
+  nombreFactura?: string;
+  nitFactura?: string;
+}
+
+/** Respuesta de POST /checkout/pagar (misma forma en 201 aprobado y 402 rechazado). */
+export interface ResultadoPago {
+  aprobado: boolean;
+  replay: boolean;
+  pago: {
+    IDPago: number;
+    Estado: string;
+    MensajeResultado: string | null;
+    ClaveIdempotencia: string;
+    Monto: number | null;
+  };
+  pedido: {
+    IDPedido: number;
+    NumeroPedido: string | null;
+    estado: { codigo: string | null; nombre: string | null };
+    FechaCreacion: string | null;
+    DireccionEntrega: string | null;
+    totales: {
+      Subtotal: number | null;
+      Descuento: number | null;
+      CostoEnvio: number | null;
+      Total: number | null;
+      BaseImponible: number | null;
+      IVA: number | null;
+      PorcentajeIVA: number | null;
+    };
+    cupon: string | null;
+    NombreFactura: string | null;
+    NITFactura: string | null;
+  } | null;
+  lineas: unknown[];
+}
+
+/** Cabecera de GET /pedidos/:id (incluye el snapshot de facturacion). */
+export interface PedidoCabecera {
+  IDPedido: number;
+  NumeroPedido: string;
+  EstadoCodigo: string;
+  EstadoNombre: string;
+  DireccionEntrega: string;
+  Subtotal: number;
+  Descuento: number;
+  CostoEnvio: number;
+  Total: number;
+  BaseImponible: number;
+  IVA: number;
+  PorcentajeIVA: number;
+  CuponCodigo: string | null;
+  NombreFactura: string | null;
+  NITFactura: string | null;
+  FechaCreacion: string;
+}
+
+/** Respuesta de GET /pedidos/:id. */
+export interface RespuestaPedido {
+  pedido: PedidoCabecera;
+  lineas: unknown[];
+  historial: unknown[];
+  devoluciones: unknown[];
+}
+
 export interface CuponVigente {
   IDCupon: number;
   Codigo: string;

@@ -374,6 +374,11 @@ GO
    PAGO SIMULADO: el resultado lo decide el backend; al integrar una pasarela real,
    el SP recibe el resultado ya verificado por la pasarela, nunca uno enviado por el
    cliente.
+
+   FACTURACION (snapshot): @NombreFactura y @NITFactura (opcionales, al final) se
+   graban en dbo.Pedido. Normalizacion: NIT NULL o vacio -> N'CF'; si queda N'CF' y
+   no vino nombre -> N'Consumidor Final'. Ambos recordsets de salida (primera
+   ejecucion y replay) los devuelven desde el snapshot del pedido.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_CrearPedido
     @IDUsuario         INT,
@@ -381,7 +386,9 @@ CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_CrearPedido
     @ClaveIdempotencia NVARCHAR(100),
     @MetodoPago        NVARCHAR(30),
     @SimularResultado  NVARCHAR(10),
-    @IDUsuarioEjecuta  INT
+    @IDUsuarioEjecuta  INT,
+    @NombreFactura     NVARCHAR(150) = NULL,
+    @NITFactura        NVARCHAR(20)  = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -586,12 +593,18 @@ BEGIN
                     FROM dbo.Direccion d WHERE d.IDDireccion = @IDDireccion
                 );
 
+                /* Facturacion (snapshot): NIT vacio -> CF; CF sin nombre -> Consumidor Final. */
+                IF @NITFactura IS NULL OR LTRIM(RTRIM(@NITFactura)) = N''
+                    SET @NITFactura = N'CF';
+                IF @NITFactura = N'CF' AND @NombreFactura IS NULL
+                    SET @NombreFactura = N'Consumidor Final';
+
                 INSERT dbo.Pedido (NumeroPedido, IDUsuario, IDEstadoPedido, IDDireccion, IDCupon,
                                    DireccionEntrega, Subtotal, Descuento, CostoEnvio, Total,
-                                   BaseImponible, IVA, PorcentajeIVA)
+                                   BaseImponible, IVA, PorcentajeIVA, NombreFactura, NITFactura)
                 VALUES (@NumeroPedido, @IDUsuario, @IDEstadoPagado, @IDDireccion, @IDCupon,
                         @DireccionEntrega, @Subtotal, @Descuento, @CostoEnvio, @Total,
-                        @BaseImponible, @IVA, @PorcentajeIVA);
+                        @BaseImponible, @IVA, @PorcentajeIVA, @NombreFactura, @NITFactura);
                 SET @IDPedido = SCOPE_IDENTITY();
 
                 /* Detalle del pedido (snapshot). */
@@ -706,7 +719,8 @@ BEGIN
         ped.DireccionEntrega,
         ped.Subtotal, ped.Descuento, ped.CostoEnvio, ped.Total,
         ped.BaseImponible, ped.IVA, ped.PorcentajeIVA,
-        cup.Codigo AS CuponCodigo
+        cup.Codigo AS CuponCodigo,
+        ped.NombreFactura, ped.NITFactura
     FROM dbo.Pago pg
     LEFT JOIN dbo.Pedido ped       ON ped.IDPedido = pg.IDPedido
     LEFT JOIN dbo.EstadoPedido ep  ON ep.IDEstadoPedido = ped.IDEstadoPedido

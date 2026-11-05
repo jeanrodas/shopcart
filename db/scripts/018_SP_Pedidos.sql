@@ -102,6 +102,7 @@ BEGIN
         p.Subtotal, p.Descuento, p.CostoEnvio, p.Total,
         p.BaseImponible, p.IVA, p.PorcentajeIVA,
         p.IDCupon, cup.Codigo AS CuponCodigo,
+        p.NombreFactura, p.NITFactura,
         p.FechaCreacion, p.FechaActualizacion
     FROM dbo.Pedido p
     INNER JOIN dbo.Usuario u      ON u.IDUsuario = p.IDUsuario

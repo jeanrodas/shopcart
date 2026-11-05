@@ -155,6 +155,33 @@ export const IconoFiltro = ({ className }: PropsIcono) => (
   </Svg>
 );
 
+export const IconoReloj = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7.5V12l3 2" />
+  </Svg>
+);
+
+export const IconoTarjeta = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+    <path d="M2.5 9.5h19" />
+  </Svg>
+);
+
+export const IconoTransferencia = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <path d="M4 8h13l-3-3M20 16H7l3 3" />
+  </Svg>
+);
+
+export const IconoEfectivo = ({ className }: PropsIcono) => (
+  <Svg className={className}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <circle cx="12" cy="12" r="2.6" />
+  </Svg>
+);
+
 export const IconoBasura = ({ className }: PropsIcono) => (
   <Svg className={className}>
     <path d="M4 7h16M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2" />

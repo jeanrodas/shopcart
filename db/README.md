@@ -49,12 +49,15 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 016 017 018 019 020 021 [099]
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 [099]
 ```
 
 `012` va **despues** de `013` y `014`: `FU_Carrito_CalcularTotales` (en `012`) referencia
 la columna `Carrito.IDCupon` (que agrega `013`) y las funciones de cupon (`014`), y una
-funcion en linea exige que lo referenciado exista al momento de crearse. El `099`
+funcion en linea exige que lo referenciado exista al momento de crearse. Por el mismo
+motivo `016` y `018` van **despues** de `022`: sus SPs (`SP_Pedidos_CrearPedido`,
+`SP_Pedidos_Obtener`) referencian las columnas `NombreFactura`/`NITFactura` que agrega la
+migracion `022`, y `CREATE OR ALTER` valida esas columnas al compilar el SP. El `099`
 (semillas) es opcional y va al final. Equivalente manual con `sqlcmd` (una linea por
 script, en ese orden):
 
@@ -103,12 +106,13 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `014_SP_Cupones.sql` | Funciones y SPs de cupones (RF-05): validar, aplicar/quitar al carrito y CRUD de administracion. |
 | `012_SP_Carrito.sql` | Carrito (RF-04): `FU_Carrito_CalcularTotales` y SPs del carrito. Se aplica despues de `013`/`014` (ver orden canonico). |
 | `015_Catalogo_EstadosPedido.sql` | `EstadoPedido` y `TransicionEstadoPedido`: grafo del ciclo de vida (RF-06/07). |
-| `016_SP_Checkout.sql` | Checkout y pago (RF-06): reserva, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente), liberacion de reservas. |
+| `016_SP_Checkout.sql` | Checkout y pago (RF-06): reserva, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente), liberacion de reservas. Se aplica despues de `022` (ver orden canonico). |
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion: indice unico filtrado para el token de invitado (tolera multiples NULL). |
-| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. |
+| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. Se aplica despues de `022` (ver orden canonico). |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based en Producto/Variante/Kardex/Cupon/PedidoHistorialEstado/Devolucion, consulta (`SP_Bitacora_Consultar`), modulos y helper. Solo `INSERT`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas de venta neta y SPs de ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; indice `IX_Devolucion_Pedido_Monto`. |
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda: `SP_Cupones_Vigentes` y `SP_Catalogo_Destacados` (mas vendidos + ofertas). Solo lectura. |
+| `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: `NombreFactura`/`NITFactura` (snapshot) en `dbo.Pedido` con `CHECK CK_Pedido_NITFactura`. Idempotente. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
 
 ## Convenciones

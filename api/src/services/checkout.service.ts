@@ -46,6 +46,8 @@ interface PagoRow {
   IVA: number | null;
   PorcentajeIVA: number | null;
   CuponCodigo: string | null;
+  NombreFactura: string | null;
+  NITFactura: string | null;
 }
 
 export interface ResumenCheckout {
@@ -79,6 +81,8 @@ export interface ResultadoPago {
       PorcentajeIVA: number | null;
     };
     cupon: string | null;
+    NombreFactura: string | null;
+    NITFactura: string | null;
   } | null;
   lineas: unknown[];
 }
@@ -150,6 +154,8 @@ export async function pagar(
     { name: 'MetodoPago', type: sql.NVarChar(30), value: datos.metodoPago },
     { name: 'SimularResultado', type: sql.NVarChar(10), value: simularResultado },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuario },
+    { name: 'NombreFactura', type: sql.NVarChar(150), value: datos.nombreFactura ?? null },
+    { name: 'NITFactura', type: sql.NVarChar(20), value: datos.nitFactura ?? null },
   ]);
 
   const recordsets = result.recordsets as unknown[][];
@@ -191,6 +197,8 @@ export async function pagar(
               PorcentajeIVA: cab.PorcentajeIVA,
             },
             cupon: cab.CuponCodigo,
+            NombreFactura: cab.NombreFactura,
+            NITFactura: cab.NITFactura,
           }
         : null,
     lineas: aprobado ? lineas : [],

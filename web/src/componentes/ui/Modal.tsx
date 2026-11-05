@@ -6,12 +6,19 @@ interface Props {
   abierto: boolean;
   titulo: string;
   children?: ReactNode;
+  /** Icono opcional (p. ej. en circulo de color) junto al titulo. */
+  icono?: ReactNode;
   textoConfirmar?: string;
   textoCancelar?: string;
   varianteConfirmar?: VarianteBoton;
   cargando?: boolean;
   alConfirmar: () => void;
   alCancelar: () => void;
+  /**
+   * Cierre por descarte (X, Escape, clic fuera). Si se omite, descartar equivale a
+   * `alCancelar`. Util cuando el boton "Cancelar" hace una accion (no solo cerrar).
+   */
+  alCerrar?: () => void;
 }
 
 const SELECTOR_ENFOCABLES =
@@ -22,20 +29,23 @@ export function Modal({
   abierto,
   titulo,
   children,
+  icono,
   textoConfirmar = 'Confirmar',
   textoCancelar = 'Cancelar',
   varianteConfirmar = 'primario',
   cargando = false,
   alConfirmar,
   alCancelar,
+  alCerrar,
 }: Props) {
   const dialogoRef = useRef<HTMLDivElement>(null);
+  const cerrar = alCerrar ?? alCancelar;
 
   const alTeclear = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        alCancelar();
+        cerrar();
         return;
       }
       if (e.key !== 'Tab' || !dialogoRef.current) return;
@@ -53,7 +63,7 @@ export function Modal({
         primero.focus();
       }
     },
-    [alCancelar],
+    [cerrar],
   );
 
   useEffect(() => {
@@ -69,7 +79,7 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-marino-900/50 p-4"
-      onClick={alCancelar}
+      onClick={cerrar}
     >
       <div
         ref={dialogoRef}
@@ -82,10 +92,13 @@ export function Modal({
         className="anim-fade w-full max-w-md rounded-20 bg-white p-6 shadow-elevada"
       >
         <div className="mb-3 flex items-start justify-between gap-4">
-          <h2 className="text-lg font-extrabold tracking-apretado text-marino-900">{titulo}</h2>
+          <div className="flex min-w-0 items-start gap-3">
+            {icono}
+            <h2 className="text-lg font-extrabold tracking-apretado text-marino-900">{titulo}</h2>
+          </div>
           <button
             type="button"
-            onClick={alCancelar}
+            onClick={cerrar}
             aria-label="Cerrar"
             className="grid h-8 w-8 shrink-0 place-items-center rounded-pill text-apagado hover:bg-fondo-2"
           >

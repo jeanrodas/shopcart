@@ -56,7 +56,7 @@ completa de una compra y su post-venta. Nombres **exactos** de los requests:
 | 07 | `07 Agregar 2 al carrito (RF-04)` | Carrito del cliente con validacion de disponible | `201` | RF-04 |
 | 08 | `08 Aplicar cupon PROMO10 (RF-05)` | Cupon 10% sobre el subtotal | `200`; `cupon.Codigo = "PROMO10"`, `totales.Descuento > 0` | RF-05 |
 | 09 | `09 Iniciar checkout: reserva (RF-06)` | Reserva de existencia por N minutos | `201`; `resumen.ExpiraEn` presente | RF-06 |
-| 10 | `10 Pagar con Idempotency-Key (RF-06)` | Pago simulado idempotente -> crea el pedido | `201`; `aprobado = true`, `pedido.NumeroPedido` = `SC-...` | RF-06 |
+| 10 | `10 Pagar con Idempotency-Key (RF-06)` | Pago simulado idempotente -> crea el pedido; el cuerpo envia los datos de facturacion (`nitFactura: "CF"`; con NIT real tambien `nombreFactura`), que el pedido guarda como snapshot | `201`; `aprobado = true`, `pedido.NumeroPedido` = `SC-...`, `pedido.NITFactura = "CF"` | RF-06 |
 | 11 | `11 Repetir el pago: replay idempotente (RF-06)` | Reintento con la **misma** `Idempotency-Key` | `201`; `replay = true`, mismo `NumeroPedido` | RF-06 |
 | 12 | `12 Operador: PAGADO -> EN_PREPARACION (RF-07)` | Avance de estado valido por el grafo | `200`; `pedido.EstadoCodigo = "EN_PREPARACION"` | RF-07 |
 | 13 | `13 Operador: EN_PREPARACION -> DESPACHADO (RF-07)` | Siguiente transicion | `200` | RF-07 |
@@ -134,7 +134,7 @@ verificacion que cubre los casos negativos y de borde de cada RF.
 | `api/src/middlewares/cartIdentity.ts` : `cartIdentity` | Identidad del carrito: usuario autenticado o token de invitado; nunca un ID en la URL. |
 | `db/scripts/020_Reportes.sql` : `VW_Reportes_PedidoNeto` / `SP_Reportes_Resumen` | Venta neta (descuenta devoluciones) y comparativo con el periodo anterior; rangos semiabiertos. |
 | `db/scripts/017_Migracion_CarritoTokenUnico.sql` | Indice unico filtrado para el token de invitado (tolera multiples NULL): decision de modelado explicada. |
-| `db/aplicar.ps1` / `aplicar.sh` : `$orden` | Orden canonico unico (una sola lista); `012` despues de `013`/`014`. |
+| `db/aplicar.ps1` / `aplicar.sh` : `$orden` | Orden canonico unico (una sola lista): `001…011 013 014 012 015 017 019 020 021 022 016 018 [099]`. `012` va tras `013`/`014`, y `016`/`018` van tras `022` porque sus SPs (`CREATE OR ALTER`) referencian las columnas `NombreFactura`/`NITFactura` que agrega esa migracion. |
 
 ---
 

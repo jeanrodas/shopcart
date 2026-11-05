@@ -10,7 +10,7 @@ import type { RespuestaSesion } from './tipos';
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-const CLAVE_REFRESH = 'shopcart.refreshToken';
+export const CLAVE_REFRESH = 'shopcart.refreshToken';
 const CLAVE_CART = 'shopcart.cartToken';
 
 /* ------------------------------- Tokens ---------------------------------- */
@@ -119,6 +119,17 @@ interface OpcionesPeticion {
   /** No intentar renovar el access ante un 401 (para login/refresh). */
   sinRefresh?: boolean;
   headers?: Record<string, string>;
+  /**
+   * Codigos HTTP que NO son error: su cuerpo se parsea y se devuelve como T. Lo usa
+   * el pago, donde 402 (rechazado) trae el mismo ResultadoPago que un 201 aprobado.
+   */
+  estadosOk?: number[];
+  /**
+   * Senal de aborto (p. ej. la que inyecta TanStack Query al queryFn). Permite que
+   * cancelQueries ABORTE de verdad una peticion en vuelo; si no se aborta, su respuesta
+   * tardia podria repoblar la cache (p. ej. el carrito del usuario tras cerrar sesion).
+   */
+  signal?: AbortSignal;
 }
 
 function rutaUsaCarrito(ruta: string): boolean {
@@ -138,6 +149,7 @@ async function ejecutar(ruta: string, opc: OpcionesPeticion): Promise<Response> 
     method: opc.method ?? 'GET',
     headers,
     body: opc.body !== undefined ? JSON.stringify(opc.body) : undefined,
+    signal: opc.signal,
   });
 
   const ctRespuesta = res.headers.get('X-Cart-Token');
@@ -147,12 +159,7 @@ async function ejecutar(ruta: string, opc: OpcionesPeticion): Promise<Response> 
 
 let refrescando: Promise<RespuestaSesion> | null = null;
 
-/** Renueva el access con el refresh guardado. Actualiza ambos tokens. */
-export async function refrescarSesion(): Promise<RespuestaSesion> {
-  const rt = obtenerRefreshToken();
-  if (!rt) {
-    throw new ErrorApi({ status: 401, codigo: 'UNAUTHORIZED', mensaje: 'No hay sesion activa' });
-  }
+async function enviarRefresh(rt: string): Promise<RespuestaSesion> {
   const res = await ejecutar('/api/v1/auth/refresh', {
     method: 'POST',
     body: { refreshToken: rt },
@@ -163,6 +170,33 @@ export async function refrescarSesion(): Promise<RespuestaSesion> {
   accessToken = data.accessToken;
   fijarRefreshToken(data.refreshToken);
   return data;
+}
+
+/**
+ * Renueva el access con el refresh guardado y actualiza ambos tokens.
+ *
+ * Sesion sincronizada entre pestanas: el refresh se RELEE de localStorage justo antes
+ * de enviarlo (nunca una copia en memoria) y la renovacion se serializa entre pestanas
+ * con el Web Locks API ('shopcart.refresh'). Asi dos pestanas nunca presentan el mismo
+ * refresh token a la vez: si otra pestana lo roto mientras esperabamos el candado, al
+ * entrar releemos el valor ya vigente y enviamos ese, no el que motivo la renovacion
+ * (presentar dos veces el mismo token haria que el backend revocara la cadena por reuso).
+ * El access token sigue viviendo solo en memoria, por pestana.
+ */
+export async function refrescarSesion(): Promise<RespuestaSesion> {
+  const enLinea = (): Promise<RespuestaSesion> => {
+    const rt = obtenerRefreshToken(); // releer dentro del candado, justo antes de enviar
+    if (!rt) {
+      return Promise.reject(
+        new ErrorApi({ status: 401, codigo: 'UNAUTHORIZED', mensaje: 'No hay sesion activa' }),
+      );
+    }
+    return enviarRefresh(rt);
+  };
+  if (navigator.locks?.request) {
+    return navigator.locks.request('shopcart.refresh', enLinea);
+  }
+  return enLinea();
 }
 
 /** Garantiza UNA sola llamada a /auth/refresh aunque varias peticiones fallen a la vez. */
@@ -197,7 +231,7 @@ export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Pro
     }
   }
 
-  if (!res.ok) throw await construirError(res);
+  if (!res.ok && !opc.estadosOk?.includes(res.status)) throw await construirError(res);
   if (res.status === 204) return undefined as T;
 
   const texto = await res.text();

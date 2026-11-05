@@ -882,6 +882,7 @@
                   "let j={}; try{j=pm.response.json()}catch(e){}",
                   "pm.test('201 pago aprobado', () => pm.expect(pm.response.code).to.eql(201));",
                   "pm.test('aprobado y NumeroPedido SC-', () => { pm.expect(j.aprobado).to.eql(true); pm.expect(String(j.pedido&&j.pedido.NumeroPedido)).to.match(/^SC-/); });",
+                  "pm.test('factura CF en la respuesta', () => pm.expect(j.pedido&&j.pedido.NITFactura).to.eql('CF'));",
                   "if(j.pedido){ pm.collectionVariables.set('r0PedidoId', j.pedido.IDPedido); pm.collectionVariables.set('r0NumeroPedido', j.pedido.NumeroPedido); }",
                   "if(j.lineas && j.lineas[0]) pm.collectionVariables.set('r0DetalleId', j.lineas[0].IDPedidoDetalle);"
                 ]
@@ -918,7 +919,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"idDireccion\": {{r0DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\"\n}",
+              "raw": "{\n  \"idDireccion\": {{r0DireccionId}},\n  \"metodoPago\": \"TARJETA\",\n  \"simularResultado\": \"APROBADO\",\n  \"nitFactura\": \"CF\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

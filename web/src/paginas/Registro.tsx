@@ -231,7 +231,13 @@ export default function Registro() {
       {/* Columna de imagen (solo escritorio) */}
       <div className="relative hidden overflow-hidden lg:block">
         <img src="/img/hero-2.jpeg" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-degradado-marino opacity-90" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(7,20,40,.15) 0%, rgba(7,20,40,.55) 55%, rgba(7,20,40,.92) 100%)',
+          }}
+        />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="grid h-11 w-11 place-items-center rounded-12 bg-white/10 text-dorado">

@@ -78,9 +78,13 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'CARRITO_ABANDONO_HORA
     INSERT dbo.Parametro (Clave, Valor, Descripcion)
     VALUES (N'CARRITO_ABANDONO_HORAS', N'24', N'Horas para considerar abandonado un carrito activo');
 
+/* Reaplicable: fuerza el valor a 25.00 aunque la fila ya exista (upsert idempotente). */
 IF NOT EXISTS (SELECT 1 FROM dbo.Parametro WHERE Clave = N'COSTO_ENVIO')
     INSERT dbo.Parametro (Clave, Valor, Descripcion)
-    VALUES (N'COSTO_ENVIO', N'0.00', N'Costo de envio por defecto');
+    VALUES (N'COSTO_ENVIO', N'25.00', N'Costo de envio por defecto');
+ELSE
+    UPDATE dbo.Parametro SET Valor = N'25.00'
+     WHERE Clave = N'COSTO_ENVIO';
 
 /* Umbral del lockout POR CUENTA en BD (capa 2). La capa 1 es un limitador en memoria
    por (correo + IP) en la API. Reaplicable: fuerza el valor a 10 aunque ya exista. */

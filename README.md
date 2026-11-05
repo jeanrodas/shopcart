@@ -201,7 +201,16 @@ Esta tabla refleja 1:1 las claves que valida `api/src/config/env.ts` (y `api/.en
 
 Se aplican con `db/aplicar.ps1` (o `aplicar.sh`) en el **orden canonico unico** definido
 en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
-[`db/README.md`](db/README.md). Resumen:
+[`db/README.md`](db/README.md). El orden de ejecucion actual es:
+
+```
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 [099]
+```
+
+`012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
+y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
+`NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar). La
+tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
 |--------|-------------|
@@ -226,6 +235,7 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
+| `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: columnas `NombreFactura` y `NITFactura` (snapshot) en `dbo.Pedido` y `CHECK CK_Pedido_NITFactura` (NULL, `CF` o inicia con digito). Idempotente. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -1003,6 +1013,38 @@ Decisiones de esta entrega (Pantalla 3: Carrito y Crear cuenta):
   `carritoFusionado` trae lineas o advertencias, se deja una pista en
   `sessionStorage["shopcart.fusion"]` y el carrito muestra el aviso una sola vez.
 
+Decisiones de esta entrega (Pantalla 4: Checkout de una sola pagina):
+
+- **Todas las cifras vienen del backend** (`/checkout/iniciar` y `/checkout/resumen`:
+  Subtotal, Descuento, CostoEnvio, IVA, Total, TotalConEnvio); el front solo formatea.
+  La **cuenta regresiva** se deriva de `ExpiraEn` (fecha) contra la hora local con un
+  margen de 2 s, y el texto usa `Minutos` de la respuesta (no un 15 fijo).
+- **Idempotencia que demuestra RF-06 ("no genera dos pedidos")**: al entrar al
+  checkout se genera una clave con `crypto.randomUUID()` y se guarda en
+  `sessionStorage["shopcart.idem"]` junto con una firma del carrito (IDCarrito +
+  variantes/cantidades de la reserva). **La misma clave se reutiliza** en todos los
+  reintentos del mismo intento (doble clic, falla de red, boton "Reintentar"): el
+  servidor responde el mismo pedido con `replay = true`. Se genera una **clave nueva**
+  solo cuando cambia la firma del carrito o tras un pago **APROBADO**; y tras un pago
+  **RECHAZADO** (que ya consumio esa clave en `dbo.Pago`) para que el siguiente intento
+  sea un pago nuevo.
+- **Datos de facturacion (NIT o CF) como snapshot en el pedido**: validacion de
+  formato del NIT (mismo regex en front y API), **sin consulta a la SAT** (supuesto
+  documentado); el pedido guarda `NombreFactura`/`NITFactura` tal como se eligieron.
+- **Entrega estimada "manana antes de las 18:00"**: texto fijo (no hay motor de
+  logistica); decision documentada.
+- **Pago rechazado como modal**: al recibir `Aprobado = false` se abre un modal centrado
+  (no una franja) con el `MensajeResultado` exacto de la API y la **misma cuenta regresiva
+  en vivo**; "Cambiar metodo de pago" lleva el foco al bloque 3 y "Reintentar" vuelve a
+  pagar con la clave de idempotencia nueva. Si la reserva vence con el modal abierto, la
+  pantalla pasa al estado "Tu reserva vencio".
+- **Sesion sincronizada entre pestanas**: el refresh token se guarda en `localStorage`, se
+  relee siempre justo antes de enviarlo y el refresh se **serializa con el Web Locks API**
+  para que dos pestanas nunca presenten el mismo refresh token (la deteccion de reutilizacion
+  del backend revocaria la cadena). Si una pestana cierra sesion, las demas lo detectan por el
+  evento `storage` y van al login; si una escribe un refresh nuevo, una pestana sin sesion la
+  restaura. El access token sigue solo en memoria, por pestana.
+
 ## Diagrama ER
 
 Modelo relacional de `001_CreateDatabase.sql`: **26 tablas**. El diagrama de abajo
@@ -1206,8 +1248,10 @@ Decisiones de alcance tomadas en Fase 1, consolidadas de M1 a M9:
   `BaseImponible` e `IVA` a partir del total (`PorcentajeIVA` del parametro de IVA en
   `dbo.Parametro`). El **envio tambien grava IVA**: el desglose se calcula sobre el total
   con envio.
-- **`COSTO_ENVIO = 0` por defecto** (parametro en `dbo.Parametro`). La logica soporta un
-  costo de envio > 0, pero la demo usa 0.
+- **`COSTO_ENVIO = 25.00` por defecto** (parametro en `dbo.Parametro`, upsert idempotente en
+  `004`). El envio grava IVA (ver arriba): `SP_Checkout_Iniciar`/`_Resumen` recalculan la base
+  y el IVA sobre el total **con** envio. La logica soporta cualquier valor; cambiarlo en
+  `dbo.Parametro` no requiere redesplegar.
 - **Reembolso simulado.** Cancelaciones y devoluciones reponen inventario y documentan el
   monto, pero no hay pasarela ni tabla de reembolsos (el pago es simulado).
 - **Fusion de carrito.** Al autenticarse con un `X-Cart-Token`, el carrito de invitado se

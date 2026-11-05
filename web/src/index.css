@@ -142,6 +142,19 @@ body {
   animation: sc-toast-out 0.18s ease forwards;
 }
 
+@keyframes sc-pulso-suave {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+.anim-pulso-suave {
+  animation: sc-pulso-suave 1.4s ease-in-out infinite;
+}
+
 /* Control de rango para el precio maximo: pista degradada ambar->naranja, pulgar
    blanco con borde naranja. Se estiliza con vendor-prefixes (Tailwind no cubre el thumb). */
 .rango-precio {

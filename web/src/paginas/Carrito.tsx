@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import {
   useAplicarCupon,
@@ -32,11 +32,16 @@ export default function Carrito() {
   const { usuario } = useAuth();
   const esCliente = usuario?.rol === 'Cliente';
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data, isPending, isError, refetch } = useCarrito();
   const vaciar = useVaciarCarrito();
   const [modalVaciar, setModalVaciar] = useState(false);
   const [fusion, setFusion] = useState<{ lineas: number; advertencias: number } | null>(null);
+  // Aviso que trae el checkout al rebotar aqui (409 existencia / 422 carrito-cupon).
+  const [aviso, setAviso] = useState<string | null>(
+    () => (location.state as { aviso?: string } | null)?.aviso ?? null,
+  );
 
   const totales = data?.carrito?.totales;
   const lineas = data?.lineas ?? [];
@@ -50,6 +55,14 @@ export default function Carrito() {
     return () => {
       document.title = 'ShopCart';
     };
+  }, []);
+
+  // Borra el aviso del history para que no reaparezca al recargar o volver atras.
+  useEffect(() => {
+    if ((location.state as { aviso?: string } | null)?.aviso) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Aviso de fusion: se lee de sessionStorage una vez y se borra al mostrarlo.
@@ -126,6 +139,22 @@ export default function Carrito() {
         </div>
       )}
 
+      {/* Aviso del checkout (existencia insuficiente o problema con el carrito/cupon). */}
+      {aviso && (
+        <div className="mb-6 flex items-start gap-3 rounded-16 border border-[#B45309]/30 bg-[#FFF7ED] px-4 py-3 text-sm text-[#B45309]">
+          <IconoAlerta className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="flex-1 font-medium">{aviso}</p>
+          <button
+            type="button"
+            onClick={() => setAviso(null)}
+            aria-label="Cerrar aviso"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-pill text-[#B45309] hover:bg-[#B45309]/10"
+          >
+            <IconoCerrar className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <EstadoVista
         cargando={isPending}
         error={isError}
@@ -153,12 +182,12 @@ export default function Carrito() {
                 <button
                   type="button"
                   onClick={() => setModalVaciar(true)}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-error-texto hover:underline"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-error-texto hover:underline"
                 >
                   <IconoBasura className="h-4 w-4" />
                   Vaciar carrito
                 </button>
-                <span className="text-right text-xs text-apagado">
+                <span className="hidden text-right text-xs text-apagado lg:inline">
                   Límite: 50 líneas · 1000 unidades por línea
                 </span>
               </div>
@@ -410,7 +439,7 @@ function CajaCupon({ esCliente, cupon }: { esCliente: boolean; cupon: CuponCarri
           to="/login?volver=/carrito"
           className="text-xs font-semibold text-marino-700 hover:text-marino-600"
         >
-          Inicia sesión para usar cupones
+          Iniciar sesión
         </Link>
       </div>
     );
