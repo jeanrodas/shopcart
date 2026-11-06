@@ -24,6 +24,8 @@ export interface AuthContextValor {
   iniciarSesion: (correo: string, contrasena: string) => Promise<RespuestaSesion>;
   registrar: (datos: { nombre: string; correo: string; contrasena: string }) => Promise<RespuestaSesion>;
   cerrarSesion: () => Promise<void>;
+  /** Actualiza en memoria datos del usuario (p. ej. el nombre tras editar el perfil). */
+  actualizarUsuario: (parcial: Partial<Usuario>) => void;
 }
 
 export const AuthContext = createContext<AuthContextValor | null>(null);
@@ -172,9 +174,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [navigate, limpiarDatosPrivados]);
 
+  const actualizarUsuario = useCallback((parcial: Partial<Usuario>) => {
+    setUsuario((u) => (u ? { ...u, ...parcial } : u));
+  }, []);
+
   const valor = useMemo<AuthContextValor>(
-    () => ({ usuario, rol: usuario?.rol ?? null, cargando, iniciarSesion, registrar, cerrarSesion }),
-    [usuario, cargando, iniciarSesion, registrar, cerrarSesion],
+    () => ({
+      usuario,
+      rol: usuario?.rol ?? null,
+      cargando,
+      iniciarSesion,
+      registrar,
+      cerrarSesion,
+      actualizarUsuario,
+    }),
+    [usuario, cargando, iniciarSesion, registrar, cerrarSesion, actualizarUsuario],
   );
 
   if (cargando) {

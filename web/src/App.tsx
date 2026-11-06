@@ -7,6 +7,7 @@ import { RutaProtegida } from './auth/RutaProtegida';
 import { ToastProvider } from './componentes/ui/Toast';
 import { LayoutTienda } from './componentes/layout/LayoutTienda';
 import { LayoutCheckout } from './componentes/layout/LayoutCheckout';
+import { LayoutInterno } from './componentes/layout/LayoutInterno';
 import { PantallaCarga } from './componentes/PantallaCarga';
 import { EnConstruccion } from './paginas/EnConstruccion';
 import { NoEncontrado } from './paginas/NoEncontrado';
@@ -23,6 +24,9 @@ const Checkout = lazy(() => import('./paginas/Checkout'));
 const Confirmacion = lazy(() => import('./paginas/Confirmacion'));
 const MisPedidos = lazy(() => import('./paginas/MisPedidos'));
 const PedidoDetalle = lazy(() => import('./paginas/PedidoDetalle'));
+const Cuenta = lazy(() => import('./paginas/Cuenta'));
+const AdminProductos = lazy(() => import('./paginas/admin/AdminProductos'));
+const AdminCategorias = lazy(() => import('./paginas/admin/AdminCategorias'));
 
 export function App() {
   return (
@@ -72,13 +76,53 @@ export function App() {
                   <Route
                     path="/cuenta"
                     element={
-                      <RutaProtegida>
-                        <EnConstruccion titulo="Mi cuenta" />
+                      <RutaProtegida roles={['Cliente']}>
+                        <Cuenta />
                       </RutaProtegida>
                     }
                   />
                   <Route path="/403" element={<Prohibido />} />
                   <Route path="*" element={<NoEncontrado />} />
+                </Route>
+
+                {/* Area interna: Administrador y Operador. Marco propio (LayoutInterno). */}
+                <Route
+                  path="/admin"
+                  element={
+                    <RutaProtegida roles={['Administrador', 'Operador']}>
+                      <LayoutInterno />
+                    </RutaProtegida>
+                  }
+                >
+                  <Route index element={<EnConstruccion titulo="Dashboard" />} />
+                  <Route path="pedidos" element={<EnConstruccion titulo="Pedidos" />} />
+                  <Route path="inventario" element={<EnConstruccion titulo="Inventario" />} />
+                  <Route path="productos" element={<AdminProductos />} />
+                  <Route path="categorias" element={<AdminCategorias />} />
+                  <Route
+                    path="cupones"
+                    element={
+                      <RutaProtegida roles={['Administrador']}>
+                        <EnConstruccion titulo="Cupones" />
+                      </RutaProtegida>
+                    }
+                  />
+                  <Route
+                    path="bitacora"
+                    element={
+                      <RutaProtegida roles={['Administrador']}>
+                        <EnConstruccion titulo="Bitácora" />
+                      </RutaProtegida>
+                    }
+                  />
+                  <Route
+                    path="usuarios"
+                    element={
+                      <RutaProtegida roles={['Administrador']}>
+                        <EnConstruccion titulo="Usuarios" />
+                      </RutaProtegida>
+                    }
+                  />
                 </Route>
               </Routes>
             </Suspense>

@@ -40,6 +40,15 @@ export const listarCategoriasSchema = z.object({ incluirInactivas: boolQuery() }
 /** Query de obtencion de un producto para administracion. */
 export const obtenerProductoAdminSchema = z.object({ incluirInactivos: boolQuery() });
 
+/** Listado de administracion del catalogo con estado derivado (SP_Catalogo_ListarAdmin). */
+export const listarAdminSchema = z.object({
+  texto: z.string().trim().min(1).max(100).optional(),
+  idCategoria: z.coerce.number().int().positive().optional(),
+  estado: z.enum(['publicado', 'agotado', 'incompleto', 'oculto', 'bajoStock']).optional(),
+  pagina: z.coerce.number().int().positive().default(1),
+  tamano: z.coerce.number().int().positive().max(100).default(20),
+});
+
 export const categoriaSchema = z.object({
   nombre: textoPlano(100),
   descripcion: textoLargo(300).optional(),
@@ -99,6 +108,7 @@ export const imagenParamsSchema = z.object({
 export type DestacadosQuery = z.infer<typeof destacadosSchema>;
 export type BusquedaQuery = z.infer<typeof busquedaSchema>;
 export type BusquedaAdminQuery = z.infer<typeof busquedaAdminSchema>;
+export type ListarAdminQuery = z.infer<typeof listarAdminSchema>;
 export type CategoriaInput = z.infer<typeof categoriaSchema>;
 export type ProductoInput = z.infer<typeof productoSchema>;
 export type VarianteInput = z.infer<typeof varianteSchema>;

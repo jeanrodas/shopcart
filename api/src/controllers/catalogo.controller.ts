@@ -4,6 +4,7 @@ import { UnauthorizedError } from '../errors/index.js';
 import type {
   BusquedaQuery,
   BusquedaAdminQuery,
+  ListarAdminQuery,
   CategoriaInput,
   ProductoInput,
   VarianteInput,
@@ -56,6 +57,11 @@ export const getProductoAdmin: RequestHandler = async (req, res) => {
   const { id } = req.params as unknown as { id: number };
   const { incluirInactivos } = req.query as unknown as { incluirInactivos: boolean };
   res.status(200).json(await catalogoService.obtenerProducto(id, incluirInactivos));
+};
+
+export const getProductosListadoAdmin: RequestHandler = async (req, res) => {
+  const q = req.query as unknown as ListarAdminQuery;
+  res.status(200).json(await catalogoService.listarAdmin(q));
 };
 
 /* ------------------------------- Categorias ------------------------------- */

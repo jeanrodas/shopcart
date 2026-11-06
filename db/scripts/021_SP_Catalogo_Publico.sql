@@ -123,7 +123,11 @@ BEGIN
         WHERE pi.IDProducto = p.IDProducto
         ORDER BY pi.EsPrincipal DESC, pi.Orden ASC, pi.IDProductoImagen ASC
     ) img
-    WHERE p.Activo = 1 AND c.Activo = 1 AND va.VariantesActivas > 0;
+    /* Fase 2: ademas de activo/categoria activa/con variante activa, el producto debe
+       tener existencia disponible (> 0) para figurar en "mas vendidos" u "ofertas": un
+       producto agotado no se ofrece en la portada. */
+    WHERE p.Activo = 1 AND c.Activo = 1 AND va.VariantesActivas > 0
+      AND ISNULL(dt.DisponibleTotal, 0) > 0;
 
     /* Unidades netas por producto en los ultimos 30 dias. */
     SELECT ln.IDProducto, SUM(ln.CantidadNeta) AS Unidades

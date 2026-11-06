@@ -43,11 +43,15 @@ const ITEMS: (ItemNav & { soloCliente?: boolean })[] = [
 interface Props {
   contadorCarrito?: number;
   esCliente?: boolean;
+  /** Destino de la pestana "Cuenta": /cuenta con sesion de cliente, /admin para gestion, /login sin sesion. */
+  cuentaHref?: string;
 }
 
 /** Barra de navegacion inferior fija (solo movil, < 900 px). */
-export function BarraInferiorMovil({ contadorCarrito = 0, esCliente = false }: Props) {
-  const items = ITEMS.filter((it) => !it.soloCliente || esCliente);
+export function BarraInferiorMovil({ contadorCarrito = 0, esCliente = false, cuentaHref = '/cuenta' }: Props) {
+  const items = ITEMS.filter((it) => !it.soloCliente || esCliente).map((it) =>
+    it.texto === 'Cuenta' ? { ...it, a: cuentaHref } : it,
+  );
   return (
     <nav
       aria-label="Navegacion principal (movil)"

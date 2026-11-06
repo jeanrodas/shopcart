@@ -66,7 +66,9 @@ $orden = @(
     # despues de 013). CREATE OR ALTER valida las columnas al compilar el SP.
     '022_Migracion_PedidoFacturacion', '016_SP_Checkout', '018_SP_Pedidos',
     # 023 (F2): SPs de solo lectura para "Mis pedidos" del cliente. Despues de 018.
-    '023_SP_Pedidos_Cliente'
+    '023_SP_Pedidos_Cliente',
+    # 024 (F2): perfil/cambio de contrasena y listado admin del catalogo. Despues de 023.
+    '024_SP_Fase2_Cuenta'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

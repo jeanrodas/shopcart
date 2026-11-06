@@ -773,6 +773,83 @@ export const openapiDocument = {
       },
     },
 
+    '/api/v1/auth/cambiar-contrasena': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Cambiar la contrasena del usuario autenticado (F2)',
+        description:
+          'Verifica la contrasena actual (bcrypt) y guarda la nueva (minimo 8, una letra y un ' +
+          'numero). Revoca toda la cadena de refresh del usuario; el access vigente caduca solo. 204 sin cuerpo.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['contrasenaActual', 'contrasenaNueva'],
+            properties: {
+              contrasenaActual: { type: 'string', example: 'Cliente123!' },
+              contrasenaNueva: { type: 'string', example: 'Cliente456!' },
+            },
+          }),
+        },
+        responses: {
+          '204': { description: 'Contrasena cambiada' },
+          '401': errRef,
+          '422': errRef,
+          '429': errRef,
+        },
+      },
+    },
+
+    '/api/v1/usuarios/me': {
+      get: {
+        tags: ['Usuarios'],
+        summary: 'Perfil del usuario autenticado (F2)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Perfil',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                IDUsuario: { type: 'integer', example: 3 },
+                Correo: { type: 'string', example: 'cliente@shopcart.local' },
+                Nombre: { type: 'string', example: 'Cliente ShopCart' },
+                Telefono: { type: 'string', nullable: true, example: '+502 5555-0000' },
+                IDRol: { type: 'integer', example: 1 },
+                Rol: { type: 'string', example: 'Cliente' },
+                FechaCreacion: { type: 'string', format: 'date-time' },
+              },
+            }),
+          },
+          '401': errRef,
+          '404': errRef,
+        },
+      },
+      put: {
+        tags: ['Usuarios'],
+        summary: 'Actualizar el propio nombre y telefono (F2)',
+        description: 'Solo nombre y telefono; nunca correo ni rol. Devuelve el perfil actualizado.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['nombre'],
+            properties: {
+              nombre: { type: 'string', example: 'Cliente ShopCart' },
+              telefono: { type: 'string', nullable: true, example: '+502 5555-0000' },
+            },
+          }),
+        },
+        responses: {
+          '200': { description: 'Perfil actualizado' },
+          '401': errRef,
+          '422': errRef,
+        },
+      },
+    },
+
     '/api/v1/usuarios': {
       get: {
         tags: ['Usuarios'],
@@ -1111,6 +1188,36 @@ export const openapiDocument = {
           '401': errRef,
           '403': errRef,
           '404': errRef,
+        },
+      },
+    },
+
+    '/api/v1/productos-admin': {
+      get: {
+        tags: ['Productos'],
+        summary: 'Listado de administracion del catalogo con estado derivado y conteos (F2)',
+        description:
+          'Admin/Operador. Devuelve { filas, total, conteos, pagina, tamano }. Cada fila trae ' +
+          'CantidadVariantes, CantidadVariantesActivas, PrecioMinimo, DisponibleTotal, BajoStock, ' +
+          'ImagenPrincipal, SkusResumen (hasta 3), SkusTotal y EstadoDerivado (publicado|agotado|' +
+          'incompleto|oculto). conteos agrupa por estado para subtitulo y chips.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string', maxLength: 100 } },
+          { name: 'idCategoria', in: 'query', schema: { type: 'integer' } },
+          {
+            name: 'estado',
+            in: 'query',
+            schema: { type: 'string', enum: ['publicado', 'agotado', 'incompleto', 'oculto', 'bajoStock'] },
+          },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': { description: 'Pagina con conteos' },
+          '401': errRef,
+          '403': errRef,
+          '422': errRef,
         },
       },
     },

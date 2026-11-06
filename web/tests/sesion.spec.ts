@@ -13,7 +13,8 @@ test('cerrar sesion limpia el badge y no manda Authorization', async ({ page }) 
   await page.getByPlaceholder('tucorreo@ejemplo.com').fill('cliente@shopcart.local');
   await page.getByPlaceholder('Tu contraseña').fill('Cliente123!');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+  // El chip del usuario (menu desplegable) confirma la sesion iniciada.
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' })).toBeVisible();
 
   // 2) Agregar 1 unidad de la variante del producto 1.
   await page.goto('/producto/1');
@@ -34,8 +35,10 @@ test('cerrar sesion limpia el badge y no manda Authorization', async ({ page }) 
     if (req.headers()['authorization']) conAuth.push(`${req.method()} ${req.url()}`);
   });
 
+  // Abrir el menu del usuario (sin peticiones) y luego empezar a capturar antes de cerrar sesion.
+  await page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' }).click();
   capturando = true;
-  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión' }).click();
 
   // 5) Encabezado de invitado y badge en 0 (no se renderiza).
   await expect(
@@ -48,4 +51,22 @@ test('cerrar sesion limpia el badge y no manda Authorization', async ({ page }) 
   expect(conAuth, `peticiones con Authorization tras cerrar sesion:\n${conAuth.join('\n')}`).toEqual(
     [],
   );
+});
+
+/** F6.1: el menu del usuario en el encabezado abre y "Mi cuenta" navega a /cuenta. */
+test('el menu del usuario abre y lleva a Mi cuenta', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByPlaceholder('tucorreo@ejemplo.com').fill('cliente@shopcart.local');
+  await page.getByPlaceholder('Tu contraseña').fill('Cliente123!');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+
+  const chip = page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' });
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveAttribute('aria-expanded', 'false');
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-expanded', 'true');
+
+  await page.getByRole('menuitem', { name: 'Mi cuenta' }).click();
+  await expect(page).toHaveURL(/\/cuenta$/);
+  await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
 });

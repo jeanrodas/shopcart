@@ -474,3 +474,93 @@ export interface CuponVigente {
   MontoMinimo: number;
   FechaFin: string;
 }
+
+/* ------------------------------- Fase 2: Mi cuenta ------------------------- */
+
+/** Perfil del usuario autenticado (GET /usuarios/me). */
+export interface PerfilUsuario {
+  IDUsuario: number;
+  Correo: string;
+  Nombre: string;
+  Telefono: string | null;
+  IDRol: number;
+  Rol: Rol;
+  FechaCreacion: string;
+}
+
+export interface PerfilInput {
+  nombre: string;
+  telefono?: string;
+}
+
+/* --------------------- Fase 2: administracion del catalogo ---------------- */
+
+export type EstadoDerivado = 'publicado' | 'agotado' | 'incompleto' | 'oculto';
+
+/** Fila del listado de administracion (SP_Catalogo_ListarAdmin). */
+export interface ProductoAdminFila {
+  IDProducto: number;
+  Nombre: string;
+  IDCategoria: number;
+  Categoria: string;
+  Activo: boolean;
+  CategoriaActiva: boolean;
+  PrecioMinimo: number | null;
+  CantidadVariantes: number;
+  CantidadVariantesActivas: number;
+  DisponibleTotal: number;
+  BajoStock: boolean;
+  ImagenPrincipal: string | null;
+  SkusResumen: string | null;
+  SkusTotal: number;
+  EstadoDerivado: EstadoDerivado;
+}
+
+export interface ConteosCatalogo {
+  Total: number;
+  Publicados: number;
+  Agotados: number;
+  Incompletos: number;
+  Ocultos: number;
+  BajoStock: number;
+  Variantes: number;
+}
+
+export interface PaginaAdmin {
+  filas: ProductoAdminFila[];
+  total: number;
+  conteos: ConteosCatalogo | null;
+  pagina: number;
+  tamano: number;
+}
+
+export interface FiltrosAdmin {
+  texto?: string;
+  idCategoria?: number;
+  estado?: EstadoDerivado | 'bajoStock';
+  pagina: number;
+  tamano: number;
+}
+
+/** Categoria con el total que agrega la Fase 2 (visibles / totales). */
+export interface CategoriaAdmin extends Categoria {
+  CantidadProductosTotal: number;
+}
+
+/** Cuerpos de escritura del catalogo (mismas reglas que los schemas de la API). */
+export interface ProductoBody {
+  idCategoria: number;
+  nombre: string;
+  descripcion?: string;
+}
+export interface VarianteBody {
+  sku: string;
+  precio: number;
+  // La API espera los atributos en minuscula {nombre, valor} (atributoSchema).
+  atributos: { nombre: string; valor: string }[];
+}
+export interface ImagenBody {
+  url: string;
+  orden?: number;
+  esPrincipal?: boolean;
+}

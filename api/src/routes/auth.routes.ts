@@ -2,13 +2,20 @@ import { Router } from 'express';
 import { validate } from '../middlewares/validate.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import { rateLimitAuth } from '../middlewares/rateLimitAuth.js';
-import { registroSchema, loginSchema, refreshSchema, logoutSchema } from '../schemas/auth.schema.js';
+import {
+  registroSchema,
+  loginSchema,
+  refreshSchema,
+  logoutSchema,
+  cambiarContrasenaSchema,
+} from '../schemas/auth.schema.js';
 import {
   postRegistro,
   postLogin,
   postRefresh,
   postLogout,
   getYo,
+  postCambiarContrasena,
 } from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -18,5 +25,13 @@ router.post('/login', rateLimitAuth, validate({ body: loginSchema }), postLogin)
 router.post('/refresh', rateLimitAuth, validate({ body: refreshSchema }), postRefresh);
 router.post('/logout', validate({ body: logoutSchema }), postLogout);
 router.get('/yo', authenticate, getYo);
+// Cambio de contrasena del usuario autenticado. Mismo rate limit que el resto de /auth.
+router.post(
+  '/cambiar-contrasena',
+  rateLimitAuth,
+  authenticate,
+  validate({ body: cambiarContrasenaSchema }),
+  postCambiarContrasena,
+);
 
 export default router;

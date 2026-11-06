@@ -72,6 +72,30 @@ export async function buscarProductos(
   return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
 }
 
+/**
+ * Listado de administracion con estado derivado y conteos (SP_Catalogo_ListarAdmin).
+ * Devuelve la pagina, el total del filtro y los conteos por estado (para chips/subtitulo).
+ */
+export async function listarAdmin(q: {
+  texto?: string;
+  idCategoria?: number;
+  estado?: string;
+  pagina: number;
+  tamano: number;
+}): Promise<{ filas: unknown[]; total: number; conteos: unknown; pagina: number; tamano: number }> {
+  const result = await executeSp('SP_Catalogo_ListarAdmin', [
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'IDCategoria', type: sql.Int, value: q.idCategoria ?? null },
+    { name: 'Estado', type: sql.NVarChar(20), value: q.estado ?? null },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'Tamano', type: sql.Int, value: q.tamano },
+  ]);
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  const conteos = (result.recordsets[2]?.[0] ?? null) as unknown;
+  return { filas, total, conteos, pagina: q.pagina, tamano: q.tamano };
+}
+
 export async function obtenerProducto(
   idProducto: number,
   incluirInactivos: boolean,

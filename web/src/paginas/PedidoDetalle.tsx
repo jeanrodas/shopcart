@@ -38,6 +38,18 @@ function franja(estado: string, tieneCupon: boolean): { tono: string; texto: str
   }
 }
 
+/**
+ * Parte el snapshot DireccionEntrega en lineas. Todo lo que sigue al codigo postal
+ * (primer segmento de 5 digitos) es la referencia, que puede traer comas propias
+ * ("Casa de dos niveles, porton negro"), por eso se une en una sola linea.
+ */
+function partirDireccion(texto: string): string[] {
+  const partes = texto.split(',').map((s) => s.trim()).filter(Boolean);
+  const iCP = partes.findIndex((p) => /^\d{5}$/.test(p));
+  if (iCP < 0 || iCP >= partes.length - 1) return partes;
+  return [...partes.slice(0, iCP + 1), partes.slice(iCP + 1).join(', ')];
+}
+
 export default function PedidoDetalle() {
   const { id: idParam } = useParams();
   const id = Number(idParam);
@@ -133,11 +145,8 @@ function Contenido({
   const unidades = lineas.reduce((n, l) => n + l.Cantidad, 0);
   const cancelado = estado === 'CANCELADO';
   const info = franja(estado, Boolean(pedido.CuponCodigo));
-  // El pago solo se muestra como reintegrado si la API lo marca asi (hoy solo expone 'Aprobado').
-  const pagoReintegrado = cancelado && /reintegr|revers/i.test(pago?.Estado ?? '');
   const accion = accionCancelar(estado);
-  // Snapshot de la direccion tal como quedo al comprar (texto unico separado por comas).
-  const lineasDireccion = pedido.DireccionEntrega.split(',').map((s) => s.trim()).filter(Boolean);
+  const lineasDireccion = partirDireccion(pedido.DireccionEntrega);
 
   return (
     <>
@@ -252,7 +261,6 @@ function Contenido({
               </span>
               <Precio monto={pedido.Total} className="text-2xl font-extrabold text-marino-900" />
             </div>
-            {pagoReintegrado && <p className="mt-1 text-right text-xs text-apagado">Pago reintegrado (simulado)</p>}
           </section>
 
           <Bloque titulo="Entrega">

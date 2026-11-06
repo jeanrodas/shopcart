@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
 import clsx from 'clsx';
 import { useAuth } from '../auth/useAuth';
 import {
@@ -27,6 +24,8 @@ import {
 } from '../lib/idempotencia';
 import { Boton } from '../componentes/ui/Boton';
 import { Campo } from '../componentes/ui/Campo';
+import { FormularioDireccion } from '../componentes/direcciones/FormularioDireccion';
+import { TarjetaDireccion } from '../componentes/direcciones/TarjetaDireccion';
 import { Modal } from '../componentes/ui/Modal';
 import { EstadoVista } from '../componentes/ui/EstadoVista';
 import { useToast } from '../componentes/ui/Toast';
@@ -428,6 +427,7 @@ export default function Checkout() {
                     setMostrarForm(false);
                     setEditando(null);
                   }}
+                  textoGuardar="Guardar y usar"
                 />
               ) : (
                 <button
@@ -754,169 +754,6 @@ function OpcionTarjeta({
       </span>
       <span className="mt-1 block pl-6 text-xs text-apagado">{texto}</span>
     </button>
-  );
-}
-
-function TarjetaDireccion({
-  dir,
-  seleccionada,
-  ultima,
-  puedeEliminar,
-  onSeleccionar,
-  onEditar,
-  onEliminar,
-}: {
-  dir: Direccion;
-  seleccionada: boolean;
-  ultima: boolean;
-  puedeEliminar: boolean;
-  onSeleccionar: () => void;
-  onEditar: () => void;
-  onEliminar: () => void;
-}) {
-  return (
-    <div
-      className={clsx(
-        'rounded-16 border p-4 transition-colors',
-        seleccionada ? 'border-marino-700 bg-marino-600/5' : 'border-[rgba(15,23,42,.14)] bg-white',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onClick={onSeleccionar}
-          aria-pressed={seleccionada}
-          aria-label={`Usar ${dir.Alias}`}
-          className={clsx(
-            'mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-pill border',
-            seleccionada ? 'border-marino-700' : 'border-apagado',
-          )}
-        >
-          {seleccionada && <span className="h-2 w-2 rounded-pill bg-marino-700" />}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm font-bold text-marino-900">
-            {dir.Alias}
-            {ultima && (
-              <span className="rounded-pill bg-marino-600/10 px-2 py-0.5 text-[10px] font-semibold text-marino-700">
-                Última usada
-              </span>
-            )}
-          </p>
-          <p className="mt-1 text-sm text-texto">
-            {dir.NombreReceptor} · {dir.Telefono} · {dir.Linea1}
-          </p>
-          {dir.Linea2 && <p className="text-sm text-apagado">{dir.Linea2}</p>}
-          <p className="text-sm text-apagado">
-            {dir.Municipio}, {dir.Departamento}
-            {dir.Referencia ? ` · ${dir.Referencia}` : ''}
-          </p>
-          <div className="mt-2 flex gap-4 text-xs font-semibold">
-            <button type="button" onClick={onEditar} className="text-marino-700 hover:underline">
-              Editar
-            </button>
-            {puedeEliminar && (
-              <button type="button" onClick={onEliminar} className="text-error-texto hover:underline">
-                Eliminar
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* --------------------------- Formulario de direccion --------------------- */
-
-const CONTROL = /[\u0000-\u001F\u007F<>]/;
-const plano = (max: number, min = 1) =>
-  z
-    .string()
-    .trim()
-    .min(min, min <= 1 ? 'Requerido' : `Mínimo ${min}`)
-    .max(max, `Máximo ${max}`)
-    .refine((v) => !CONTROL.test(v), 'No uses los símbolos < o >');
-
-const formDireccionSchema = z.object({
-  alias: plano(50),
-  nombreReceptor: plano(150),
-  telefono: plano(20),
-  departamento: plano(100),
-  linea1: plano(200),
-  linea2: plano(200, 0).optional(),
-  municipio: plano(100),
-  codigoPostal: plano(10, 0).optional(),
-  referencia: plano(300, 0).optional(),
-});
-type FormDireccion = z.infer<typeof formDireccionSchema>;
-
-function FormularioDireccion({
-  inicial,
-  guardando,
-  onGuardar,
-  onCancelar,
-}: {
-  inicial: Direccion | null;
-  guardando: boolean;
-  onGuardar: (datos: DireccionInput) => void;
-  onCancelar: () => void;
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormDireccion>({
-    resolver: zodResolver(formDireccionSchema),
-    defaultValues: inicial
-      ? {
-          alias: inicial.Alias,
-          nombreReceptor: inicial.NombreReceptor,
-          telefono: inicial.Telefono,
-          departamento: inicial.Departamento,
-          linea1: inicial.Linea1,
-          linea2: inicial.Linea2 ?? '',
-          municipio: inicial.Municipio,
-          codigoPostal: inicial.CodigoPostal ?? '',
-          referencia: inicial.Referencia ?? '',
-        }
-      : undefined,
-  });
-
-  const enviar = handleSubmit((d) => onGuardar(d as DireccionInput));
-
-  return (
-    <form
-      onSubmit={enviar}
-      noValidate
-      className="rounded-16 border border-marino-600/30 bg-marino-600/5 p-4"
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Campo label="Alias" placeholder="Casa, Oficina…" error={errors.alias?.message} {...register('alias')} />
-        <Campo label="Quién recibe" error={errors.nombreReceptor?.message} {...register('nombreReceptor')} />
-        <Campo label="Teléfono" error={errors.telefono?.message} {...register('telefono')} />
-        <Campo label="Departamento" error={errors.departamento?.message} {...register('departamento')} />
-        <div className="sm:col-span-2">
-          <Campo label="Dirección (línea 1)" error={errors.linea1?.message} {...register('linea1')} />
-        </div>
-        <div className="sm:col-span-2">
-          <Campo label="Línea 2 (opcional)" error={errors.linea2?.message} {...register('linea2')} />
-        </div>
-        <Campo label="Municipio" error={errors.municipio?.message} {...register('municipio')} />
-        <Campo label="Código postal (opcional)" error={errors.codigoPostal?.message} {...register('codigoPostal')} />
-        <div className="sm:col-span-2">
-          <Campo label="Referencia (opcional)" error={errors.referencia?.message} {...register('referencia')} />
-        </div>
-      </div>
-      <div className="mt-4 flex justify-end gap-3">
-        <Boton type="button" variante="fantasma" onClick={onCancelar}>
-          Cancelar
-        </Boton>
-        <Boton type="submit" cargando={guardando}>
-          Guardar y usar
-        </Boton>
-      </div>
-    </form>
   );
 }
 

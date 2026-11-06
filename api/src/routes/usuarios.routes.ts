@@ -9,17 +9,24 @@ import {
   crearUsuarioSchema,
   cambiarRolSchema,
   cambiarEstadoSchema,
+  perfilSchema,
 } from '../schemas/usuarios.schema.js';
 import {
   getUsuarios,
   postUsuario,
   patchRol,
   patchEstado,
+  getMe,
+  putMe,
 } from '../controllers/usuarios.controller.js';
 
 const router = Router();
 
-// Toda la gestion de usuarios es exclusiva del Administrador.
+// Perfil propio: cualquier usuario autenticado (antes del candado de Administrador).
+router.get('/me', authenticate, getMe);
+router.put('/me', authenticate, validate({ body: perfilSchema }), putMe);
+
+// El resto de la gestion de usuarios es exclusiva del Administrador.
 router.use(authenticate, authorize(ROLES.Administrador));
 
 router.get('/', validate({ query: listarUsuariosSchema }), getUsuarios);

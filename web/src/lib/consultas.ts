@@ -30,9 +30,18 @@ import {
   obtenerResumenPedidos,
 } from '../api/pedidos';
 import { obtenerMetadatos } from '../api/sistema';
+import { obtenerPerfil, actualizarPerfil } from '../api/cuenta';
+import { listarProductosAdmin, obtenerProductoAdmin, listarCategoriasAdmin } from '../api/admin';
 import { ErrorApi } from '../api/clienteHttp';
 import { useToast } from '../componentes/ui/Toast';
-import type { BusquedaParams, DireccionInput, FiltrosPedidos, PagarBody } from '../api/tipos';
+import type {
+  BusquedaParams,
+  DireccionInput,
+  FiltrosAdmin,
+  FiltrosPedidos,
+  PagarBody,
+  PerfilInput,
+} from '../api/tipos';
 
 export function useDestacados(limite = 8) {
   return useQuery({ queryKey: claves.catalogo.destacados, queryFn: () => obtenerDestacados(limite) });
@@ -318,4 +327,52 @@ export function useComprarDeNuevo() {
       void qc.invalidateQueries({ queryKey: claves.carrito });
     },
   });
+}
+
+/* -------------------------------- Mi cuenta ------------------------------- */
+
+/** Perfil del usuario autenticado (Datos personales). */
+export function usePerfil() {
+  return useQuery({ queryKey: claves.cuenta.perfil, queryFn: obtenerPerfil });
+}
+
+/** Actualiza nombre y telefono; deja el perfil nuevo en cache y lo invalida. */
+export function useActualizarPerfil() {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: (datos: PerfilInput) => actualizarPerfil(datos),
+    onSuccess: (perfil) => {
+      qc.setQueryData(claves.cuenta.perfil, perfil);
+      mostrar('Datos actualizados', 'exito');
+    },
+    onError: (err) =>
+      mostrar(err instanceof ErrorApi ? err.mensaje : 'No se pudieron guardar los datos', 'error'),
+  });
+}
+
+/* ----------------------- Administracion del catalogo ---------------------- */
+
+/** Listado admin del catalogo. keepPreviousData: filtros/paginacion sin parpadeo. */
+export function useProductosAdmin(filtros: FiltrosAdmin) {
+  return useQuery({
+    queryKey: claves.admin.productos(filtros),
+    queryFn: () => listarProductosAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Detalle admin de un producto (incluye inactivos) para el panel de edicion. */
+export function useProductoAdmin(id: number | null) {
+  return useQuery({
+    queryKey: claves.admin.producto(id ?? 0),
+    queryFn: () => obtenerProductoAdmin(id as number),
+    enabled: id !== null && id > 0,
+    retry: false,
+  });
+}
+
+/** Categorias (incluye inactivas) para el selector y la administracion de categorias. */
+export function useCategoriasAdmin() {
+  return useQuery({ queryKey: claves.admin.categorias, queryFn: () => listarCategoriasAdmin(true) });
 }

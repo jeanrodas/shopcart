@@ -204,13 +204,13 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 [`db/README.md`](db/README.md). El orden de ejecucion actual es:
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 [099]
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 [099]
 ```
 
 `012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
 y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
 `NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
-`023` (Fase 2) va despues de `018`: agrega SPs de solo lectura para "Mis pedidos" del cliente. La
+`023` y `024` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`). La
 tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
@@ -238,6 +238,7 @@ tabla describe cada script en orden numerico de archivo:
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
 | `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: columnas `NombreFactura` y `NITFactura` (snapshot) en `dbo.Pedido` y `CHECK CK_Pedido_NITFactura` (NULL, `CF` o inicia con digito). Idempotente. |
 | `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido del cliente con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, hasta 3 imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos por estado, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. |
+| `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna `Usuario.Telefono`; perfil del cliente (`SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil`); cambio de contrasena (`SP_Auth_ObtenerHashPorID` + `SP_Auth_CambiarContrasena`, que revoca toda la cadena de refresh); y `SP_Catalogo_ListarAdmin` (listado de administracion con estado derivado por `CASE`, SKUs via `STRING_AGG`, filtros y conteos). Ademas `009` suma `CantidadProductosTotal` y `021` excluye de destacados los productos sin existencia disponible. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -813,6 +814,46 @@ RNF: `p95 < 1000 ms`. Todos los reportes lo cumplen con amplio margen (p95 maxim
 `IX_Carrito_Abandono` (carritos activos por actividad) e `IX_Devolucion_Pedido`. `020` agrega
 `IX_Devolucion_Pedido_Monto` (`IDPedido` INCLUDE `MontoReintegrado`) para cubrir la suma de
 devoluciones por pedido sin leer la fila base.
+
+### Fase 2 (frontend web): Mi cuenta y area interna (F6)
+
+Adiciones **solo aditivas**; no cambian el comportamiento ni las firmas de los endpoints
+y SPs evaluados en Fase 1.
+
+- **Perfil del cliente.** `GET /usuarios/me` y `PUT /usuarios/me` (nombre y telefono; nunca
+  correo ni rol), registrados **antes** del candado de Administrador del router de usuarios
+  para que cualquier usuario autenticado acceda al suyo. Respaldados por
+  `SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil` y la columna nullable
+  `Usuario.Telefono` (`024`). No se expone "ultimo acceso" porque la tabla no lo guarda.
+- **Cambio de contrasena.** `POST /auth/cambiar-contrasena` (autenticado, mismo rate limit
+  que el resto de `/auth`): compara la actual con bcrypt en Node y, via
+  `SP_Auth_CambiarContrasena`, guarda el hash nuevo y **revoca toda la cadena de refresh**
+  del usuario (misma revocacion por `IDUsuario` que ya usaba la rotacion de M1). Responde
+  `204`; el access vigente caduca por si solo (15 min) y el front hace logout voluntario.
+  No se agrego "cerrar sesion en todos los dispositivos" como enlace aparte: `/auth/logout`
+  solo revoca el refresh presentado, asi que el cambio de contrasena es la via de revocacion
+  total y el enlace se omite.
+- **Listado de administracion del catalogo.** `GET /productos-admin` (Administrador u
+  Operador) con `SP_Catalogo_ListarAdmin`: no toca `SP_Catalogo_BuscarProductos` (M2). Agrega
+  conteo total de variantes, SKUs (hasta 3 + total, `STRING_AGG`), estado de la categoria y el
+  **estado derivado** calculado en SQL por `CASE` (oculto = inactivo o categoria inactiva;
+  incompleto = activo sin variante activa; agotado = activo completo con `DisponibleTotal = 0`;
+  publicado = resto; `bajoStock` = publicado con `BajoStock = 1`), con filtros de servidor
+  (texto, categoria, estado), `OFFSET/FETCH` y un recordset de conteos para subtitulo y chips.
+  Ruta propia (`/productos-admin`) para no colisionar con `/productos/:id`.
+- **Destacados y categorias.** `021` excluye de "mas vendidos" y "ofertas" los productos con
+  `DisponibleTotal = 0` (Fase 2, no evaluado). `009` agrega la columna aditiva
+  `CantidadProductosTotal` para mostrar "visibles / totales" en la administracion de categorias.
+- **Dinero.** Ninguna cifra se calcula en el navegador: el precio desde (`PrecioMinimo`), los
+  totales y el precio de cada variante vienen de la API; el panel de edicion solo **envia** el
+  precio que el administrador escribe.
+- **Frontend.** `/cuenta` (solo Cliente) con datos personales, direcciones (reutilizando los
+  componentes de direccion del checkout, movidos a `componentes/direcciones/`), seguridad y
+  facturacion por defecto en `localStorage`. Area interna bajo `/admin` (Administrador y
+  Operador) con `LayoutInterno`: Administrador ve todo y el Operador ve Dashboard, Pedidos,
+  Inventario, Productos y Categorias en **solo lectura** (los elementos sin acceso se ocultan,
+  no se deshabilitan). Al entrar, Administrador y Operador aterrizan en `/admin`; el Cliente,
+  en la ruta que pidio o en `/`; un Cliente que entra a `/admin` recibe la pagina `/403`.
 
 ## Logs
 

@@ -39,7 +39,12 @@ BEGIN
               FROM dbo.Producto p
              WHERE p.IDCategoria = c.IDCategoria AND p.Activo = 1
                AND EXISTS (SELECT 1 FROM dbo.Variante v
-                            WHERE v.IDProducto = p.IDProducto AND v.Activo = 1)) AS ProductosVisibles
+                            WHERE v.IDProducto = p.IDProducto AND v.Activo = 1)) AS ProductosVisibles,
+           /* Fase 2 (columna aditiva): total de productos de la categoria incluyendo
+              inactivos, para la administracion de categorias ("visibles / totales"). */
+           (SELECT COUNT(1)
+              FROM dbo.Producto p
+             WHERE p.IDCategoria = c.IDCategoria) AS CantidadProductosTotal
     FROM dbo.Categoria c
     WHERE (@IncluirInactivas = 1 OR c.Activo = 1)
     ORDER BY c.Nombre ASC;

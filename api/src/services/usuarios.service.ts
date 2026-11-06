@@ -12,6 +12,28 @@ interface CrearUsuarioInput {
   idRol: number;
 }
 
+/** Perfil del usuario autenticado (Mi cuenta). */
+export async function obtenerPerfil(idUsuario: number): Promise<unknown> {
+  const result = await executeSp('SP_Usuarios_ObtenerPerfil', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  return result.recordset[0] ?? null;
+}
+
+/** Actualiza el propio nombre y telefono (nunca correo ni rol). Devuelve el perfil nuevo. */
+export async function actualizarPerfil(
+  idUsuario: number,
+  nombre: string,
+  telefono: string | null,
+): Promise<unknown> {
+  const result = await executeSp('SP_Usuarios_ActualizarPerfil', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+    { name: 'Nombre', type: sql.NVarChar(150), value: nombre },
+    { name: 'Telefono', type: sql.NVarChar(30), value: telefono },
+  ]);
+  return result.recordset[0] ?? null;
+}
+
 export async function listar(q: ListarUsuariosQuery): Promise<{
   filas: unknown[];
   total: number;

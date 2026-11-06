@@ -55,3 +55,16 @@ export const getYo: RequestHandler = async (req, res) => {
   const result = await authService.yo(usuario.id);
   res.status(200).json(result);
 };
+
+export const postCambiarContrasena: RequestHandler = async (req, res) => {
+  const usuario = req.usuario;
+  if (!usuario) {
+    throw new UnauthorizedError();
+  }
+  const { contrasenaActual, contrasenaNueva } = req.body as {
+    contrasenaActual: string;
+    contrasenaNueva: string;
+  };
+  await authService.cambiarContrasena(usuario.id, contrasenaActual, contrasenaNueva);
+  res.status(204).send();
+};

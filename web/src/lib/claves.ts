@@ -1,4 +1,4 @@
-import type { BusquedaParams, FiltrosPedidos } from '../api/tipos';
+import type { BusquedaParams, FiltrosAdmin, FiltrosPedidos } from '../api/tipos';
 
 /** Convencion de claves de cache por modulo para TanStack Query. */
 export const claves = {
@@ -22,6 +22,16 @@ export const claves = {
   },
   checkout: {
     resumen: ['checkout', 'resumen'] as const,
+  },
+  cuenta: {
+    perfil: ['cuenta', 'perfil'] as const,
+  },
+  admin: {
+    // Raiz para invalidar todo el catalogo admin (lista + conteos + detalle) tras una escritura.
+    todo: ['admin', 'catalogo'] as const,
+    productos: (filtros: FiltrosAdmin) => ['admin', 'catalogo', 'productos', filtros] as const,
+    producto: (id: number) => ['admin', 'catalogo', 'producto', id] as const,
+    categorias: ['admin', 'catalogo', 'categorias'] as const,
   },
   sistema: {
     metadatos: ['sistema', 'metadatos'] as const,

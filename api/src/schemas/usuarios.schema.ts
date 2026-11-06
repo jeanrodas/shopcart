@@ -34,4 +34,11 @@ export const cambiarEstadoSchema = z.object({
   activo: z.boolean(),
 });
 
+/** Actualizacion del propio perfil (PUT /usuarios/me): solo nombre y telefono. */
+export const perfilSchema = z.object({
+  nombre: nombreSchema,
+  telefono: z.string().trim().max(30).optional(),
+});
+
 export type ListarUsuariosQuery = z.infer<typeof listarUsuariosSchema>;
+export type PerfilInput = z.infer<typeof perfilSchema>;

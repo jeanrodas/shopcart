@@ -39,7 +39,8 @@ export default function Login() {
   // Destino tras entrar: el state de RutaProtegida o el ?volver (solo rutas internas).
   const volverRaw = sp.get('volver');
   const volver = volverRaw && volverRaw.startsWith('/') ? volverRaw : null;
-  const destino = estado.desde ?? volver ?? '/';
+  // Destino explicito pedido (ruta protegida o ?volver). Si no hay, depende del rol.
+  const destinoExplicito = estado.desde ?? volver ?? null;
   const { data: metadatos } = useMetadatos();
 
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
@@ -59,6 +60,9 @@ export default function Login() {
       if (sesion.carritoFusionado && sesion.carritoFusionado.lineas > 0) {
         mostrar('Tu carrito se unió a tu cuenta', 'exito');
       }
+      // Admin/Operador aterrizan en /admin; Cliente en la ruta que pidio o en /.
+      const destino =
+        destinoExplicito ?? (sesion.usuario.rol === 'Cliente' ? '/' : '/admin');
       navigate(destino, { replace: true });
     } catch (err) {
       setErrorGeneral(err instanceof ErrorApi ? err.mensaje : 'No se pudo iniciar sesión');

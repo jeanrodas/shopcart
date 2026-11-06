@@ -272,6 +272,36 @@ export async function logout(refreshToken: string): Promise<void> {
   ]);
 }
 
+/**
+ * Cambia la contrasena del usuario autenticado: compara la actual con bcrypt (igual
+ * que el login), guarda el hash nuevo y revoca toda la cadena de refresh del usuario.
+ * El par (correo inexistente) no aplica: el usuario ya esta autenticado por su access.
+ */
+export async function cambiarContrasena(
+  idUsuario: number,
+  contrasenaActual: string,
+  contrasenaNueva: string,
+): Promise<void> {
+  const actual = await executeSp<{ HashContrasena: string; Activo: boolean }>(
+    'SP_Auth_ObtenerHashPorID',
+    [{ name: 'IDUsuario', type: sql.Int, value: idUsuario }],
+  );
+  const fila = actual.recordset[0];
+  if (!fila || !fila.Activo) {
+    throw new UnauthorizedError();
+  }
+  const ok = await bcrypt.compare(contrasenaActual, fila.HashContrasena);
+  if (!ok) {
+    throw new UnauthorizedError('La contrasena actual no es correcta');
+  }
+
+  const hashNuevo = await bcrypt.hash(contrasenaNueva, BCRYPT_COST);
+  await executeSp('SP_Auth_CambiarContrasena', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+    { name: 'HashNuevo', type: sql.NVarChar(255), value: hashNuevo },
+  ]);
+}
+
 export async function yo(idUsuario: number): Promise<unknown> {
   const result = await executeSp('SP_Auth_ObtenerUsuarioPorID', [
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },

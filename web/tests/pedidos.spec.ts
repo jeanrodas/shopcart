@@ -13,7 +13,7 @@ test('mis pedidos: resumen, detalle con linea de tiempo y cancelacion', async ({
   await page.getByPlaceholder('Tu contraseña').fill('Cliente123!');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   // "Cerrar sesión" existe en el encabezado y en el pie; basta con el del encabezado.
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' })).toBeVisible();
 
   // 2) Mis pedidos: tarjetas de resumen y al menos un pedido.
   await page.goto('/mis-pedidos');

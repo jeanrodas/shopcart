@@ -27,15 +27,14 @@ function enlaceCategoria(categorias: Categoria[] | undefined, nombre: string): E
  * Enlaces del menu. "Lubricantes"/"Accesorios" se resuelven a su idCategoria por
  * nombre; si la categoria no existe (o aun no carga), el enlace no se muestra.
  */
-function construirEnlaces(categorias: Categoria[] | undefined, esCliente: boolean): EnlaceNav[] {
+function construirEnlaces(categorias: Categoria[] | undefined): EnlaceNav[] {
+  // "Mi cuenta"/"Mis pedidos"/"Ir a administración" viven en el menu del usuario, no aqui.
   return [
     { a: '/catalogo', texto: 'Catálogo' },
     { a: '/#ofertas', texto: 'Ofertas', destacar: true },
     ...['Lubricantes', 'Accesorios']
       .map((n) => enlaceCategoria(categorias, n))
       .filter((e): e is EnlaceNav => e !== null),
-    // "Mis pedidos" solo para el Cliente (la ruta esta protegida por rol de todos modos).
-    ...(esCliente ? [{ a: '/mis-pedidos', texto: 'Mis pedidos' }] : []),
   ];
 }
 
@@ -117,6 +116,25 @@ const BOTON_REDONDO =
 
 function MenuUsuario() {
   const { usuario, cerrarSesion } = useAuth();
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const alClicFuera = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+    };
+    const alTecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAbierto(false);
+    };
+    document.addEventListener('mousedown', alClicFuera);
+    document.addEventListener('keydown', alTecla);
+    return () => {
+      document.removeEventListener('mousedown', alClicFuera);
+      document.removeEventListener('keydown', alTecla);
+    };
+  }, [abierto]);
+
   if (!usuario) {
     // Escritorio: texto. Movil (< lg): boton redondo de 44 px con icono de usuario.
     return (
@@ -133,20 +151,71 @@ function MenuUsuario() {
       </>
     );
   }
+
+  const esAdminOp = usuario.rol === 'Administrador' || usuario.rol === 'Operador';
+  const inicial = (usuario.nombre || '?').charAt(0).toUpperCase();
+  const itemMenu =
+    'block w-full rounded-12 px-3 py-2 text-left text-sm font-semibold text-texto hover:bg-fondo-2';
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="hidden text-sm font-semibold text-marino-900 lg:block">{usuario.nombre}</span>
-      <button
-        type="button"
-        onClick={() => void cerrarSesion()}
-        className="hidden rounded-pill border-[1.5px] border-[rgba(15,23,42,.14)] bg-white px-3 py-2 text-sm font-semibold text-marino-700 hover:bg-fondo-2 lg:block"
-      >
-        Cerrar sesión
-      </button>
+    <>
+      {/* Escritorio: chip del usuario que despliega un menu. */}
+      <div ref={ref} className="relative hidden lg:block">
+        <button
+          type="button"
+          onClick={() => setAbierto((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={abierto}
+          aria-label="Menú de usuario"
+          className="flex items-center gap-2 rounded-pill border-[1.5px] border-[rgba(15,23,42,.14)] bg-white py-1.5 pl-1.5 pr-3 text-sm font-semibold text-marino-700 hover:bg-fondo-2"
+        >
+          <span className="grid h-7 w-7 place-items-center rounded-pill bg-degradado-marino text-xs font-extrabold text-dorado">
+            {inicial}
+          </span>
+          <span className="max-w-[14ch] truncate">{usuario.nombre}</span>
+          <svg viewBox="0 0 20 20" className={clsx('h-4 w-4 transition-transform', abierto && 'rotate-180')} fill="none" aria-hidden="true">
+            <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {abierto && (
+          <div
+            role="menu"
+            className="absolute right-0 z-50 mt-2 w-56 rounded-16 border border-borde bg-white p-1.5 shadow-elevada"
+          >
+            {esAdminOp ? (
+              <Link role="menuitem" to="/admin" onClick={() => setAbierto(false)} className={itemMenu}>
+                Ir a administración
+              </Link>
+            ) : (
+              <>
+                <Link role="menuitem" to="/cuenta" onClick={() => setAbierto(false)} className={itemMenu}>
+                  Mi cuenta
+                </Link>
+                <Link role="menuitem" to="/mis-pedidos" onClick={() => setAbierto(false)} className={itemMenu}>
+                  Mis pedidos
+                </Link>
+              </>
+            )}
+            <div className="my-1 border-t border-borde" role="separator" />
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setAbierto(false);
+                void cerrarSesion();
+              }}
+              className="block w-full rounded-12 px-3 py-2 text-left text-sm font-semibold text-error-texto hover:bg-error/10"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Movil: boton redondo que lleva a Mi cuenta. */}
       <Link to="/cuenta" aria-label={`Mi cuenta (${usuario.nombre})`} className={BOTON_REDONDO}>
         <IconoUsuario className="h-5 w-5" />
       </Link>
-    </div>
+    </>
   );
 }
 
@@ -157,7 +226,7 @@ export function LayoutTienda() {
   const { data: carrito } = useCarrito();
   const general = data?.cupones.find((c) => c.IDCategoria === null);
   const esCliente = usuario?.rol === 'Cliente';
-  const enlacesNav = construirEnlaces(categorias, esCliente);
+  const enlacesNav = construirEnlaces(categorias);
   // Conteo del badge desde la MISMA consulta ['carrito']: suma de las cantidades de las
   // lineas (mismo criterio que la pagina). Sin estado ni consulta paralela.
   const contadorCarrito = (carrito?.lineas ?? []).reduce((n, l) => n + l.Cantidad, 0);
@@ -242,7 +311,11 @@ export function LayoutTienda() {
         </div>
       </footer>
 
-      <BarraInferiorMovil contadorCarrito={contadorCarrito} esCliente={esCliente} />
+      <BarraInferiorMovil
+        contadorCarrito={contadorCarrito}
+        esCliente={esCliente}
+        cuentaHref={!usuario ? '/login' : esCliente ? '/cuenta' : '/admin'}
+      />
     </div>
   );
 }

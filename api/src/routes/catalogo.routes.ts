@@ -7,6 +7,7 @@ import { idParamSchema } from '../schemas/common.schema.js';
 import {
   busquedaSchema,
   busquedaAdminSchema,
+  listarAdminSchema,
   destacadosSchema,
   listarCategoriasSchema,
   obtenerProductoAdminSchema,
@@ -33,6 +34,8 @@ router.get('/catalogo/productos/:id', validate({ params: idParamSchema }), c.get
 
 /* ---------------------------- Lectura administracion ---------------------- */
 router.get('/categorias', ...lectura, validate({ query: listarCategoriasSchema }), c.getCategoriasAdmin);
+// Listado admin con estado derivado y conteos (F2). Ruta propia: no colisiona con /productos/:id.
+router.get('/productos-admin', ...lectura, validate({ query: listarAdminSchema }), c.getProductosListadoAdmin);
 router.get('/productos', ...lectura, validate({ query: busquedaAdminSchema }), c.getProductosAdmin);
 router.get(
   '/productos/:id',
