@@ -384,6 +384,22 @@
     {
       "key": "r0DetalleId",
       "value": ""
+    },
+    {
+      "key": "f2ClienteToken",
+      "value": ""
+    },
+    {
+      "key": "f2OperadorToken",
+      "value": ""
+    },
+    {
+      "key": "f2PedidoId",
+      "value": ""
+    },
+    {
+      "key": "f2Numero",
+      "value": ""
     }
   ],
   "item": [
@@ -13288,6 +13304,385 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"correo\": \"inexistente@shopcart.local\",\n  \"contrasena\": \"NoImporta123!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "F2 Pedidos cliente",
+      "item": [
+        {
+          "name": "Setup: Login cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('f2ClienteToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"correo\": \"cliente@shopcart.local\", \"contrasena\": \"Cliente123!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Setup: Login operador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 login', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200 && j.accessToken) pm.collectionVariables.set('f2OperadorToken', j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"correo\": \"operador@shopcart.local\", \"contrasena\": \"Operador123!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resumen del cliente (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 resumen', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Total es numero', () => pm.expect(j.Total).to.be.a('number'));",
+                  "pm.test('TotalComprado es numero', () => pm.expect(j.TotalComprado).to.be.a('number'));",
+                  "pm.test('conteos por estado', () => pm.expect(j).to.have.property('Despachado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/resumen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "resumen"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listado enriquecido (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('filas es arreglo', () => pm.expect(j.filas).to.be.an('array'));",
+                  "pm.test('trae total y pagina', () => { pm.expect(j.total).to.be.a('number'); pm.expect(j.pagina).to.eql(1); });",
+                  "if (j.filas && j.filas[0]) {",
+                  "  pm.test('tarjeta enriquecida', () => { pm.expect(j.filas[0]).to.have.property('CantidadLineas'); pm.expect(j.filas[0]).to.have.property('NombresResumen'); });",
+                  "  pm.collectionVariables.set('f2PedidoId', j.filas[0].IDPedido);",
+                  "  pm.collectionVariables.set('f2Numero', j.filas[0].NumeroPedido);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos?pagina=1&tamano=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamano",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filtro por estado en curso (lista, 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const ok = ['PAGADO','EN_PREPARACION','DESPACHADO'];",
+                  "pm.test('todas en el conjunto en curso', () => pm.expect((j.filas||[]).every(p => ok.includes(p.EstadoCodigo))).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos?estado=PAGADO,EN_PREPARACION,DESPACHADO&pagina=1&tamano=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "PAGADO,EN_PREPARACION,DESPACHADO"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamano",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar por numero (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable f2Numero definida', function () {",
+                  "  const _v = pm.collectionVariables.get('f2Numero');",
+                  "  pm.expect(_v, 'f2Numero vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "const num = pm.collectionVariables.get('f2Numero');",
+                  "pm.test('200 listado', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('coincide el numero buscado', () => pm.expect((j.filas||[]).every(p => p.NumeroPedido.indexOf(num) >= 0)).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos?numero={{f2Numero}}&pagina=1&tamano=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos"
+              ],
+              "query": [
+                {
+                  "key": "numero",
+                  "value": "{{f2Numero}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamano",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle del pedido (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('variable f2PedidoId definida', function () {",
+                  "  const _v = pm.collectionVariables.get('f2PedidoId');",
+                  "  pm.expect(_v, 'f2PedidoId vacia').to.not.be.oneOf([undefined, null, '']);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {}; try { j = pm.response.json(); } catch (e) {}",
+                  "pm.test('200 detalle', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('cabecera con estado', () => pm.expect(j.pedido.EstadoCodigo).to.be.a('string'));",
+                  "pm.test('lineas es arreglo', () => pm.expect(j.lineas).to.be.an('array'));",
+                  "pm.test('incluye pago (o null)', () => pm.expect(j).to.have.property('pago'));",
+                  "if (j.lineas && j.lineas[0]) pm.test('linea enriquecida', () => { pm.expect(j.lineas[0]).to.have.property('Categoria'); pm.expect(j.lineas[0]).to.have.property('IDProducto'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2ClienteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/{{f2PedidoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "{{f2PedidoId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resumen con Operador (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 solo Cliente', () => pm.expect(pm.response.code).to.eql(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{f2OperadorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pedidos/resumen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pedidos",
+                "resumen"
+              ]
             }
           }
         }

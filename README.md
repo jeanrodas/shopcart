@@ -204,12 +204,13 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 [`db/README.md`](db/README.md). El orden de ejecucion actual es:
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 [099]
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 [099]
 ```
 
 `012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
 y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
-`NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar). La
+`NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
+`023` (Fase 2) va despues de `018`: agrega SPs de solo lectura para "Mis pedidos" del cliente. La
 tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
@@ -236,6 +237,7 @@ tabla describe cada script en orden numerico de archivo:
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
 | `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: columnas `NombreFactura` y `NITFactura` (snapshot) en `dbo.Pedido` y `CHECK CK_Pedido_NITFactura` (NULL, `CF` o inicia con digito). Idempotente. |
+| `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido del cliente con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, hasta 3 imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos por estado, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -1044,6 +1046,40 @@ Decisiones de esta entrega (Pantalla 4: Checkout de una sola pagina):
   del backend revocaria la cadena). Si una pestana cierra sesion, las demas lo detectan por el
   evento `storage` y van al login; si una escribe un refresh nuevo, una pestana sin sesion la
   restaura. El access token sigue solo en memoria, por pestana.
+
+Decisiones de esta entrega (Pantalla 5: Mis pedidos y Detalle del pedido):
+
+- **Listado enriquecido por el backend** (`SP_Pedidos_ListarCliente`, `023`): la tarjeta de
+  cada pedido trae `CantidadLineas`/`CantidadUnidades`, hasta 3 imagenes (`Img1`/`Img2`/`Img3`)
+  y un `NombresResumen` (`'A, B y N mas'`) construido en SQL con `STRING_AGG`; el filtro por
+  estado viaja como **lista separada por comas** (el chip "En curso" envia
+  `PAGADO,EN_PREPARACION,DESPACHADO`) y se parsea con `STRING_SPLIT`. `GET /pedidos` detecta al
+  Cliente y usa este SP; Operador/Admin conservan `SP_Pedidos_Listar` sin cambios.
+- **Resumen** (`GET /pedidos/resumen`, `SP_Pedidos_ResumenCliente`): conteos por estado,
+  `TotalComprado` (suma de pedidos no cancelados) y el pedido despachado mas reciente con su
+  fecha estimada; alimenta las 4 tarjetas y los contadores de los chips. La ruta se declara
+  **antes** de `/pedidos/:id` para que el parametro no la capture.
+- **Todas las cifras vienen de la API** (Subtotal, Descuento, CostoEnvio, IVA, Total y los
+  montos de linea/reintegro); el front solo formatea en quetzales.
+- **Linea de tiempo real**: los 4 hitos (Pagado -> En preparacion -> Despachado -> Entregado)
+  toman fecha, hora y autor del **historial** del pedido; "por ti" / "por operacion" se deriva
+  comparando el autor con el dueno del pedido. Variantes para **Cancelado** (ultimo hito gris)
+  y **Devuelto** (hito morado extra). La animacion del hito actual respeta
+  `prefers-reduced-motion` (`motion-safe`).
+- **Cancelar desde la lista o el detalle**: modal de confirmacion con motivo **opcional** (la
+  API exige un texto, por eso se envia uno por defecto si se deja vacio); al exito invalida
+  `['pedidos']` (lista, resumen y detalle) y la tarjeta pasa a Cancelado; `409/422` muestran el
+  **mensaje exacto** de la API y refrescan (otro actor pudo cambiar el estado).
+- **Comprar de nuevo**: agrega cada linea del pedido al carrito en secuencia; una linea que
+  falle (`409` existencia, `404/422` variante inactiva) no detiene a las demas y el toast
+  resume cuantas se agregaron.
+- **Detalle (`GET /pedidos/:id`)**: el recordset de detalle de `018` se enriquecio de forma
+  **aditiva** (Categoria, IDProducto, ProductoActivo, ImagenPrincipal por linea) y la respuesta
+  agrega `pago` (metodo, estado y referencia simulados via `SP_Pedidos_PagoCliente`); los
+  consumidores previos no cambian. El enlace al producto solo aparece si sigue activo; un `404`
+  uniforme (pedido inexistente o ajeno) lleva a la pagina de No encontrado.
+- **"Mis pedidos" visible solo para el Cliente** en el encabezado y la barra inferior movil
+  (la ruta ya estaba protegida por rol).
 
 ## Diagrama ER
 

@@ -26,17 +26,44 @@ export const devolucionSchema = z.object({
     .max(50, 'maximo 50 lineas'),
 });
 
+/** Codigos de estado validos para el filtro de listado. */
+export const CODIGOS_ESTADO_PEDIDO = [
+  'PAGADO',
+  'EN_PREPARACION',
+  'DESPACHADO',
+  'ENTREGADO',
+  'CANCELADO',
+  'DEVUELTO',
+] as const;
+
 /** Query de GET /pedidos (filtros opcionales + paginacion). */
 export const listarPedidosQuerySchema = z.object({
+  // estado acepta un codigo o varios separados por coma (p. ej. 'PAGADO,EN_PREPARACION');
+  // el cliente lo usa para el filtro "En curso". Un solo codigo sigue siendo valido.
   estado: z
-    .enum(['PAGADO', 'EN_PREPARACION', 'DESPACHADO', 'ENTREGADO', 'CANCELADO', 'DEVUELTO'])
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .refine(
+      (v) =>
+        v
+          .split(',')
+          .every((c) => (CODIGOS_ESTADO_PEDIDO as readonly string[]).includes(c.trim())),
+      'estado invalido',
+    )
     .optional(),
   idUsuario: z.coerce.number().int().positive().optional(),
   desde: z.string().datetime({ offset: true }).optional(),
   hasta: z.string().datetime({ offset: true }).optional(),
+  // texto: Operador/Admin (NumeroPedido o correo). numero: busqueda del cliente por NumeroPedido.
   texto: z.string().trim().min(1).max(100).optional(),
+  numero: z.string().trim().min(1).max(30).optional(),
+  orden: z.enum(['ASC', 'DESC']).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamanoPagina: z.coerce.number().int().positive().max(100).default(20),
+  // alias del cliente para tamanoPagina; si no viene, se usa tamanoPagina.
+  tamano: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export type CambiarEstadoInput = z.infer<typeof cambiarEstadoSchema>;

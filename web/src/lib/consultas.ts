@@ -23,10 +23,16 @@ import {
 } from '../api/direcciones';
 import * as checkoutApi from '../api/checkout';
 import { obtenerCuponesVigentes } from '../api/cupones';
+import {
+  cancelarPedido,
+  listarPedidos,
+  obtenerPedido,
+  obtenerResumenPedidos,
+} from '../api/pedidos';
 import { obtenerMetadatos } from '../api/sistema';
 import { ErrorApi } from '../api/clienteHttp';
 import { useToast } from '../componentes/ui/Toast';
-import type { BusquedaParams, DireccionInput, PagarBody } from '../api/tipos';
+import type { BusquedaParams, DireccionInput, FiltrosPedidos, PagarBody } from '../api/tipos';
 
 export function useDestacados(limite = 8) {
   return useQuery({ queryKey: claves.catalogo.destacados, queryFn: () => obtenerDestacados(limite) });
@@ -232,4 +238,84 @@ export function usePagar() {
 
 export function useMetadatos() {
   return useQuery({ queryKey: claves.sistema.metadatos, queryFn: obtenerMetadatos, staleTime: Infinity });
+}
+
+/* -------------------------------- Pedidos -------------------------------- */
+
+/** Listado de pedidos del cliente. keepPreviousData: la paginacion/filtros no parpadean. */
+export function usePedidos(filtros: FiltrosPedidos) {
+  return useQuery({
+    queryKey: claves.pedidos.lista(filtros),
+    queryFn: () => listarPedidos(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Resumen de "Mis pedidos" (conteos, total comprado y envio en curso). */
+export function useResumenPedidos() {
+  return useQuery({ queryKey: claves.pedidos.resumen, queryFn: obtenerResumenPedidos });
+}
+
+/** Detalle de un pedido. retry:false para que el 404 (ajeno/inexistente) llegue de una vez. */
+export function usePedido(id: number) {
+  return useQuery({
+    queryKey: claves.pedidos.uno(id),
+    queryFn: () => obtenerPedido(id),
+    enabled: Number.isFinite(id) && id > 0,
+    retry: false,
+  });
+}
+
+/**
+ * Cancela un pedido. Exito: toast + invalida ['pedidos'] (lista, resumen y detalle).
+ * 409/422 (otro actor cambio el estado): muestra el mensaje EXACTO de la API y refetch.
+ */
+export function useCancelarPedido() {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: (v: { id: number; motivo: string }) => cancelarPedido(v.id, v.motivo),
+    onSuccess: () => mostrar('Pedido cancelado', 'exito'),
+    onError: (err) =>
+      mostrar(err instanceof ErrorApi ? err.mensaje : 'No se pudo cancelar el pedido', 'error'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: claves.pedidos.todos });
+    },
+  });
+}
+
+/**
+ * Comprar de nuevo: agrega cada linea al carrito en secuencia. Una linea que falle
+ * (409 existencia, 404/422 variante inactiva) no detiene a las demas. Al terminar,
+ * invalida ['carrito'] y muestra un toast con el resumen y accion "Ver carrito".
+ */
+export function useComprarDeNuevo() {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: async (lineas: { idVariante: number; cantidad: number }[]) => {
+      let agregados = 0;
+      let fallidos = 0;
+      for (const l of lineas) {
+        try {
+          await agregarItem(l);
+          agregados += 1;
+        } catch {
+          fallidos += 1;
+        }
+      }
+      return { agregados, fallidos };
+    },
+    onSuccess: ({ agregados, fallidos }) => {
+      const mensaje =
+        fallidos > 0
+          ? `Se agregaron ${agregados}; ${fallidos} no disponibles`
+          : `${agregados} ${agregados === 1 ? 'producto agregado' : 'productos agregados'} al carrito`;
+      mostrar(mensaje, fallidos > 0 ? 'info' : 'exito', { texto: 'Ver carrito', a: '/carrito' });
+    },
+    onError: () => mostrar('No se pudo agregar al carrito', 'error'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: claves.carrito });
+    },
+  });
 }

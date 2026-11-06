@@ -64,7 +64,9 @@ $orden = @(
     # 022 agrega NombreFactura/NITFactura a dbo.Pedido; 016 y 018 referencian esas
     # columnas, por eso se aplican DESPUES de 022 (mismo motivo por el que 012 va
     # despues de 013). CREATE OR ALTER valida las columnas al compilar el SP.
-    '022_Migracion_PedidoFacturacion', '016_SP_Checkout', '018_SP_Pedidos'
+    '022_Migracion_PedidoFacturacion', '016_SP_Checkout', '018_SP_Pedidos',
+    # 023 (F2): SPs de solo lectura para "Mis pedidos" del cliente. Despues de 018.
+    '023_SP_Pedidos_Cliente'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

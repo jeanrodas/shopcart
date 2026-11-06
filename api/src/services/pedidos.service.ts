@@ -1,6 +1,7 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { invalidarTodo } from '../utils/reportesCache.js';
+import { ROLES } from '../config/roles.js';
 import type { DevolucionInput, ListarPedidosQuery } from '../schemas/pedidos.schema.js';
 
 interface DevolucionRow {
@@ -15,6 +16,13 @@ export interface Pedido {
   lineas: unknown[];
   historial: unknown[];
   devoluciones: Array<Record<string, unknown> & { lineas: unknown[] }>;
+}
+
+interface PaginaPedidos {
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
 }
 
 /** Construye el TVP dbo.TVP_DevolucionLinea a partir de las lineas del body. */
@@ -44,10 +52,33 @@ function ensamblarPedido(recordsets: unknown[][]): Pedido {
   return { pedido, lineas, historial, devoluciones };
 }
 
+/**
+ * Listado de pedidos. El Cliente usa SP_Pedidos_ListarCliente (tarjeta enriquecida:
+ * CantidadLineas/Unidades, hasta 3 imagenes y resumen de nombres, filtro de estado por
+ * lista separada por comas y busqueda por numero). Operador/Admin conservan
+ * SP_Pedidos_Listar sin cambios. La respuesta mantiene la misma forma {filas,total,...}.
+ */
 export async function listar(
   idUsuario: number | null,
   q: ListarPedidosQuery,
-): Promise<{ filas: unknown[]; total: number; pagina: number; tamanoPagina: number }> {
+  rol: string,
+): Promise<PaginaPedidos> {
+  const tamano = q.tamano ?? q.tamanoPagina;
+
+  if (rol === ROLES.Cliente) {
+    const result = await executeSp('SP_Pedidos_ListarCliente', [
+      { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+      { name: 'CodigoEstado', type: sql.NVarChar(200), value: q.estado ?? null },
+      { name: 'Numero', type: sql.NVarChar(30), value: q.numero ?? q.texto ?? null },
+      { name: 'Pagina', type: sql.Int, value: q.pagina },
+      { name: 'Tamano', type: sql.Int, value: tamano },
+      { name: 'Orden', type: sql.NVarChar(4), value: q.orden ?? null },
+    ]);
+    const filas = (result.recordsets[0] ?? []) as unknown[];
+    const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+    return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
+  }
+
   const result = await executeSp('SP_Pedidos_Listar', [
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
     { name: 'CodigoEstado', type: sql.NVarChar(30), value: q.estado ?? null },
@@ -55,20 +86,41 @@ export async function listar(
     { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
     { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
-    { name: 'TamanoPagina', type: sql.Int, value: q.tamanoPagina },
+    { name: 'TamanoPagina', type: sql.Int, value: tamano },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
-  return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+  return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
 }
 
-export async function obtener(idPedido: number, idUsuario: number | null): Promise<Pedido> {
+/** Resumen del cliente para "Mis pedidos": conteos por estado, total comprado y envio en curso. */
+export async function resumen(idUsuario: number): Promise<unknown | null> {
+  const result = await executeSp('SP_Pedidos_ResumenCliente', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  return (result.recordsets[0]?.[0] ?? null) as unknown | null;
+}
+
+export async function obtener(
+  idPedido: number,
+  idUsuario: number | null,
+): Promise<Pedido & { pago: unknown | null }> {
+  // Obtener primero: valida propiedad y lanza 50404 uniforme si el pedido es ajeno.
   const result = await executeSp('SP_Pedidos_Obtener', [
     { name: 'IDPedido', type: sql.Int, value: idPedido },
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
   ]);
-  return ensamblarPedido(result.recordsets as unknown[][]);
+  const pedido = ensamblarPedido(result.recordsets as unknown[][]);
+
+  // Pago simulado (metodo, estado, referencia) para la pantalla de detalle.
+  const pagoRes = await executeSp('SP_Pedidos_PagoCliente', [
+    { name: 'IDPedido', type: sql.Int, value: idPedido },
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  const pago = (pagoRes.recordsets[0]?.[0] ?? null) as unknown | null;
+
+  return { ...pedido, pago };
 }
 
 export async function cambiarEstado(

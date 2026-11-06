@@ -18,13 +18,13 @@ const ESTADOS: Record<CodigoEstado, Config> = {
   PAGADO: { texto: 'Pagado', punto: 'bg-marino-600', clases: 'bg-marino-600/10 text-marino-700' },
   EN_PREPARACION: {
     texto: 'En preparación',
-    punto: 'bg-naranja',
-    clases: 'bg-naranja/10 text-naranja-700',
+    punto: 'bg-ambar',
+    clases: 'bg-ambar/15 text-naranja-700',
   },
-  DESPACHADO: { texto: 'Despachado', punto: 'bg-violet-500', clases: 'bg-violet-500/10 text-violet-700' },
+  DESPACHADO: { texto: 'Despachado', punto: 'bg-dorado', clases: 'bg-marino-700 text-white' },
   ENTREGADO: { texto: 'Entregado', punto: 'bg-exito', clases: 'bg-exito/10 text-exito-texto' },
   CANCELADO: { texto: 'Cancelado', punto: 'bg-apagado', clases: 'bg-apagado/15 text-apagado' },
-  DEVUELTO: { texto: 'Devuelto', punto: 'bg-error', clases: 'bg-error/10 text-error-texto' },
+  DEVUELTO: { texto: 'Devuelto', punto: 'bg-violet-500', clases: 'bg-violet-500/10 text-violet-700' },
 };
 
 interface Props {

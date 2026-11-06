@@ -2,6 +2,14 @@
 
 const fechaCorta = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'long' });
 const fechaConAnio = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'long', year: 'numeric' });
+const fechaLargaHora = new Intl.DateTimeFormat('es-GT', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const horaCorta = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /** "3 de noviembre"; incluye el ano ("3 de noviembre de 2027") si no es del ano en curso. */
 export function formatearFechaCorta(iso: string): string {
@@ -9,6 +17,20 @@ export function formatearFechaCorta(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   const fmt = d.getFullYear() === new Date().getFullYear() ? fechaCorta : fechaConAnio;
   return fmt.format(d);
+}
+
+/** "3 de noviembre de 2026, 14:30" (fecha larga con hora). */
+export function formatearFechaHora(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return fechaLargaHora.format(d);
+}
+
+/** "3 nov, 14:30" (compacta con hora, para los hitos del historial). */
+export function formatearFechaHoraCorta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return horaCorta.format(d);
 }
 
 export interface TiempoRestante {

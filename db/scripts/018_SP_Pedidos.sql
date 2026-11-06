@@ -110,12 +110,29 @@ BEGIN
     LEFT JOIN  dbo.Cupon cup      ON cup.IDCupon = p.IDCupon
     WHERE p.IDPedido = @IDPedido;
 
-    /* 2) Detalle. */
+    /* 2) Detalle. Columnas aditivas para la pantalla de detalle del cliente (F2):
+       IDProducto + ProductoActivo (para enlazar al producto solo si sigue activo),
+       Categoria (nombre del snapshot) e ImagenPrincipal de la linea. SubtotalLinea
+       (PrecioUnitario * Cantidad) se calcula en SQL para que el navegador no haga
+       ninguna multiplicacion de dinero. Las columnas previas se conservan: los
+       consumidores existentes no cambian. */
     SELECT
         pd.IDPedidoDetalle, pd.IDVariante, pd.SKU, pd.NombreProducto,
-        pd.DescripcionVariante, pd.IDCategoria, pd.Cantidad, pd.PrecioUnitario,
-        pd.DescuentoLinea, pd.TotalLinea, pd.CantidadDevuelta
+        pd.DescripcionVariante, pd.IDCategoria, cat.Nombre AS Categoria,
+        pd.Cantidad, pd.PrecioUnitario,
+        pd.DescuentoLinea, pd.TotalLinea, pd.CantidadDevuelta,
+        CAST(pd.PrecioUnitario * pd.Cantidad AS DECIMAL(18,2)) AS SubtotalLinea,
+        v.IDProducto, pr.Activo AS ProductoActivo,
+        img.Url AS ImagenPrincipal
     FROM dbo.PedidoDetalle pd
+    LEFT JOIN dbo.Categoria cat ON cat.IDCategoria = pd.IDCategoria
+    LEFT JOIN dbo.Variante  v   ON v.IDVariante    = pd.IDVariante
+    LEFT JOIN dbo.Producto  pr  ON pr.IDProducto   = v.IDProducto
+    OUTER APPLY (
+        SELECT TOP (1) pi.Url FROM dbo.ProductoImagen pi
+        WHERE pi.IDProducto = v.IDProducto
+        ORDER BY pi.EsPrincipal DESC, pi.Orden ASC, pi.IDProductoImagen ASC
+    ) img
     WHERE pd.IDPedido = @IDPedido
     ORDER BY pd.IDVariante;
 

@@ -314,8 +314,12 @@ export interface ResultadoPago {
 export interface PedidoCabecera {
   IDPedido: number;
   NumeroPedido: string;
+  IDUsuario?: number;
+  ClienteNombre?: string;
+  ClienteCorreo?: string;
   EstadoCodigo: string;
   EstadoNombre: string;
+  IDDireccion: number | null;
   DireccionEntrega: string;
   Subtotal: number;
   Descuento: number;
@@ -324,18 +328,140 @@ export interface PedidoCabecera {
   BaseImponible: number;
   IVA: number;
   PorcentajeIVA: number;
+  IDCupon: number | null;
   CuponCodigo: string | null;
   NombreFactura: string | null;
   NITFactura: string | null;
   FechaCreacion: string;
+  FechaActualizacion: string | null;
+}
+
+/** Linea del detalle de un pedido (GET /pedidos/:id, recordset de detalle). */
+export interface PedidoLineaDetalle {
+  IDPedidoDetalle: number;
+  IDVariante: number;
+  SKU: string;
+  NombreProducto: string;
+  DescripcionVariante: string | null;
+  IDCategoria: number;
+  Categoria: string | null;
+  Cantidad: number;
+  PrecioUnitario: number;
+  DescuentoLinea: number;
+  TotalLinea: number;
+  /** PrecioUnitario * Cantidad (bruto de la linea), calculado en SQL. */
+  SubtotalLinea: number;
+  CantidadDevuelta: number;
+  IDProducto: number | null;
+  ProductoActivo: boolean | null;
+  ImagenPrincipal: string | null;
+}
+
+/** Hito del historial de estados del pedido. */
+export interface HistorialEstado {
+  IDPedidoHistorialEstado: number;
+  EstadoAnteriorCodigo: string | null;
+  EstadoNuevoCodigo: string;
+  EstadoNuevoNombre: string;
+  IDUsuario: number;
+  UsuarioNombre: string;
+  Comentario: string | null;
+  Fecha: string;
+}
+
+/** Linea de una devolucion del pedido. */
+export interface DevolucionLineaPedido {
+  IDDevolucionDetalle: number;
+  IDDevolucion: number;
+  IDPedidoDetalle: number;
+  SKU: string;
+  Cantidad: number;
+  MontoLinea: number;
+}
+
+/** Devolucion del pedido con sus lineas. */
+export interface DevolucionPedido {
+  IDDevolucion: number;
+  Motivo: string;
+  MontoReintegrado: number;
+  Fecha: string;
+  IDUsuario: number;
+  UsuarioNombre: string;
+  lineas: DevolucionLineaPedido[];
+}
+
+/** Pago simulado del pedido (GET /pedidos/:id -> pago). */
+export interface PagoPedido {
+  IDPago: number;
+  MetodoPago: string;
+  Estado: string;
+  Monto: number;
+  Referencia: string;
+  Fecha: string;
 }
 
 /** Respuesta de GET /pedidos/:id. */
 export interface RespuestaPedido {
   pedido: PedidoCabecera;
-  lineas: unknown[];
-  historial: unknown[];
-  devoluciones: unknown[];
+  lineas: PedidoLineaDetalle[];
+  historial: HistorialEstado[];
+  devoluciones: DevolucionPedido[];
+  pago: PagoPedido | null;
+}
+
+/** Fila de GET /pedidos (listado enriquecido del cliente, SP_Pedidos_ListarCliente). */
+export interface PedidoListado {
+  IDPedido: number;
+  NumeroPedido: string;
+  EstadoCodigo: string;
+  EstadoNombre: string;
+  Subtotal: number;
+  Descuento: number;
+  CostoEnvio: number;
+  Total: number;
+  IDCupon: number | null;
+  CuponCodigo: string | null;
+  FechaCreacion: string;
+  FechaActualizacion: string | null;
+  CantidadLineas: number;
+  CantidadUnidades: number;
+  UnidadesDevueltas: number;
+  Img1: string | null;
+  Img2: string | null;
+  Img3: string | null;
+  NombresResumen: string | null;
+}
+
+/** Respuesta de GET /pedidos (pagina). */
+export interface PaginaPedidos {
+  filas: PedidoListado[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
+}
+
+/** Filtros del listado de pedidos del cliente. */
+export interface FiltrosPedidos {
+  estado?: string;
+  numero?: string;
+  orden?: 'ASC' | 'DESC';
+  pagina?: number;
+  tamano?: number;
+}
+
+/** Respuesta de GET /pedidos/resumen (SP_Pedidos_ResumenCliente). */
+export interface ResumenPedidos {
+  Pagado: number;
+  EnPreparacion: number;
+  Despachado: number;
+  Entregado: number;
+  Cancelado: number;
+  Devuelto: number;
+  Total: number;
+  TotalComprado: number;
+  DespachadoNumero: string | null;
+  DespachadoFechaEstimada: string | null;
+  UltimoEntregadoFecha: string | null;
 }
 
 export interface CuponVigente {

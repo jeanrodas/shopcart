@@ -32,27 +32,29 @@ interface ItemNav {
   Icono: (p: { className?: string }) => ReactNode;
 }
 
-const ITEMS: ItemNav[] = [
+const ITEMS: (ItemNav & { soloCliente?: boolean })[] = [
   { a: '/', texto: 'Inicio', Icono: IconoInicio },
   { a: '/catalogo', texto: 'Catálogo', Icono: IconoBuscar },
   { a: '/carrito', texto: 'Carrito', Icono: IconoCarrito },
-  { a: '/mis-pedidos', texto: 'Pedidos', Icono: IconoBolsa },
+  { a: '/mis-pedidos', texto: 'Pedidos', Icono: IconoBolsa, soloCliente: true },
   { a: '/cuenta', texto: 'Cuenta', Icono: IconoUsuario },
 ];
 
 interface Props {
   contadorCarrito?: number;
+  esCliente?: boolean;
 }
 
 /** Barra de navegacion inferior fija (solo movil, < 900 px). */
-export function BarraInferiorMovil({ contadorCarrito = 0 }: Props) {
+export function BarraInferiorMovil({ contadorCarrito = 0, esCliente = false }: Props) {
+  const items = ITEMS.filter((it) => !it.soloCliente || esCliente);
   return (
     <nav
       aria-label="Navegacion principal (movil)"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-borde bg-white/85 backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {ITEMS.map(({ a, texto, Icono }) => (
+        {items.map(({ a, texto, Icono }) => (
           <li key={a} className="flex-1">
             <NavLink
               to={a}

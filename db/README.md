@@ -49,10 +49,12 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 [099]
+001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 [099]
 ```
 
-`012` va **despues** de `013` y `014`: `FU_Carrito_CalcularTotales` (en `012`) referencia
+`023` (Fase 2) va **despues** de `018`: agrega SPs de solo lectura para la pantalla "Mis
+pedidos" del cliente y no altera los de `018`. `012` va **despues** de `013` y `014`:
+`FU_Carrito_CalcularTotales` (en `012`) referencia
 la columna `Carrito.IDCupon` (que agrega `013`) y las funciones de cupon (`014`), y una
 funcion en linea exige que lo referenciado exista al momento de crearse. Por el mismo
 motivo `016` y `018` van **despues** de `022`: sus SPs (`SP_Pedidos_CrearPedido`,
@@ -113,6 +115,7 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas de venta neta y SPs de ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; indice `IX_Devolucion_Pedido_Monto`. |
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda: `SP_Cupones_Vigentes` y `SP_Catalogo_Destacados` (mas vendidos + ofertas). Solo lectura. |
 | `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: `NombreFactura`/`NITFactura` (snapshot) en `dbo.Pedido` con `CHECK CK_Pedido_NITFactura`. Idempotente. |
+| `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. Se aplica despues de `018`. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
 
 ## Convenciones

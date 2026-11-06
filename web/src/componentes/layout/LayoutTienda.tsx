@@ -27,14 +27,15 @@ function enlaceCategoria(categorias: Categoria[] | undefined, nombre: string): E
  * Enlaces del menu. "Lubricantes"/"Accesorios" se resuelven a su idCategoria por
  * nombre; si la categoria no existe (o aun no carga), el enlace no se muestra.
  */
-function construirEnlaces(categorias: Categoria[] | undefined): EnlaceNav[] {
+function construirEnlaces(categorias: Categoria[] | undefined, esCliente: boolean): EnlaceNav[] {
   return [
     { a: '/catalogo', texto: 'Catálogo' },
     { a: '/#ofertas', texto: 'Ofertas', destacar: true },
     ...['Lubricantes', 'Accesorios']
       .map((n) => enlaceCategoria(categorias, n))
       .filter((e): e is EnlaceNav => e !== null),
-    { a: '/mis-pedidos', texto: 'Mis pedidos' },
+    // "Mis pedidos" solo para el Cliente (la ruta esta protegida por rol de todos modos).
+    ...(esCliente ? [{ a: '/mis-pedidos', texto: 'Mis pedidos' }] : []),
   ];
 }
 
@@ -150,11 +151,13 @@ function MenuUsuario() {
 }
 
 export function LayoutTienda() {
+  const { usuario } = useAuth();
   const { data } = useCuponesVigentes();
   const { data: categorias } = useCategorias();
   const { data: carrito } = useCarrito();
   const general = data?.cupones.find((c) => c.IDCategoria === null);
-  const enlacesNav = construirEnlaces(categorias);
+  const esCliente = usuario?.rol === 'Cliente';
+  const enlacesNav = construirEnlaces(categorias, esCliente);
   // Conteo del badge desde la MISMA consulta ['carrito']: suma de las cantidades de las
   // lineas (mismo criterio que la pagina). Sin estado ni consulta paralela.
   const contadorCarrito = (carrito?.lineas ?? []).reduce((n, l) => n + l.Cantidad, 0);
@@ -222,14 +225,7 @@ export function LayoutTienda() {
                 .map((e) => ({ a: e.a, t: e.texto })),
             ]}
           />
-          <ColumnaPie
-            titulo="Cuenta"
-            enlaces={[
-              { a: '/login', t: 'Iniciar sesión' },
-              { a: '/mis-pedidos', t: 'Mis pedidos' },
-              { a: '/cuenta', t: 'Mi cuenta' },
-            ]}
-          />
+          <ColumnaCuenta />
           <ColumnaPie
             titulo="Ayuda"
             enlaces={[
@@ -246,7 +242,57 @@ export function LayoutTienda() {
         </div>
       </footer>
 
-      <BarraInferiorMovil contadorCarrito={contadorCarrito} />
+      <BarraInferiorMovil contadorCarrito={contadorCarrito} esCliente={esCliente} />
+    </div>
+  );
+}
+
+/** Columna "Cuenta" del pie: depende de la sesion y del rol. */
+function ColumnaCuenta() {
+  const { usuario, cerrarSesion } = useAuth();
+  const esCliente = usuario?.rol === 'Cliente';
+  const claseEnlace = 'text-sm text-white/80 hover:text-white';
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-extrabold uppercase tracking-ancho text-dorado">Cuenta</h3>
+      <ul className="flex flex-col gap-2">
+        {usuario ? (
+          <>
+            {esCliente && (
+              <>
+                <li>
+                  <Link to="/cuenta" className={claseEnlace}>
+                    Mi cuenta
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/mis-pedidos" className={claseEnlace}>
+                    Mis pedidos
+                  </Link>
+                </li>
+              </>
+            )}
+            <li>
+              <button type="button" onClick={() => void cerrarSesion()} className={claseEnlace}>
+                Cerrar sesión
+              </button>
+            </li>
+          </>
+        ) : (
+          <>
+            <li>
+              <Link to="/login" className={claseEnlace}>
+                Iniciar sesión
+              </Link>
+            </li>
+            <li>
+              <Link to="/registro" className={claseEnlace}>
+                Crear cuenta
+              </Link>
+            </li>
+          </>
+        )}
+      </ul>
     </div>
   );
 }

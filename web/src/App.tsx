@@ -21,6 +21,8 @@ const Carrito = lazy(() => import('./paginas/Carrito'));
 const Registro = lazy(() => import('./paginas/Registro'));
 const Checkout = lazy(() => import('./paginas/Checkout'));
 const Confirmacion = lazy(() => import('./paginas/Confirmacion'));
+const MisPedidos = lazy(() => import('./paginas/MisPedidos'));
+const PedidoDetalle = lazy(() => import('./paginas/PedidoDetalle'));
 
 export function App() {
   return (
@@ -55,7 +57,7 @@ export function App() {
                     path="/mis-pedidos"
                     element={
                       <RutaProtegida roles={['Cliente']}>
-                        <EnConstruccion titulo="Mis pedidos" />
+                        <MisPedidos />
                       </RutaProtegida>
                     }
                   />
@@ -63,7 +65,7 @@ export function App() {
                     path="/mis-pedidos/:id"
                     element={
                       <RutaProtegida roles={['Cliente']}>
-                        <EnConstruccion titulo="Mi pedido" />
+                        <PedidoDetalle />
                       </RutaProtegida>
                     }
                   />

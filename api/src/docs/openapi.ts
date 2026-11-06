@@ -458,10 +458,16 @@ const pedidoLineaSchema = {
     NombreProducto: { type: 'string', example: 'Aceite sintetico 5W30' },
     DescripcionVariante: { type: 'string', nullable: true, example: 'Presentacion: Galon' },
     IDCategoria: { type: 'integer', example: 4 },
+    Categoria: { type: 'string', nullable: true, example: 'Lubricantes' },
     Cantidad: { type: 'integer', example: 1 },
     PrecioUnitario: { type: 'number', example: 350.0 },
     DescuentoLinea: { type: 'number', example: 50.0 },
     TotalLinea: { type: 'number', example: 300.0 },
+    SubtotalLinea: { type: 'number', example: 350.0, description: 'PrecioUnitario * Cantidad (bruto de la linea, calculado en SQL).' },
+    CantidadDevuelta: { type: 'integer', example: 0 },
+    IDProducto: { type: 'integer', nullable: true, example: 7 },
+    ProductoActivo: { type: 'boolean', nullable: true, example: true, description: 'false si el producto ya no esta activo (el enlace al producto se oculta).' },
+    ImagenPrincipal: { type: 'string', nullable: true, example: 'https://cdn.shopcart.local/img/lub-5w30.webp' },
   },
 };
 
@@ -1927,17 +1933,23 @@ export const openapiDocument = {
         tags: ['Pedidos'],
         summary: 'Listar pedidos',
         description:
-          'Cliente: solo sus pedidos (el filtro de cliente se ignora y se fija con el JWT). ' +
-          'Operador/Administrador: todos, con filtros opcionales por estado, cliente, rango de ' +
-          'fechas y texto (NumeroPedido o correo). Orden por fecha de creacion descendente.',
+          'Cliente: solo sus pedidos, con tarjeta enriquecida (CantidadLineas, CantidadUnidades, ' +
+          'hasta 3 imagenes Img1/Img2/Img3, NombresResumen y CuponCodigo); el filtro de cliente ' +
+          'se ignora y se fija con el JWT. En Cliente, estado admite varios codigos separados por ' +
+          'coma (p. ej. PAGADO,EN_PREPARACION), numero busca por NumeroPedido y orden ordena por ' +
+          'fecha (ASC/DESC, por defecto DESC). Operador/Administrador: todos, con filtros por ' +
+          'estado, cliente, rango de fechas y texto (NumeroPedido o correo).',
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: 'estado', in: 'query', schema: { type: 'string', enum: ['PAGADO', 'EN_PREPARACION', 'DESPACHADO', 'ENTREGADO', 'CANCELADO', 'DEVUELTO'] } },
+          { name: 'estado', in: 'query', schema: { type: 'string' }, description: 'Uno o varios codigos de estado separados por coma.' },
+          { name: 'numero', in: 'query', schema: { type: 'string' }, description: 'Cliente: busca por NumeroPedido (LIKE).' },
+          { name: 'orden', in: 'query', schema: { type: 'string', enum: ['ASC', 'DESC'] }, description: 'Cliente: orden por fecha (por defecto DESC).' },
           { name: 'idUsuario', in: 'query', schema: { type: 'integer' }, description: 'Solo Operador/Admin; en Cliente se ignora.' },
           { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
-          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'NumeroPedido o correo (LIKE).' },
+          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'Operador/Admin: NumeroPedido o correo (LIKE).' },
           { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', maximum: 100 }, description: 'Alias de tamanoPagina.' },
           { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
         ],
         responses: {
@@ -1959,13 +1971,51 @@ export const openapiDocument = {
       },
     },
 
+    '/api/v1/pedidos/resumen': {
+      get: {
+        tags: ['Pedidos'],
+        summary: 'Resumen de "Mis pedidos" (Cliente)',
+        description:
+          'Conteos por estado (Pagado, EnPreparacion, Despachado, Entregado, Cancelado, Devuelto), ' +
+          'TotalComprado (suma de los pedidos no cancelados) y el pedido Despachado mas reciente ' +
+          'con su fecha estimada (DespachadoNumero/DespachadoFechaEstimada) y el ultimo entregado. ' +
+          'Solo Cliente; filtra por su JWT.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Resumen del cliente',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                Pagado: { type: 'integer', example: 1 },
+                EnPreparacion: { type: 'integer', example: 0 },
+                Despachado: { type: 'integer', example: 1 },
+                Entregado: { type: 'integer', example: 2 },
+                Cancelado: { type: 'integer', example: 1 },
+                Devuelto: { type: 'integer', example: 0 },
+                Total: { type: 'integer', example: 5 },
+                TotalComprado: { type: 'number', example: 1540.0 },
+                DespachadoNumero: { type: 'string', nullable: true, example: 'SC-000007' },
+                DespachadoFechaEstimada: { type: 'string', format: 'date-time', nullable: true },
+                UltimoEntregadoFecha: { type: 'string', format: 'date-time', nullable: true },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
     '/api/v1/pedidos/{id}': {
       get: {
         tags: ['Pedidos'],
         summary: 'Obtener un pedido',
         description:
-          'Cabecera, detalle (con CantidadDevuelta), historial de estados y devoluciones con ' +
-          'sus lineas. Cliente: solo el propio (404 uniforme si es ajeno).',
+          'Cabecera, detalle (con Categoria, IDProducto, ProductoActivo, ImagenPrincipal y ' +
+          'CantidadDevuelta por linea), historial de estados, devoluciones con sus lineas y el ' +
+          'pago simulado (metodo, estado, referencia). Cliente: solo el propio (404 uniforme si ' +
+          'es ajeno).',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer', example: 1 } }],
         responses: {
@@ -1978,6 +2028,7 @@ export const openapiDocument = {
                 lineas: { type: 'array', items: { $ref: '#/components/schemas/PedidoLinea' } },
                 historial: { type: 'array', items: { type: 'object' } },
                 devoluciones: { type: 'array', items: { type: 'object' } },
+                pago: { type: 'object', nullable: true, description: 'Pago aprobado del pedido (MetodoPago, Estado, Referencia, Monto, Fecha); null si no hay.' },
               },
             }),
           },
