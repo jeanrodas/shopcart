@@ -6,6 +6,8 @@ import type {
   PaginaAdmin,
   ProductoBody,
   ProductoDetalle,
+  RespuestaResumenInventario,
+  ResumenOperacion,
   VarianteBody,
 } from './tipos';
 
@@ -99,26 +101,21 @@ export function cambiarEstadoCategoria(id: number, activo: boolean): Promise<unk
 
 /* ----------------------- Badges del area interna -------------------------- */
 
-interface Pagina {
-  total: number;
+/**
+ * Pedidos "por preparar" (PAGADO + EN_PREPARACION), fuente unica: el resumen de
+ * operacion (SP_Pedidos_ResumenOperacion). Antes se sumaban dos listados; ahora un solo
+ * SP da el conteo (y lo comparte con la cabecera de /admin/pedidos).
+ */
+export async function contarPedidosOperacion(): Promise<number> {
+  const r = await peticion<ResumenOperacion>('/api/v1/pedidos/resumen-operacion');
+  return r?.PorPreparar ?? 0;
 }
 
 /**
- * Pedidos "en operacion" (PAGADO + EN_PREPARACION). SP_Pedidos_Listar filtra por un
- * estado a la vez, asi que se suman dos conteos (pagina minima: solo interesa el total).
+ * Variantes que requieren atencion en inventario (bajo stock + agotadas), del resumen de
+ * inventario (SP_Inventario_Resumen): misma fuente que el tablero de /admin/inventario.
  */
-export async function contarPedidosOperacion(): Promise<number> {
-  const [a, b] = await Promise.all([
-    peticion<Pagina>('/api/v1/pedidos?estado=PAGADO&pagina=1&tamanoPagina=1'),
-    peticion<Pagina>('/api/v1/pedidos?estado=EN_PREPARACION&pagina=1&tamanoPagina=1'),
-  ]);
-  return (a?.total ?? 0) + (b?.total ?? 0);
-}
-
-/** Variantes en bajo stock (badge rojo de Inventario). */
 export async function contarVariantesBajoStock(): Promise<number> {
-  const r = await peticion<Pagina>(
-    '/api/v1/inventario/existencias?soloBajoStock=true&pagina=1&tamanoPagina=1',
-  );
-  return r?.total ?? 0;
+  const r = await peticion<RespuestaResumenInventario>('/api/v1/inventario/resumen');
+  return (r?.resumen?.VariantesBajoStock ?? 0) + (r?.resumen?.VariantesAgotadas ?? 0);
 }

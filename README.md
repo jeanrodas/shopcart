@@ -204,13 +204,14 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 [`db/README.md`](db/README.md). El orden de ejecucion actual es:
 
 ```
-001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 [099]
+001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 [099]
 ```
 
 `012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
 y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
 `NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
-`023` y `024` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`). La
+`023`, `024` y `026` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
+`026` (operacion del area interna) cierra la lista: solo lee objetos ya creados. La
 tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
@@ -240,7 +241,8 @@ tabla describe cada script en orden numerico de archivo:
 | `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido del cliente con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, hasta 3 imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos por estado, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. |
 | `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna `Usuario.Telefono`; perfil del cliente (`SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil`); cambio de contrasena (`SP_Auth_ObtenerHashPorID` + `SP_Auth_CambiarContrasena`, que revoca toda la cadena de refresh); y `SP_Catalogo_ListarAdmin` (listado de administracion con estado derivado por `CASE`, SKUs via `STRING_AGG`, filtros y conteos). Ademas `009` suma `CantidadProductosTotal` y `021` excluye de destacados los productos sin existencia disponible. |
 | `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna `dbo.Variante.ImagenURL` (imagen propia por variante; `NULL` = usa la del producto). Reordenada **antes** de `010/012/016/018/023/024`, que la referencian. Los SPs de crear/actualizar variante reciben `@ImagenURL` y `@ConservarImagen` (1 por defecto: no toca la imagen, para no romper M2); `ObtenerProducto` devuelve `ImagenURL`; `ListarAdmin` suma `VariantesConImagen`; carrito/pedido/resumen usan `COALESCE(v.ImagenURL, <imagen del producto>)`. |
-| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
+| `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion, existencia/reservado/disponible, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`); `SP_Inventario_Resumen` (KPIs + movimientos de hoy por tipo + inconsistencias + `UmbralBajoStock`/`ReservaMinutos`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura**: `Permitido`/`Motivo`); `SP_Pedidos_ResumenOperacion` (conteos del flujo y antiguedad del PAGADO mas viejo); `SP_Pedidos_ListarOperacion` (estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango y columnas de operacion). Solo lectura/simulacion: el registro real y los cambios de estado siguen en `011`/`018`. Va al final. |
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9); asigna la imagen propia (`/img/productos/<SKU>.jpeg`) a las tres presentaciones del Refrigerante. Se aplica al final. |
 
 ## Decisiones tecnicas
 
@@ -861,7 +863,43 @@ y SPs evaluados en Fase 1.
 - **Imagen propia por variante.** `dbo.Variante.ImagenURL` (migracion `025`, aditiva). En la tienda, al elegir una variante con imagen propia la imagen principal cambia a esa (y aparece como primera miniatura marcada "Variante"); sin imagen propia se usa la del producto. En carrito, checkout y pedidos la linea muestra `COALESCE(imagen de la variante, imagen principal del producto)`, resuelto **en SQL** (el front no calcula nada). `SP_Catalogo_ActualizarVariante` recibe `@ConservarImagen = 1` por defecto para no tocar la columna cuando el cuerpo no trae imagen (compatibilidad con M2); el editor del panel envia `@ConservarImagen = 0`.
 - **Subida de imagenes** (`POST /archivos/imagenes`, solo Administrador, rate limit 20/15 min por usuario). multer en memoria, maximo 2 MB y 1 archivo; el tipo se valida por **firma de bytes** (JPEG `FF D8 FF`, PNG `89 50 4E 47`, WebP `RIFF…WEBP`), nunca por extension ni `Content-Type` (SVG y cualquier otro -> `415`; mayor a 2 MB -> `413`). El archivo se guarda con nombre `randomUUID()` + extension segun la firma en `api/uploads/img/` (creada al arrancar; `api/uploads/` en `.gitignore` con `.gitkeep`); el nombre original nunca se usa. Respuesta `201 { url, bytes, tipo }`.
 - **Servir estaticos** `/uploads` de solo lectura: `Cross-Origin-Resource-Policy: cross-origin` (para que el front en otro origen muestre las imagenes), `Content-Security-Policy: default-src 'none'`, `X-Content-Type-Options: nosniff`, sin listado ni dotfiles y `fallthrough:false` (archivo inexistente -> `404`, intento de salir de la carpeta -> `403`). El front resuelve las URLs con `resolverImagen`: `/uploads/…` se antepone con el origen de la API (`VITE_API_URL`), y `/img/…` o absolutas se dejan igual.
-- **Semillas.** Las imagenes `ADI-REF-{VERDE,ROJO,AZUL}-1GAL.jpeg` no existen en `web/public/img/productos/` (solo `ADI-REF.jpeg`), asi que esas variantes quedan con `ImagenURL = NULL`; se agregaran cuando esten los archivos.
+- **Semillas.** Las tres presentaciones del Refrigerante (`ADI-REF-{VERDE,ROJO,AZUL}-1GAL`) ya traen imagen propia: `099` asigna `ImagenURL = /img/productos/<SKU>.jpeg` y los archivos viven en `web/public/img/productos/` (las subio el admin y se copiaron desde `api/uploads/` al repo; ruta relativa del sitio, no `/uploads/`). El resto de variantes queda con `ImagenURL = NULL` (usa la del producto).
+
+### Fase 2: operacion de inventario y pedidos (F7)
+
+Area interna **`/admin/inventario`** y **`/admin/pedidos`** para Administrador y Operador.
+Ninguna cifra (dinero ni existencias resultantes) se calcula en el navegador: toda viene de
+la API. Backend solo aditivo (migracion `026`, SPs nuevos); el registro real de movimientos
+sigue en `011` y los cambios de estado/devoluciones en `018`, sin cambios de firma.
+
+- **Inventario** (`GET /inventario/admin`, `GET /inventario/resumen`, `POST /inventario/simular`;
+  Operador o Administrador). La tabla lista cada variante (existencia, reservado, disponible,
+  ultimo movimiento, imagen) con chips `bajoStock`/`agotadas`/`conReservas`; los KPIs y los
+  umbrales (`STOCK_MINIMO`, `RESERVA_MINUTOS`) vienen del resumen. El panel "Registrar
+  movimiento" muestra la **vista previa** del resultado ("42 → 66") con `POST /inventario/simular`
+  (solo lectura, misma regla que el registro: un ajuste negativo no puede dejar el disponible
+  < 0 -> `Permitido = false` + `Motivo`); el registro real reutiliza `POST /inventario/entradas`
+  y `/ajustes` de M3. "Verificar consistencia" (solo Administrador; `GET /inventario/consistencia`)
+  audita el invariante `Existencia = Σ kardex`. La tabla ocupa todo el ancho y "Registrar
+  movimiento + Kardex" se abre en un panel deslizante compartido (`PanelLateral`: overlay, Escape,
+  foco atrapado; pantalla completa en movil) al pulsar Entrada/Ajuste/Kardex, "+ Registrar
+  movimiento" (con buscador de variante) o con el deep link `/admin/inventario?variante=<id>`.
+  El boton "Inventario" del catalogo pasa `/admin/inventario?producto=<id>` y la pagina lo usa
+  como filtro con un chip removible "Producto: <nombre>".
+- **Pedidos** (`GET /pedidos` con filtros de operacion, `GET /pedidos/resumen-operacion`;
+  Operador o Administrador). Cinco tarjetas de flujo (Pagados/En preparacion/Despachados/
+  Entregados/Cancelados-Devueltos) filtran la tabla; "Pagados" entra seleccionada por defecto.
+  Con una tarjeta activa la tabla muestra **todo** ese estado sin filtro de fecha (y en los
+  estados terminales —Entregados, Cancelados/Devueltos— se acota a los ultimos 7 dias por ultima
+  actualizacion, el mismo criterio que el conteo de la tarjeta, de modo que numero y tabla
+  coinciden); el chip "Todos" quita la tarjeta y aplica el rango de fechas. El panel avanza el
+  estado (`POST /pedidos/:id/estado`), cancela (`/cancelar`) y registra devoluciones por linea via
+  TVP (`/devoluciones`) -todos de M7, sin cambios-. Un `409` (otro operador movio el pedido)
+  muestra el mensaje exacto de la API y refresca. El detalle completo reutiliza una vista de operacion en
+  `/admin/pedidos/:id`. Los badges del menu lateral ("Pedidos" = Pagado + En preparacion;
+  "Inventario" = bajo stock + agotadas) se unifican a estos resumenes.
+- **Exportar Excel** se **omitio** en Pedidos: la exportacion `.xlsx` de M9 solo cubre ventas,
+  categorias y top-productos, no pedidos (ver "Diferencias" del reporte de F7).
 
 ## Logs
 

@@ -428,6 +428,22 @@
 		{
 			"key": "faUrl",
 			"value": ""
+		},
+		{
+			"key": "foAdminToken",
+			"value": ""
+		},
+		{
+			"key": "foOperToken",
+			"value": ""
+		},
+		{
+			"key": "foClienteToken",
+			"value": ""
+		},
+		{
+			"key": "foVarianteId",
+			"value": ""
 		}
 	],
 	"item": [
@@ -14671,6 +14687,414 @@
 						"method": "GET",
 						"header": [],
 						"url": "{{baseUrl}}/uploads/../package.json"
+					}
+				}
+			]
+		},
+		{
+			"name": "F2 Operacion",
+			"description": "Operacion de inventario y pedidos del area interna (F2, bloque F7). Endpoints nuevos GET /inventario/admin, GET /inventario/resumen, POST /inventario/simular (incluye un ajuste negativo NO permitido: Permitido=false + Motivo), GET /pedidos/resumen-operacion y los filtros de operacion de GET /pedidos (estado como lista separada por comas). Repetible: solo lee y simula (no registra movimientos ni cambia estados).",
+			"item": [
+				{
+					"name": "Setup: Login admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"if(j.accessToken)pm.collectionVariables.set('foAdminToken',j.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"correo\":\"admin@shopcart.local\",\"contrasena\":\"Admin123!\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Setup: Login operador",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"if(j.accessToken)pm.collectionVariables.set('foOperToken',j.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"correo\":\"operador@shopcart.local\",\"contrasena\":\"Operador123!\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Setup: Login cliente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"if(j.accessToken)pm.collectionVariables.set('foClienteToken',j.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"correo\":\"cliente@shopcart.local\",\"contrasena\":\"Cliente123!\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Setup: variante para operacion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"const f=(j.filas||[])[0];",
+									"pm.test('hay al menos una variante',()=>pm.expect(j.filas.length).to.be.above(0));",
+									"if(f){pm.collectionVariables.set(\"foVarianteId\",f.IDVariante);}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/admin?tamano=1"
+					}
+				},
+				{
+					"name": "Listado de inventario (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('trae filas y total',()=>{pm.expect(j).to.have.property('total');pm.expect(j.filas.length).to.be.above(0);});",
+									"pm.test('cada fila trae Disponible, Presentacion e ImagenPrincipal',()=>j.filas.forEach(f=>{pm.expect(f).to.have.property('Disponible');pm.expect(f).to.have.property('Presentacion');pm.expect(f).to.have.property('ImagenPrincipal');}));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/admin?tamano=5"
+					}
+				},
+				{
+					"name": "Filtro bajoStock (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('todas marcadas BajoStock',()=>(j.filas||[]).forEach(f=>pm.expect(f.BajoStock).to.eql(true)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/admin?filtro=bajoStock&tamano=50"
+					}
+				},
+				{
+					"name": "Resumen de inventario (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"const r=j.resumen||{};",
+									"pm.test('KPIs presentes',()=>{['UnidadesDisponibles','UnidadesReservadas','VariantesBajoStock','VariantesAgotadas','MovimientosHoy','Inconsistencias','UmbralBajoStock','ReservaMinutos'].forEach(k=>pm.expect(r).to.have.property(k));});",
+									"pm.test('invariante consistente (Inconsistencias=0)',()=>pm.expect(Number(r.Inconsistencias)).to.eql(0));",
+									"pm.test('movimientosHoy es arreglo',()=>pm.expect(j.movimientosHoy).to.be.an('array'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/resumen"
+					}
+				},
+				{
+					"name": "Simular entrada +24 (Permitido)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('permitido',()=>pm.expect(j.Permitido).to.eql(true));",
+									"pm.test('resultante = actual + 24',()=>pm.expect(Number(j.ExistenciaResultante)).to.eql(Number(j.ExistenciaActual)+24));",
+									"pm.test('sin motivo cuando permitido',()=>pm.expect(j.Motivo==null).to.be.true);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"idVariante\": {{foVarianteId}}, \"tipo\": \"ENTRADA_COMPRA\", \"cantidad\": 24}"
+						},
+						"url": "{{baseUrl}}/api/v1/inventario/simular"
+					}
+				},
+				{
+					"name": "Simular ajuste negativo NO permitido (Permitido=false + Motivo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('no permitido',()=>pm.expect(j.Permitido).to.eql(false));",
+									"pm.test('trae Motivo',()=>pm.expect(j.Motivo).to.be.a('string').and.not.empty);",
+									"pm.test('no registra nada (solo lectura): es una simulacion',()=>pm.expect(j).to.have.property('ExistenciaActual'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"idVariante\": {{foVarianteId}}, \"tipo\": \"AJUSTE_NEGATIVO\", \"cantidad\": 99999}"
+						},
+						"url": "{{baseUrl}}/api/v1/inventario/simular"
+					}
+				},
+				{
+					"name": "Resumen de operacion de pedidos (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('conteos del flujo presentes',()=>['Pagado','EnPreparacion','Despachado','PorPreparar','EntregadoReciente','CanceladosRecientes','DevueltosRecientes'].forEach(k=>pm.expect(j).to.have.property(k)));",
+									"pm.test('PorPreparar = Pagado + EnPreparacion',()=>pm.expect(Number(j.PorPreparar)).to.eql(Number(j.Pagado)+Number(j.EnPreparacion)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/pedidos/resumen-operacion"
+					}
+				},
+				{
+					"name": "Listado de pedidos por operacion, estado como lista (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('solo PAGADO o EN_PREPARACION',()=>(j.filas||[]).forEach(p=>pm.expect(['PAGADO','EN_PREPARACION']).to.include(p.EstadoCodigo)));",
+									"pm.test('columnas de operacion presentes',()=>(j.filas||[]).forEach(p=>{pm.expect(p).to.have.property('IDPedido');pm.expect(p).to.have.property('NombreCliente');pm.expect(p).to.have.property('CantidadLineas');pm.expect(p).to.have.property('MinutosEnEstado');}));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foOperToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/pedidos?estado=PAGADO,EN_PREPARACION&tamanoPagina=5"
+					}
+				},
+				{
+					"name": "Cliente no puede ver el resumen de inventario (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('403',()=>pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{foClienteToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/resumen"
+					}
+				},
+				{
+					"name": "Sin token: listado de inventario admin (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('401',()=>pm.expect(pm.response.code).to.eql(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/inventario/admin"
 					}
 				}
 			]

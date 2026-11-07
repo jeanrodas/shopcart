@@ -32,13 +32,32 @@ import {
 import { obtenerMetadatos } from '../api/sistema';
 import { obtenerPerfil, actualizarPerfil } from '../api/cuenta';
 import { listarProductosAdmin, obtenerProductoAdmin, listarCategoriasAdmin } from '../api/admin';
+import {
+  listarInventarioAdmin,
+  obtenerResumenInventario,
+  listarKardex,
+  verificarConsistencia,
+  registrarEntrada,
+  registrarAjuste,
+} from '../api/inventario';
+import {
+  listarPedidosOperacion,
+  obtenerResumenOperacion,
+  cambiarEstadoPedido,
+  cancelarPedidoOperacion,
+  registrarDevolucion,
+} from '../api/operacion';
 import { ErrorApi } from '../api/clienteHttp';
 import { useToast } from '../componentes/ui/Toast';
 import type {
+  AjusteBody,
   BusquedaParams,
   DireccionInput,
+  EntradaBody,
   FiltrosAdmin,
+  FiltrosInventario,
   FiltrosPedidos,
+  FiltrosPedidosOperacion,
   PagarBody,
   PerfilInput,
 } from '../api/tipos';
@@ -375,4 +394,149 @@ export function useProductoAdmin(id: number | null) {
 /** Categorias (incluye inactivas) para el selector y la administracion de categorias. */
 export function useCategoriasAdmin() {
   return useQuery({ queryKey: claves.admin.categorias, queryFn: () => listarCategoriasAdmin(true) });
+}
+
+/* --------------------------- Operacion: inventario ------------------------ */
+
+/** Tablero de inventario. keepPreviousData: filtros/paginacion sin parpadeo. */
+export function useInventarioAdmin(filtros: FiltrosInventario) {
+  return useQuery({
+    queryKey: claves.inventario.lista(filtros),
+    queryFn: () => listarInventarioAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** KPIs del tablero de inventario. */
+export function useResumenInventario() {
+  return useQuery({
+    queryKey: claves.inventario.resumen,
+    queryFn: obtenerResumenInventario,
+    staleTime: 15_000,
+  });
+}
+
+/** Kardex de una variante (habilitado solo con una variante valida). */
+export function useKardex(idVariante: number | null, pagina = 1, tamanoPagina = 20) {
+  return useQuery({
+    queryKey: [...claves.inventario.kardex(idVariante ?? 0), pagina, tamanoPagina] as const,
+    queryFn: () => listarKardex(idVariante as number, pagina, tamanoPagina),
+    enabled: idVariante !== null && idVariante > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Verifica la consistencia del invariante (solo Administrador). Mutacion: la dispara el
+ * boton y el resultado se muestra en un modal. El 403 de Operador lo maneja el llamador.
+ */
+export function useVerificarConsistencia() {
+  return useMutation({ mutationFn: verificarConsistencia });
+}
+
+/**
+ * Registra un movimiento (entrada o ajuste). Exito: toast + invalida inventario (tabla,
+ * resumen, kardex). Error: muestra el mensaje EXACTO de la API (p. ej. 422 de disponible).
+ */
+export function useRegistrarMovimiento() {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: (v: EntradaBody | AjusteBody) =>
+      'tipo' in v ? registrarAjuste(v) : registrarEntrada(v),
+    onSuccess: (_d, v) =>
+      mostrar('tipo' in v ? 'Ajuste registrado' : 'Entrada registrada', 'exito'),
+    onError: (err) =>
+      mostrar(err instanceof ErrorApi ? err.mensaje : 'No se pudo registrar el movimiento', 'error'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: claves.inventario.todo });
+      // El badge del menu lee el resumen de inventario.
+      void qc.invalidateQueries({ queryKey: ['admin', 'badge', 'inventario'] });
+    },
+  });
+}
+
+/* ---------------------------- Operacion: pedidos -------------------------- */
+
+/** Listado de pedidos de operacion. keepPreviousData para filtros/paginacion. */
+export function usePedidosOperacion(filtros: FiltrosPedidosOperacion) {
+  return useQuery({
+    queryKey: claves.operacion.lista(filtros),
+    queryFn: () => listarPedidosOperacion(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Resumen de operacion de pedidos (cabecera y tarjetas de flujo). */
+export function useResumenOperacion() {
+  return useQuery({
+    queryKey: claves.operacion.resumen,
+    queryFn: obtenerResumenOperacion,
+    staleTime: 15_000,
+  });
+}
+
+/** Detalle de un pedido para operacion (reusa GET /pedidos/:id; sin filtro de cliente). */
+export function usePedidoOperacion(id: number) {
+  return useQuery({
+    queryKey: claves.operacion.uno(id),
+    queryFn: () => obtenerPedido(id),
+    enabled: Number.isFinite(id) && id > 0,
+    retry: false,
+  });
+}
+
+/**
+ * Base de las transiciones de operacion: exito -> toast + invalida operacion (lista,
+ * resumen, detalle) y los badges; 409/422 (otro operador movio el pedido) -> muestra el
+ * mensaje EXACTO de la API y refresca de todos modos.
+ */
+function useAccionOperacion<V>(fn: (v: V) => Promise<unknown>, exito: string, fallback: string) {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => mostrar(exito, 'exito'),
+    onError: (err) => mostrar(err instanceof ErrorApi ? err.mensaje : fallback, 'error'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: claves.operacion.todo });
+      void qc.invalidateQueries({ queryKey: ['admin', 'badge', 'pedidos'] });
+    },
+  });
+}
+
+export function useCambiarEstadoPedido() {
+  return useAccionOperacion(
+    (v: { id: number; estado: 'EN_PREPARACION' | 'DESPACHADO' | 'ENTREGADO'; comentario?: string }) =>
+      cambiarEstadoPedido(v.id, v.estado, v.comentario),
+    'Estado actualizado',
+    'No se pudo cambiar el estado',
+  );
+}
+
+export function useCancelarPedidoOperacion() {
+  return useAccionOperacion(
+    (v: { id: number; motivo: string }) => cancelarPedidoOperacion(v.id, v.motivo),
+    'Pedido cancelado',
+    'No se pudo cancelar el pedido',
+  );
+}
+
+export function useRegistrarDevolucion() {
+  const qc = useQueryClient();
+  const { mostrar } = useToast();
+  return useMutation({
+    mutationFn: (v: { id: number; motivo: string; lineas: { idPedidoDetalle: number; cantidad: number }[] }) =>
+      registrarDevolucion(v.id, v.motivo, v.lineas),
+    onSuccess: (_d, v) => {
+      const n = v.lineas.reduce((s, l) => s + l.cantidad, 0);
+      mostrar(`Devolución registrada · reintegradas ${n} ${n === 1 ? 'unidad' : 'unidades'}`, 'exito');
+    },
+    onError: (err) =>
+      mostrar(err instanceof ErrorApi ? err.mensaje : 'No se pudo registrar la devolución', 'error'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: claves.operacion.todo });
+      void qc.invalidateQueries({ queryKey: ['admin', 'badge', 'pedidos'] });
+    },
+  });
 }

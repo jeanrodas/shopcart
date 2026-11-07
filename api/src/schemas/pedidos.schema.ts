@@ -56,6 +56,9 @@ export const listarPedidosQuerySchema = z.object({
   idUsuario: z.coerce.number().int().positive().optional(),
   desde: z.string().datetime({ offset: true }).optional(),
   hasta: z.string().datetime({ offset: true }).optional(),
+  // recienteDias (Operador/Admin): ventana por ultima actualizacion para estados terminales
+  // (ENTREGADO, CANCELADO, DEVUELTO), para que el listado coincida con las tarjetas del resumen.
+  recienteDias: z.coerce.number().int().min(1).max(365).optional(),
   // texto: Operador/Admin (NumeroPedido o correo). numero: busqueda del cliente por NumeroPedido.
   texto: z.string().trim().min(1).max(100).optional(),
   numero: z.string().trim().min(1).max(30).optional(),

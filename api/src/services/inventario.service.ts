@@ -6,6 +6,8 @@ import type {
   AjusteInput,
   ExistenciasQuery,
   KardexQuery,
+  InventarioAdminQuery,
+  SimularInput,
 } from '../schemas/inventario.schema.js';
 
 // El backend solo envia los parametros expuestos: el SP aplica sus valores por
@@ -81,6 +83,50 @@ export async function listarKardex(
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
   const resumen = result.recordsets[2]?.[0] ?? null;
   return { resumen, filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+}
+
+/**
+ * Listado de operacion por variante (F2). Aditivo: SP nuevo (026), no toca M3.
+ * Recordsets: (1) filas, (2) Total.
+ */
+export async function listarAdmin(q: InventarioAdminQuery): Promise<{
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}> {
+  const result = await executeSp('SP_Inventario_ListarAdmin', [
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'IDCategoria', type: sql.Int, value: q.idCategoria ?? null },
+    { name: 'Filtro', type: sql.NVarChar(20), value: q.filtro ?? null },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'Tamano', type: sql.Int, value: q.tamano },
+    { name: 'IDProducto', type: sql.Int, value: q.idProducto ?? null },
+  ]);
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  return { filas, total, pagina: q.pagina, tamano: q.tamano };
+}
+
+/** KPIs del tablero de inventario (F2). Recordsets: (1) resumen, (2) movimientos de hoy por tipo. */
+export async function resumenInventario(): Promise<{
+  resumen: unknown;
+  movimientosHoy: unknown[];
+}> {
+  const result = await executeSp('SP_Inventario_Resumen', []);
+  const resumen = (result.recordsets[0]?.[0] ?? null) as unknown;
+  const movimientosHoy = (result.recordsets[1] ?? []) as unknown[];
+  return { resumen, movimientosHoy };
+}
+
+/** Vista previa (solo lectura) de un movimiento: Permitido + Motivo (F2). */
+export async function simularMovimiento(datos: SimularInput): Promise<unknown> {
+  const result = await executeSp('SP_Inventario_SimularMovimiento', [
+    { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
+    { name: 'Tipo', type: sql.NVarChar(30), value: datos.tipo },
+    { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
+  ]);
+  return result.recordset[0];
 }
 
 export async function verificarConsistencia(): Promise<{

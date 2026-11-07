@@ -1611,6 +1611,149 @@ export const openapiDocument = {
       },
     },
 
+    '/api/v1/inventario/admin': {
+      get: {
+        tags: ['Inventario'],
+        summary: 'Tablero de inventario por variante (F2, Operador/Administrador)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string', maxLength: 100 } },
+          { name: 'idCategoria', in: 'query', schema: { type: 'integer' } },
+          { name: 'idProducto', in: 'query', description: 'Acota a las variantes de un producto (boton "Inventario" del catalogo).', schema: { type: 'integer' } },
+          { name: 'filtro', in: 'query', schema: { type: 'string', enum: ['bajoStock', 'agotadas', 'conReservas'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de variantes con existencia, ultimo movimiento e imagen',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      IDVariante: { type: 'integer' },
+                      SKU: { type: 'string' },
+                      Producto: { type: 'string' },
+                      Presentacion: { type: 'string', nullable: true },
+                      Categoria: { type: 'string' },
+                      Existencia: { type: 'integer' },
+                      Reservado: { type: 'integer' },
+                      Disponible: { type: 'integer' },
+                      BajoStock: { type: 'boolean' },
+                      UltimoMovimientoFecha: { type: 'string', format: 'date-time', nullable: true },
+                      UltimoMovimientoTipo: { type: 'string', nullable: true },
+                      UltimoMovimientoCantidad: { type: 'integer', nullable: true },
+                      UltimoMovimientoSigno: { type: 'integer', nullable: true },
+                      ImagenURL: { type: 'string', nullable: true },
+                      ImagenPrincipal: { type: 'string', nullable: true },
+                    },
+                  },
+                },
+                total: { type: 'integer', example: 23 },
+                pagina: { type: 'integer', example: 1 },
+                tamano: { type: 'integer', example: 20 },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/resumen': {
+      get: {
+        tags: ['Inventario'],
+        summary: 'KPIs del tablero de inventario (F2, Operador/Administrador)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Indicadores y desglose de movimientos de hoy',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                resumen: {
+                  type: 'object',
+                  properties: {
+                    TotalVariantes: { type: 'integer' },
+                    UnidadesDisponibles: { type: 'integer' },
+                    UnidadesReservadas: { type: 'integer' },
+                    VariantesBajoStock: { type: 'integer' },
+                    VariantesAgotadas: { type: 'integer' },
+                    VariantesConReservas: { type: 'integer' },
+                    MovimientosHoy: { type: 'integer' },
+                    Inconsistencias: { type: 'integer', example: 0 },
+                    UmbralBajoStock: { type: 'integer', example: 5 },
+                    ReservaMinutos: { type: 'integer', example: 15 },
+                  },
+                },
+                movimientosHoy: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      CodigoTipo: { type: 'string' },
+                      NombreTipo: { type: 'string' },
+                      Signo: { type: 'integer' },
+                      Cantidad: { type: 'integer' },
+                    },
+                  },
+                },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/inventario/simular': {
+      post: {
+        tags: ['Inventario'],
+        summary: 'Vista previa de un movimiento (F2, solo lectura; no registra)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          ...jsonBody({
+            type: 'object',
+            required: ['idVariante', 'tipo', 'cantidad'],
+            properties: {
+              idVariante: { type: 'integer', example: 1 },
+              tipo: { type: 'string', enum: ['ENTRADA_COMPRA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO'] },
+              cantidad: { type: 'integer', minimum: 1, example: 24 },
+            },
+          }),
+        },
+        responses: {
+          '200': {
+            description: 'Resultado simulado con Permitido y Motivo',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                ExistenciaActual: { type: 'integer' },
+                Reservado: { type: 'integer' },
+                Disponible: { type: 'integer' },
+                ExistenciaResultante: { type: 'integer' },
+                DisponibleResultante: { type: 'integer' },
+                Permitido: { type: 'boolean' },
+                Motivo: { type: 'string', nullable: true },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
+        },
+      },
+    },
+
     '/api/v1/inventario/variantes/{id}/kardex': {
       get: {
         tags: ['Inventario'],
@@ -2086,8 +2229,11 @@ export const openapiDocument = {
           'hasta 3 imagenes Img1/Img2/Img3, NombresResumen y CuponCodigo); el filtro de cliente ' +
           'se ignora y se fija con el JWT. En Cliente, estado admite varios codigos separados por ' +
           'coma (p. ej. PAGADO,EN_PREPARACION), numero busca por NumeroPedido y orden ordena por ' +
-          'fecha (ASC/DESC, por defecto DESC). Operador/Administrador: todos, con filtros por ' +
-          'estado, cliente, rango de fechas y texto (NumeroPedido o correo).',
+          'fecha (ASC/DESC, por defecto DESC). Operador/Administrador: todos (F2, ' +
+          'SP_Pedidos_ListarOperacion), con filtros por estado (uno o varios codigos ' +
+          'separados por coma), cliente, rango de fechas y texto (NumeroPedido, nombre o ' +
+          'correo), y columnas de apoyo (NombreCliente, ClienteCorreo, Municipio, ' +
+          'Departamento, CantidadLineas, CantidadUnidades, MinutosEnEstado).',
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'estado', in: 'query', schema: { type: 'string' }, description: 'Uno o varios codigos de estado separados por coma.' },
@@ -2097,6 +2243,7 @@ export const openapiDocument = {
           { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'Operador/Admin: NumeroPedido o correo (LIKE).' },
+          { name: 'recienteDias', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 365 }, description: 'Operador/Admin: acota a los pedidos cuya ultima actualizacion cae en los ultimos N dias (estados terminales); hace coincidir la tabla con los conteos del resumen.' },
           { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
           { name: 'tamano', in: 'query', schema: { type: 'integer', maximum: 100 }, description: 'Alias de tamanoPagina.' },
           { name: 'tamanoPagina', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
@@ -2147,6 +2294,39 @@ export const openapiDocument = {
                 DespachadoNumero: { type: 'string', nullable: true, example: 'SC-000007' },
                 DespachadoFechaEstimada: { type: 'string', format: 'date-time', nullable: true },
                 UltimoEntregadoFecha: { type: 'string', format: 'date-time', nullable: true },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/pedidos/resumen-operacion': {
+      get: {
+        tags: ['Pedidos'],
+        summary: 'Resumen de operacion (F2, Operador/Administrador)',
+        description:
+          'Pulso del flujo para el area interna: conteos actuales (Pagado, EnPreparacion, ' +
+          'Despachado), PorPreparar (Pagado + EnPreparacion), EntregadoReciente, ' +
+          'CanceladosRecientes y DevueltosRecientes (ultimos 7 dias por ultima actualizacion) y ' +
+          'PagadoMasAntiguoMinutos.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Resumen de operacion',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                Pagado: { type: 'integer', example: 2 },
+                EnPreparacion: { type: 'integer', example: 2 },
+                Despachado: { type: 'integer', example: 2 },
+                PorPreparar: { type: 'integer', example: 4 },
+                EntregadoReciente: { type: 'integer', example: 3 },
+                CanceladosRecientes: { type: 'integer', example: 1 },
+                DevueltosRecientes: { type: 'integer', example: 0 },
+                PagadoMasAntiguoMinutos: { type: 'integer', nullable: true, example: 180 },
               },
             }),
           },

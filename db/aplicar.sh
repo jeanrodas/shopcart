@@ -70,6 +70,9 @@ ORDEN=(
   023_SP_Pedidos_Cliente
   # 024 (F2): perfil/cambio de contrasena y listado admin del catalogo. Despues de 023.
   024_SP_Fase2_Cuenta
+  # 026 (F2): operacion de inventario y pedidos del area interna. Al final; solo lee
+  # objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
+  026_SP_Fase2_Operacion
 )
 [[ $SEMILLAS -eq 1 ]] && ORDEN+=(099_Semillas)
 

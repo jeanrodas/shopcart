@@ -9,6 +9,7 @@ import * as admin from '../../api/admin';
 import { Boton } from '../../componentes/ui/Boton';
 import { Campo } from '../../componentes/ui/Campo';
 import { CargadorImagen } from '../../componentes/ui/CargadorImagen';
+import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { resolverImagen } from '../../lib/imagenes';
 import { useToast } from '../../componentes/ui/Toast';
@@ -69,35 +70,20 @@ export function PanelProducto({ idProducto, abierto, soloLectura, onCerrar }: Pr
   const { data, isPending, isError, refetch } = useProductoAdmin(abierto ? idProducto : null);
 
   return (
-    <div className={clsx('fixed inset-0 z-50 overflow-hidden', !abierto && 'pointer-events-none')} aria-hidden={!abierto}>
-      <div
-        className={clsx('absolute inset-0 bg-marino-900/50 transition-opacity', abierto ? 'opacity-100' : 'opacity-0')}
-        onClick={onCerrar}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={esNuevo ? 'Nuevo producto' : 'Editar producto'}
-        className={clsx(
-          'absolute right-0 top-0 flex h-full w-full max-w-[560px] flex-col bg-fondo shadow-elevada transition-transform',
-          abierto ? 'translate-x-0' : 'translate-x-full',
-        )}
-      >
-        {abierto &&
-          (esNuevo ? (
-            <Contenido producto={null} soloLectura={soloLectura} onCerrar={onCerrar} />
-          ) : (
-            <EstadoVista
-              cargando={isPending}
-              error={isError}
-              alReintentar={() => void refetch()}
-              esqueleto={<div className="m-6 esqueleto h-96 rounded-20" />}
-            >
-              {data && <Contenido producto={data} soloLectura={soloLectura} onCerrar={onCerrar} />}
-            </EstadoVista>
-          ))}
-      </div>
-    </div>
+    <PanelLateral abierto={abierto} onCerrar={onCerrar} etiqueta={esNuevo ? 'Nuevo producto' : 'Editar producto'}>
+      {esNuevo ? (
+        <Contenido producto={null} soloLectura={soloLectura} onCerrar={onCerrar} />
+      ) : (
+        <EstadoVista
+          cargando={isPending}
+          error={isError}
+          alReintentar={() => void refetch()}
+          esqueleto={<div className="m-6 esqueleto h-96 rounded-20" />}
+        >
+          {data && <Contenido producto={data} soloLectura={soloLectura} onCerrar={onCerrar} />}
+        </EstadoVista>
+      )}
+    </PanelLateral>
   );
 }
 
@@ -118,6 +104,10 @@ function Contenido({
   const [pestana, setPestana] = useState<Pestana>('datos');
   const [guardando, setGuardando] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
+  // Subidas de imagen en vuelo: mientras > 0, "Guardar" se bloquea para no persistir una
+  // variante sin su ImagenURL (la subida es asincrona y puede no haber resuelto al pulsar Guardar).
+  const [subidasEnCurso, setSubidasEnCurso] = useState(0);
+  const reportarSubida = (activo: boolean) => setSubidasEnCurso((n) => Math.max(0, n + (activo ? 1 : -1)));
 
   const [nombre, setNombre] = useState(producto?.producto.Nombre ?? '');
   const [idCategoria, setIdCategoria] = useState<number | ''>(producto?.producto.IDCategoria ?? '');
@@ -315,6 +305,10 @@ function Contenido({
         mostrar('Cambios guardados', 'exito');
       }
       await qc.invalidateQueries({ queryKey: claves.admin.todo });
+      // Crear/activar/editar variantes cambia los conteos de inventario (p. ej. una variante
+      // nueva nace agotada): refresca el tablero y el badge "Inventario" del menu.
+      void qc.invalidateQueries({ queryKey: claves.inventario.todo });
+      void qc.invalidateQueries({ queryKey: ['admin', 'badge', 'inventario'] });
       onCerrar();
     } catch (err) {
       const msg = err instanceof ErrorApi ? err.mensaje : 'No se pudo guardar';
@@ -418,6 +412,7 @@ function Contenido({
                 soloLectura={soloLectura}
                 onCambio={(patch) => parcheVariante(v.key, patch)}
                 onEliminar={() => setVariantes((arr) => arr.filter((x) => x.key !== v.key))}
+                onSubiendoCambio={reportarSubida}
               />
             ))}
             {!soloLectura && (
@@ -489,6 +484,7 @@ function Contenido({
                   <CargadorImagen
                     valor={null}
                     etiqueta="Subir imagen del producto"
+                    onSubiendoCambio={reportarSubida}
                     onCambio={(url) =>
                       url &&
                       setImagenes((arr) => [...arr, { key: nuevaKey(), url, orden: arr.length, esPrincipal: arr.length === 0 }])
@@ -512,8 +508,13 @@ function Contenido({
             Cancelar
           </Boton>
           {!soloLectura && (
-            <Boton type="button" cargando={guardando} onClick={() => void guardar()}>
-              Guardar cambios
+            <Boton
+              type="button"
+              cargando={guardando}
+              disabled={subidasEnCurso > 0}
+              onClick={() => void guardar()}
+            >
+              {subidasEnCurso > 0 ? 'Subiendo imagen…' : 'Guardar cambios'}
             </Boton>
           )}
         </div>
@@ -527,11 +528,13 @@ function FichaVariante({
   soloLectura,
   onCambio,
   onEliminar,
+  onSubiendoCambio,
 }: {
   v: VarForm;
   soloLectura: boolean;
   onCambio: (patch: Partial<VarForm>) => void;
   onEliminar: () => void;
+  onSubiendoCambio: (subiendo: boolean) => void;
 }) {
   const refNombre = useRef<HTMLInputElement>(null);
   const refValor = useRef<HTMLInputElement>(null);
@@ -560,6 +563,7 @@ function FichaVariante({
         <CargadorImagen
           valor={v.imagenURL}
           onCambio={(url) => onCambio({ imagenURL: url })}
+          onSubiendoCambio={onSubiendoCambio}
           soloLectura={soloLectura}
           etiqueta={`Imagen de ${v.sku || 'la variante'}`}
         />

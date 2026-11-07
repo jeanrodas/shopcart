@@ -510,6 +510,8 @@ export interface ProductoAdminFila {
   PrecioMinimo: number | null;
   CantidadVariantes: number;
   CantidadVariantesActivas: number;
+  /** Cuantas variantes del producto tienen imagen propia (ImagenURL). */
+  VariantesConImagen: number;
   DisponibleTotal: number;
   BajoStock: boolean;
   ImagenPrincipal: string | null;
@@ -569,6 +571,208 @@ export interface ImagenSubida {
   url: string;
   bytes: number;
   tipo: string;
+}
+
+/* ----------------------- Fase 2: operacion (F7) --------------------------- */
+
+/** Fila del tablero de inventario (SP_Inventario_ListarAdmin). */
+export interface InventarioFila {
+  IDVariante: number;
+  SKU: string;
+  IDProducto: number;
+  Producto: string;
+  IDCategoria: number;
+  Categoria: string;
+  Precio: number;
+  Activo: boolean;
+  Presentacion: string | null;
+  Existencia: number;
+  Reservado: number;
+  Disponible: number;
+  BajoStock: boolean;
+  UltimoMovimientoFecha: string | null;
+  UltimoMovimientoTipo: string | null;
+  UltimoMovimientoNombre: string | null;
+  UltimoMovimientoCantidad: number | null;
+  UltimoMovimientoSigno: number | null;
+  ImagenURL: string | null;
+  ImagenPrincipal: string | null;
+}
+
+export interface PaginaInventario {
+  filas: InventarioFila[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}
+
+export type FiltroInventario = 'bajoStock' | 'agotadas' | 'conReservas';
+
+export interface FiltrosInventario {
+  texto?: string;
+  idCategoria?: number;
+  idProducto?: number;
+  filtro?: FiltroInventario;
+  pagina: number;
+  tamano: number;
+}
+
+/** KPIs del tablero de inventario (SP_Inventario_Resumen, recordset 1). */
+export interface ResumenInventario {
+  TotalVariantes: number;
+  UnidadesDisponibles: number;
+  UnidadesReservadas: number;
+  VariantesBajoStock: number;
+  VariantesAgotadas: number;
+  VariantesConReservas: number;
+  MovimientosHoy: number;
+  Inconsistencias: number;
+  UmbralBajoStock: number;
+  ReservaMinutos: number;
+}
+
+export interface MovimientoHoy {
+  CodigoTipo: string;
+  NombreTipo: string;
+  Signo: number;
+  Cantidad: number;
+}
+
+export interface RespuestaResumenInventario {
+  resumen: ResumenInventario | null;
+  movimientosHoy: MovimientoHoy[];
+}
+
+/** Tipo de movimiento que el area interna puede registrar/simular. */
+export type TipoMovimiento = 'ENTRADA_COMPRA' | 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO';
+
+export interface SimularInput {
+  idVariante: number;
+  tipo: TipoMovimiento;
+  cantidad: number;
+}
+
+/** Resultado de POST /inventario/simular (solo lectura). */
+export interface SimulacionMovimiento {
+  ExistenciaActual: number;
+  Reservado: number;
+  Disponible: number;
+  ExistenciaResultante: number;
+  DisponibleResultante: number;
+  Permitido: boolean;
+  Motivo: string | null;
+}
+
+/** Fila del kardex de una variante (SP_Inventario_ListarKardex). */
+export interface KardexFila {
+  IDKardex: number;
+  Fecha: string;
+  CodigoTipo: string;
+  NombreTipo: string;
+  Signo: number;
+  Cantidad: number;
+  ExistenciaResultante: number;
+  Motivo: string | null;
+  IDUsuario: number;
+  Usuario: string | null;
+  IDPedido: number | null;
+  NumeroPedido: string | null;
+}
+
+export interface KardexResumen {
+  IDVariante: number;
+  SKU: string;
+  Producto: string;
+  Existencia: number;
+  Reservado: number;
+  Disponible: number;
+}
+
+export interface RespuestaKardex {
+  resumen: KardexResumen | null;
+  filas: KardexFila[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
+}
+
+/** Una variante inconsistente (SP_Inventario_VerificarConsistencia, recordset 1). */
+export interface InconsistenciaInventario {
+  IDVariante: number;
+  SKU: string;
+  Existencia: number;
+  SumaKardex: number;
+  Diferencia: number;
+}
+
+export interface ResultadoConsistencia {
+  inconsistencias: InconsistenciaInventario[];
+  totalVariantes: number;
+  variantesInconsistentes: number;
+  consistente: boolean;
+}
+
+/** Cuerpos de registro de movimiento (mismas reglas que inventario.schema). */
+export interface EntradaBody {
+  idVariante: number;
+  cantidad: number;
+  motivo: string;
+}
+export interface AjusteBody {
+  idVariante: number;
+  tipo: 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO';
+  cantidad: number;
+  motivo: string;
+}
+
+/** Resumen de operacion de pedidos (SP_Pedidos_ResumenOperacion). */
+export interface ResumenOperacion {
+  Pagado: number;
+  EnPreparacion: number;
+  Despachado: number;
+  PorPreparar: number;
+  EntregadoReciente: number;
+  CanceladosRecientes: number;
+  DevueltosRecientes: number;
+  PagadoMasAntiguoMinutos: number | null;
+}
+
+/** Fila del listado de operacion (SP_Pedidos_ListarOperacion). */
+export interface PedidoOperacionFila {
+  IDPedido: number;
+  NumeroPedido: string;
+  IDUsuario: number;
+  NombreCliente: string;
+  ClienteCorreo: string;
+  EstadoCodigo: string;
+  EstadoNombre: string;
+  Total: number;
+  IDDireccion: number | null;
+  Municipio: string | null;
+  Departamento: string | null;
+  FechaCreacion: string;
+  FechaActualizacion: string | null;
+  CantidadLineas: number;
+  CantidadUnidades: number;
+  MinutosEnEstado: number;
+}
+
+export interface PaginaPedidosOperacion {
+  filas: PedidoOperacionFila[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
+}
+
+export interface FiltrosPedidosOperacion {
+  estado?: string;
+  texto?: string;
+  desde?: string;
+  hasta?: string;
+  /** Ventana (dias) por ultima actualizacion para estados terminales; coincide con el resumen. */
+  recienteDias?: number;
+  pagina: number;
+  tamanoPagina: number;
 }
 export interface ImagenBody {
   url: string;

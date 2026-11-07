@@ -49,10 +49,12 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 [099]
+001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 [099]
 ```
 
-`023` y `024` (Fase 2) van **despues** de `018`: agregan SPs sin alterar los de `018`.
+`023`, `024` y `026` (Fase 2) van **despues** de `018`: agregan SPs sin alterar los de `018`.
+`026` cierra la lista (operacion de inventario y pedidos del area interna): solo lee objetos
+ya creados, por eso va al final.
 `024` agrega el perfil del cliente, el cambio de contrasena y el listado de administracion
 del catalogo (ademas de la columna `Usuario.Telefono`). `023` agrega los SPs de solo
 lectura para la pantalla "Mis pedidos" del cliente. `012` va **despues** de `013` y `014`:
@@ -120,7 +122,8 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. Se aplica despues de `018`. |
 | `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna nullable `Usuario.Telefono`; `SP_Usuarios_ObtenerPerfil` y `SP_Usuarios_ActualizarPerfil` (nombre y telefono del propio usuario); `SP_Auth_ObtenerHashPorID` y `SP_Auth_CambiarContrasena` (guarda el hash nuevo y revoca toda la cadena de refresh del usuario); `SP_Catalogo_ListarAdmin` (listado de administracion con SKUs via `STRING_AGG`, estado derivado por `CASE` —publicado/agotado/incompleto/oculto— filtro de estado, `OFFSET/FETCH` y un recordset de conteos). Sin SQL dinamico. Se aplica despues de `023`. Nota: `009` suma la columna aditiva `CantidadProductosTotal` y `021` excluye de destacados los productos con `DisponibleTotal = 0`. |
 | `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna nullable `dbo.Variante.ImagenURL` (una imagen propia por variante; `NULL` = usa la del producto). Se ejecuta **antes** de `010/012/016/018/023/024` porque esos SPs referencian la columna (por eso en el orden del instalador va reordenado tras `008`, como `022` va antes de `016/018`). `SP_Catalogo_CrearVariante`/`ActualizarVariante` reciben `@ImagenURL` (y `@ConservarImagen BIT = 1` por defecto, para que los consumidores de M2 que no la envian no borren nada); `SP_Catalogo_ObtenerProducto` expone `ImagenURL`; `SP_Catalogo_ListarAdmin` agrega `VariantesConImagen`; y donde se expone la imagen de la linea (`012` carrito, `018` pedido, `023` resumen del cliente) se usa `COALESCE(v.ImagenURL, <imagen principal del producto>)` sin cambiar el nombre de la columna. |
-| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
+| `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, bloque F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion via `STRING_AGG`, existencia/reservado/disponible de `VW_Inventario_Disponible`, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`; parametro aditivo `@IDProducto` que acota a un producto —boton "Inventario" del catalogo—); `SP_Inventario_Resumen` (KPIs: disponibles, reservadas, bajo stock, agotadas, movimientos de hoy por tipo, inconsistencias del invariante, `UmbralBajoStock`/`ReservaMinutos` de `Parametro`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura** con la misma regla que `RegistrarMovimiento`: devuelve `Permitido`/`Motivo`; no escribe); `SP_Pedidos_ResumenOperacion` (conteos del flujo, antiguedad del PAGADO mas viejo y `EntregadoReciente`/`CanceladosRecientes`/`DevueltosRecientes` = ultimos 7 dias por ultima actualizacion); y `SP_Pedidos_ListarOperacion` (listado de operacion con estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango, `NombreCliente`/`Municipio`/`CantidadLineas`/`MinutosEnEstado`, y parametro aditivo `@RecienteDias` que acota por ultima actualizacion a N dias para que la tabla coincida con los conteos de los estados terminales del resumen). Solo lee objetos previos, por eso va al final. El registro real y los cambios de estado siguen en `011`/`018` sin cambios. |
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Asigna `Variante.ImagenURL = /img/productos/<SKU>.jpeg` a las tres presentaciones del Refrigerante (verde/rojo/azul). Opcional. |
 
 ## Convenciones
 

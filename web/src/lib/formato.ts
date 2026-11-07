@@ -33,6 +33,33 @@ export function formatearFechaHoraCorta(iso: string): string {
   return horaCorta.format(d);
 }
 
+const soloHora = new Intl.DateTimeFormat('es-GT', { hour: '2-digit', minute: '2-digit' });
+
+/** "Hoy 10:42" / "Ayer 09:15" / "3 nov, 14:30" para el ultimo movimiento del kardex. */
+export function formatearMomento(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const hoy = new Date();
+  const ayer = new Date(hoy);
+  ayer.setDate(hoy.getDate() - 1);
+  const mismoDia = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (mismoDia(d, hoy)) return `Hoy ${soloHora.format(d)}`;
+  if (mismoDia(d, ayer)) return `Ayer ${soloHora.format(d)}`;
+  return formatearFechaHoraCorta(iso);
+}
+
+/** "hace 15 min" / "hace 2 h" / "hace 3 d" a partir de una cantidad de minutos. */
+export function formatearHace(minutos: number | null | undefined): string {
+  if (minutos == null || minutos < 0) return '—';
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return `hace ${dias} d`;
+}
+
 export interface TiempoRestante {
   dias: number;
   horas: number;

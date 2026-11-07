@@ -240,8 +240,8 @@ BEGIN
     /* 1) Pagina (aplica el filtro de estado derivado). */
     SELECT
         IDProducto, Nombre, IDCategoria, Categoria, Activo, CategoriaActiva,
-        PrecioMinimo, CantidadVariantes, CantidadVariantesActivas, DisponibleTotal,
-        BajoStock, ImagenPrincipal, SkusResumen, SkusTotal, EstadoDerivado
+        PrecioMinimo, CantidadVariantes, CantidadVariantesActivas, VariantesConImagen,
+        DisponibleTotal, BajoStock, ImagenPrincipal, SkusResumen, SkusTotal, EstadoDerivado
     FROM #PE
     WHERE (@Estado IS NULL
         OR (@Estado = N'bajoStock' AND EstadoDerivado = N'publicado' AND BajoStock = 1)

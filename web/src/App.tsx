@@ -27,6 +27,9 @@ const PedidoDetalle = lazy(() => import('./paginas/PedidoDetalle'));
 const Cuenta = lazy(() => import('./paginas/Cuenta'));
 const AdminProductos = lazy(() => import('./paginas/admin/AdminProductos'));
 const AdminCategorias = lazy(() => import('./paginas/admin/AdminCategorias'));
+const AdminInventario = lazy(() => import('./paginas/admin/AdminInventario'));
+const AdminPedidos = lazy(() => import('./paginas/admin/AdminPedidos'));
+const PedidoOperacion = lazy(() => import('./paginas/admin/PedidoOperacion'));
 
 export function App() {
   return (
@@ -95,8 +98,9 @@ export function App() {
                   }
                 >
                   <Route index element={<EnConstruccion titulo="Dashboard" />} />
-                  <Route path="pedidos" element={<EnConstruccion titulo="Pedidos" />} />
-                  <Route path="inventario" element={<EnConstruccion titulo="Inventario" />} />
+                  <Route path="pedidos" element={<AdminPedidos />} />
+                  <Route path="pedidos/:id" element={<PedidoOperacion />} />
+                  <Route path="inventario" element={<AdminInventario />} />
                   <Route path="productos" element={<AdminProductos />} />
                   <Route path="categorias" element={<AdminCategorias />} />
                   <Route

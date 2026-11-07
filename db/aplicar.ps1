@@ -72,7 +72,10 @@ $orden = @(
     # 023 (F2): SPs de solo lectura para "Mis pedidos" del cliente. Despues de 018.
     '023_SP_Pedidos_Cliente',
     # 024 (F2): perfil/cambio de contrasena y listado admin del catalogo. Despues de 023.
-    '024_SP_Fase2_Cuenta'
+    '024_SP_Fase2_Cuenta',
+    # 026 (F2): operacion de inventario y pedidos del area interna. Al final; sus SPs solo
+    # leen objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
+    '026_SP_Fase2_Operacion'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

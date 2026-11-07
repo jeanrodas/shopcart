@@ -44,7 +44,33 @@ export const kardexQuerySchema = z
     { message: 'desde no puede ser mayor que hasta', path: ['desde'] },
   );
 
+/**
+ * Query de GET /inventario/admin (F2, operacion). Listado por variante con chips de
+ * filtro; @filtro acota a un subconjunto. Aditivo: no toca /inventario/existencias (M3).
+ */
+export const inventarioAdminQuerySchema = z.object({
+  texto: z.string().trim().min(1).max(100).optional(),
+  idCategoria: z.coerce.number().int().positive().optional(),
+  // idProducto acota el listado a las variantes de un producto (boton "Inventario" de /admin/productos).
+  idProducto: z.coerce.number().int().positive().optional(),
+  filtro: z.enum(['bajoStock', 'agotadas', 'conReservas']).optional(),
+  pagina: z.coerce.number().int().positive().default(1),
+  tamano: z.coerce.number().int().positive().max(100).default(20),
+});
+
+/**
+ * Cuerpo de POST /inventario/simular (F2): vista previa de un movimiento, solo lectura.
+ * Mismos tipos expuestos que una entrada/ajuste; nunca escribe.
+ */
+export const simularSchema = z.object({
+  idVariante: idVarianteSchema,
+  tipo: z.enum(['ENTRADA_COMPRA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']),
+  cantidad: cantidadSchema,
+});
+
 export type EntradaInput = z.infer<typeof entradaSchema>;
 export type AjusteInput = z.infer<typeof ajusteSchema>;
 export type ExistenciasQuery = z.infer<typeof existenciasQuerySchema>;
 export type KardexQuery = z.infer<typeof kardexQuerySchema>;
+export type InventarioAdminQuery = z.infer<typeof inventarioAdminQuerySchema>;
+export type SimularInput = z.infer<typeof simularSchema>;

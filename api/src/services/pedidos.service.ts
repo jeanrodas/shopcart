@@ -79,19 +79,30 @@ export async function listar(
     return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
   }
 
-  const result = await executeSp('SP_Pedidos_Listar', [
-    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
-    { name: 'CodigoEstado', type: sql.NVarChar(30), value: q.estado ?? null },
+  // Operador/Administrador: SP_Pedidos_ListarOperacion (026, F2). Aditivo sobre
+  // SP_Pedidos_Listar (018, intacto): acepta el estado como lista separada por comas,
+  // busca por numero/nombre/correo y agrega columnas de operacion (NombreCliente,
+  // Municipio, CantidadLineas/Unidades, MinutosEnEstado). Conserva IDPedido/EstadoCodigo.
+  const result = await executeSp('SP_Pedidos_ListarOperacion', [
+    { name: 'CodigoEstado', type: sql.NVarChar(200), value: q.estado ?? null },
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
     { name: 'Desde', type: sql.DateTime2(0), value: q.desde ? new Date(q.desde) : null },
     { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
-    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'TamanoPagina', type: sql.Int, value: tamano },
+    { name: 'RecienteDias', type: sql.Int, value: q.recienteDias ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
   return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
+}
+
+/** Resumen de operacion para el area interna: conteos del flujo y antiguedad del PAGADO mas viejo. */
+export async function resumenOperacion(): Promise<unknown | null> {
+  const result = await executeSp('SP_Pedidos_ResumenOperacion', []);
+  return (result.recordsets[0]?.[0] ?? null) as unknown | null;
 }
 
 /** Resumen del cliente para "Mis pedidos": conteos por estado, total comprado y envio en curso. */

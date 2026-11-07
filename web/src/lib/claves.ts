@@ -1,4 +1,10 @@
-import type { BusquedaParams, FiltrosAdmin, FiltrosPedidos } from '../api/tipos';
+import type {
+  BusquedaParams,
+  FiltrosAdmin,
+  FiltrosInventario,
+  FiltrosPedidos,
+  FiltrosPedidosOperacion,
+} from '../api/tipos';
 
 /** Convencion de claves de cache por modulo para TanStack Query. */
 export const claves = {
@@ -35,5 +41,20 @@ export const claves = {
   },
   sistema: {
     metadatos: ['sistema', 'metadatos'] as const,
+  },
+  inventario: {
+    // Raiz para invalidar todo el inventario (tabla + resumen + kardex) tras un movimiento.
+    todo: ['inventario'] as const,
+    lista: (filtros: FiltrosInventario) => ['inventario', 'lista', filtros] as const,
+    resumen: ['inventario', 'resumen'] as const,
+    kardex: (idVariante: number) => ['inventario', 'kardex', idVariante] as const,
+    consistencia: ['inventario', 'consistencia'] as const,
+  },
+  operacion: {
+    // Raiz para invalidar operacion (lista + resumen + detalle) tras una transicion.
+    todo: ['operacion'] as const,
+    lista: (filtros: FiltrosPedidosOperacion) => ['operacion', 'lista', filtros] as const,
+    resumen: ['operacion', 'resumen'] as const,
+    uno: (id: number) => ['operacion', 'pedido', id] as const,
   },
 };

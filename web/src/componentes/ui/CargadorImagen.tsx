@@ -9,6 +9,9 @@ interface Props {
   onCambio: (url: string | null) => void;
   soloLectura?: boolean;
   etiqueta?: string;
+  /** Notifica el inicio (true) y fin (false) de cada subida, para que el formulario pueda
+   *  bloquear "Guardar" mientras una imagen esta en vuelo (evita guardar sin la URL). */
+  onSubiendoCambio?: (subiendo: boolean) => void;
 }
 
 function IconoCamara({ className }: { className?: string }) {
@@ -29,7 +32,7 @@ function IconoCamara({ className }: { className?: string }) {
  * y devuelve la URL al formulario (no se persiste hasta Guardar). Solo Administrador;
  * en modo solo lectura muestra la imagen sin controles.
  */
-export function CargadorImagen({ valor, onCambio, soloLectura = false, etiqueta }: Props) {
+export function CargadorImagen({ valor, onCambio, soloLectura = false, etiqueta, onSubiendoCambio }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export function CargadorImagen({ valor, onCambio, soloLectura = false, etiqueta 
     if (!archivo) return;
     setError(null);
     setSubiendo(true);
+    onSubiendoCambio?.(true);
     try {
       const r = await subirImagen(archivo);
       onCambio(r.url);
@@ -52,6 +56,7 @@ export function CargadorImagen({ valor, onCambio, soloLectura = false, etiqueta 
       );
     } finally {
       setSubiendo(false);
+      onSubiendoCambio?.(false);
     }
   };
 

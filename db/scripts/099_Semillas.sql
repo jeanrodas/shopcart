@@ -205,6 +205,22 @@ WHERE NOT EXISTS (
     WHERE i.IDProducto = p.IDProducto AND i.Url = x.Url);
 GO
 
+/* Imagen propia por variante (F2, columna dbo.Variante.ImagenURL de 025). Las tres
+   presentaciones del Refrigerante de Motor tienen su propio envase: en la tienda, al
+   elegir la variante, la imagen principal cambia a esta; carrito/checkout/pedidos usan
+   la de la variante si existe (COALESCE con la del producto). Los archivos viven en
+   web/public/img/productos/<SKU>.jpeg. Ruta relativa como el resto de imagenes del
+   sitio (no /uploads/, que es para lo que sube el admin). */
+UPDATE v
+   SET v.ImagenURL = x.Url
+FROM dbo.Variante v
+INNER JOIN (VALUES
+    (N'ADI-REF-VERDE-1GAL', N'/img/productos/ADI-REF-VERDE-1GAL.jpeg'),
+    (N'ADI-REF-ROJO-1GAL',  N'/img/productos/ADI-REF-ROJO-1GAL.jpeg'),
+    (N'ADI-REF-AZUL-1GAL',  N'/img/productos/ADI-REF-AZUL-1GAL.jpeg')
+) x(SKU, Url) ON x.SKU = v.SKU;
+GO
+
 /* ============================================================
    M3 - Carga inicial de inventario (RF-03)
    Registra la existencia inicial de cada variante activa que aun no tenga

@@ -31,6 +31,11 @@ export const getResumen: RequestHandler = async (req, res) => {
   res.status(200).json(await pedidosService.resumen(id));
 };
 
+/** Resumen de operacion (Operador/Admin): conteos del flujo para el area interna. */
+export const getResumenOperacion: RequestHandler = async (_req, res) => {
+  res.status(200).json(await pedidosService.resumenOperacion());
+};
+
 export const getPedido: RequestHandler = async (req, res) => {
   const { id, rol } = actor(req);
   const { id: idPedido } = req.params as unknown as { id: number };

@@ -140,6 +140,127 @@ test('admin: imagen por variante — subir, guardar, y la tienda la muestra', as
   await ctx.close();
 });
 
+test('admin: variante NUEVA con imagen — se guarda, se reabre, stock y la tienda la muestra', async ({ page, browser }) => {
+  await entrar(page, 'admin@shopcart.local', 'Admin123!');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto('/admin/productos');
+
+  // Producto con varias variantes (Ambientador). Capturar su IDProducto del enlace "Inventario".
+  await page.getByPlaceholder('Buscar por nombre o SKU…').fill('Ambientador');
+  const fila = page.locator('tbody tr').filter({ hasText: 'Ambientador' }).first();
+  await expect(fila).toBeVisible();
+  const hrefInv = await fila.locator('a[href*="producto="]').first().getAttribute('href');
+  const idProducto = Number(new URL(hrefInv!, 'http://x').searchParams.get('producto'));
+  expect(idProducto).toBeGreaterThan(0);
+
+  const sufijo = Date.now().toString().slice(-6);
+  const sku = `ACC-AMB-NUEVA-${sufijo}`;
+  const aroma = `AromaF7${sufijo}`;
+
+  // Crear la variante nueva: SKU + precio + caracteristica unica + imagen subida desde la ficha.
+  await fila.getByRole('button', { name: 'Editar' }).click();
+  let panel = page.getByRole('dialog');
+  await panel.getByRole('button', { name: /Variantes/ }).click();
+  await panel.getByRole('button', { name: '+ Agregar variante' }).click();
+  const ficha = panel.locator('div[data-sku]').last();
+  await ficha.getByPlaceholder('SKU').fill(sku);
+  await ficha.locator('input[type="number"]').fill('28.00');
+  await ficha.getByPlaceholder('Característica (p. ej. Presentación, Color)').fill('Aroma');
+  await ficha.getByPlaceholder('Opción (p. ej. 1 Galón, Rojo)').fill(aroma);
+  await ficha.getByRole('button', { name: 'Agregar' }).click();
+  await ficha.locator('input[type="file"]').setInputFiles({
+    name: 'oceano.png',
+    mimeType: 'image/png',
+    buffer: pngSolido(64, 20, 90, 180),
+  });
+  await expect(ficha.locator('img')).toHaveAttribute('src', /\/uploads\/img\//, { timeout: 15000 });
+  await panel.getByRole('button', { name: 'Guardar cambios' }).click();
+  await expect(panel).toBeHidden();
+
+  // Reabrir: la variante nueva conserva su imagen propia (persistio en la BD).
+  await fila.getByRole('button', { name: 'Editar' }).click();
+  panel = page.getByRole('dialog');
+  await panel.getByRole('button', { name: /Variantes/ }).click();
+  const fichaReabierta = panel.locator(`div[data-sku="${sku}"]`);
+  await expect(fichaReabierta.locator('img')).toHaveAttribute('src', /\/uploads\/img\//, { timeout: 15000 });
+  await panel.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(panel).toBeHidden();
+
+  // Inventario con deep link ?producto=: el chip acota a las variantes del producto.
+  await page.goto(`/admin/inventario?producto=${idProducto}`);
+  await expect(page.getByRole('button', { name: /Producto:/ })).toBeVisible();
+  const filaInv = page.locator('tbody tr').filter({ hasText: sku });
+  await expect(filaInv).toHaveCount(1);
+
+  // Registrar una entrada de +3 a la variante nueva desde el panel deslizante.
+  await filaInv.getByRole('button', { name: 'Entrada' }).click();
+  const panelInv = page.getByTestId('panel-inventario');
+  await panelInv.locator('textarea').fill('Alta inicial variante F7');
+  await panelInv.getByRole('button', { name: 'Entrada de compra' }).click();
+  await panelInv.getByRole('spinbutton').fill('3');
+  const btnEntrada = panelInv.getByRole('button', { name: 'Registrar entrada' });
+  await expect(btnEntrada).toBeEnabled();
+  await btnEntrada.click();
+  await expect(page.getByText('Entrada registrada')).toBeVisible();
+
+  // Tienda (sin sesion): al elegir la variante nueva, la imagen principal es la suya (/uploads/img/)
+  // y el stock que viene de la API es "Quedan 3 unidades".
+  const ctx = await browser.newContext();
+  const tienda = await ctx.newPage();
+  await tienda.goto(`/producto/${idProducto}`);
+  await tienda.getByRole('button', { name: new RegExp(aroma) }).click();
+  await expect(tienda.locator('img.anim-imagen')).toHaveAttribute('src', /\/uploads\/img\//);
+  await expect(tienda.getByText('Quedan 3 unidades')).toBeVisible();
+  await ctx.close();
+});
+
+test('admin: el badge de Inventario sube al dejar una variante en 0 (sin recargar)', async ({ page }) => {
+  await entrar(page, 'admin@shopcart.local', 'Admin123!');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto('/admin/inventario');
+  await expect(page.getByRole('heading', { name: 'Inventario', level: 1 })).toBeVisible();
+  // Esperar a que el resumen (subtitulo) y la tabla carguen antes de leer el badge/filas.
+  await expect(page.getByText(/variantes ·/)).toBeVisible();
+  await expect(page.locator('tbody tr').first()).toBeVisible();
+
+  const leerBadge = async () => {
+    const b = page.getByTestId('badge-inventario');
+    if ((await b.count()) === 0 || !(await b.isVisible())) return 0;
+    return Number(((await b.textContent()) ?? '0').trim());
+  };
+  const antes = await leerBadge();
+
+  // Buscar una fila "sana" (Disponible pintado como numero verde, sin "· bajo" ni "· agotada")
+  // con existencia > umbral: dejarla en 0 la convierte en agotada y sube el badge en 1.
+  const filas = page.locator('tbody tr');
+  const total = await filas.count();
+  let objetivo = null as ReturnType<typeof filas.nth> | null;
+  let disponible = 0;
+  for (let i = 0; i < total; i++) {
+    const celda = filas.nth(i).locator('td').nth(3);
+    const txt = ((await celda.textContent()) ?? '').trim();
+    if (/^\d+$/.test(txt) && Number(txt) > 5) {
+      objetivo = filas.nth(i);
+      disponible = Number(txt);
+      break;
+    }
+  }
+  expect(objetivo, 'debe existir una variante sana con existencia > 5').not.toBeNull();
+
+  await objetivo!.getByRole('button', { name: 'Ajuste' }).click();
+  const panel = page.getByTestId('panel-inventario');
+  await panel.locator('textarea').fill('Ajuste a cero (prueba badge F7)');
+  await panel.getByRole('button', { name: /Ajuste −/ }).click();
+  await panel.getByRole('spinbutton').fill(String(disponible));
+  const btn = panel.getByRole('button', { name: 'Registrar ajuste' });
+  await expect(btn).toBeEnabled();
+  await btn.click();
+  await expect(page.getByText('Ajuste registrado')).toBeVisible();
+
+  // El badge del menu sube en 1 sin recargar la pagina (invalidacion del resumen).
+  await expect.poll(leerBadge, { timeout: 10000 }).toBe(antes + 1);
+});
+
 test('admin: atributo y precio de variante persisten tras guardar y reabrir', async ({ page }) => {
   await entrar(page, 'admin@shopcart.local', 'Admin123!');
   await expect(page).toHaveURL(/\/admin$/);

@@ -13,6 +13,7 @@ import {
 import {
   getPedidos,
   getResumen,
+  getResumenOperacion,
   getPedido,
   postEstado,
   postCancelar,
@@ -29,8 +30,10 @@ const todos: RequestHandler[] = [authorize(ROLES.Cliente, ROLES.Operador, ROLES.
 const gestion: RequestHandler[] = [authorize(ROLES.Operador, ROLES.Administrador)];
 
 router.get('/', ...todos, validate({ query: listarPedidosQuerySchema }), getPedidos);
-// /resumen ANTES de /:id para que el parametro no lo capture. Solo Cliente (su propio JWT).
+// /resumen y /resumen-operacion ANTES de /:id para que el parametro no los capture.
+// /resumen: solo Cliente (su propio JWT). /resumen-operacion: Operador o Administrador.
 router.get('/resumen', authorize(ROLES.Cliente), getResumen);
+router.get('/resumen-operacion', ...gestion, getResumenOperacion);
 router.get('/:id', ...todos, validate({ params: idParamSchema }), getPedido);
 
 router.post('/:id/estado', ...gestion, validate({ params: idParamSchema, body: cambiarEstadoSchema }), postEstado);

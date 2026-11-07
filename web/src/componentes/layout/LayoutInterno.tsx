@@ -61,10 +61,15 @@ function Badge({ tipo }: { tipo: 'pedidos' | 'inventario' }) {
     queryKey: ['admin', 'badge', tipo],
     queryFn: tipo === 'pedidos' ? contarPedidosOperacion : contarVariantesBajoStock,
     staleTime: 30_000,
+    // Se refresca solo cada 60 s y al volver a la pestana, ademas de las invalidaciones que
+    // disparan los movimientos de inventario y las escrituras de catalogo.
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   if (!data || data <= 0) return null;
   return (
     <span
+      data-testid={`badge-${tipo}`}
       className={clsx(
         'ml-auto grid min-w-5 place-items-center rounded-pill px-1.5 text-[11px] font-extrabold',
         tipo === 'inventario' ? 'bg-error text-white' : 'bg-dorado text-marino-900',
