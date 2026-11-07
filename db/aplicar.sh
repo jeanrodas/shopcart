@@ -56,6 +56,9 @@ DIR="$(cd "$(dirname "$0")/scripts" && pwd)"
 ORDEN=(
   001_CreateDatabase 002_SP_Sistema_Ping 003_Security 004_Catalogos
   005_SP_Auth 006_SP_Usuarios 007_SP_Direcciones 008_VW_Inventario
+  # 025 (F2) agrega dbo.Variante.ImagenURL; va ANTES de 010/012/016/018/023/024, que
+  # referencian la columna (CREATE OR ALTER valida columnas al compilar).
+  025_Migracion_VarianteImagen
   009_SP_Categorias 010_SP_Catalogo 011_SP_Inventario
   013_Migracion_CarritoCupon 014_SP_Cupones 012_SP_Carrito
   015_Catalogo_EstadosPedido 017_Migracion_CarritoTokenUnico

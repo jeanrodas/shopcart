@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import type { ProductoResumen } from '../../api/tipos';
+import { resolverImagen } from '../../lib/imagenes';
 import { formatearQuetzales } from './Precio';
 import { Boton } from './Boton';
 import { IconoBolsa, IconoMas } from '../iconos';
@@ -68,7 +69,7 @@ export function TarjetaProducto({
       >
         {producto.ImagenPrincipal ? (
           <img
-            src={producto.ImagenPrincipal}
+            src={resolverImagen(producto.ImagenPrincipal)}
             alt={producto.Nombre}
             loading="lazy"
             className={clsx(

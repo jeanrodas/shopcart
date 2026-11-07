@@ -4,6 +4,7 @@ import { usePedido, useCancelarPedido, useComprarDeNuevo } from '../lib/consulta
 import { ErrorApi } from '../api/clienteHttp';
 import { accionCancelar } from '../lib/pedidos';
 import { formatearFechaHora } from '../lib/formato';
+import { resolverImagen } from '../lib/imagenes';
 import { Boton } from '../componentes/ui/Boton';
 import { EstadoVista } from '../componentes/ui/EstadoVista';
 import { EtiquetaEstadoPedido } from '../componentes/ui/EtiquetaEstadoPedido';
@@ -342,7 +343,7 @@ function LineaProducto({ linea, reintegro }: { linea: PedidoLineaDetalle; reinte
   return (
     <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
       <img
-        src={linea.ImagenPrincipal ?? ''}
+        src={resolverImagen(linea.ImagenPrincipal)}
         alt=""
         className="h-[72px] w-[72px] shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover"
       />

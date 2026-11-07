@@ -135,6 +135,23 @@ body {
 .anim-pop {
   animation: sc-pop 0.5s ease 1;
 }
+@keyframes sc-opacidad {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Cambio de imagen principal (p. ej. al elegir variante): transicion de opacidad 200 ms. */
+.anim-imagen {
+  animation: sc-opacidad 0.2s ease forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-imagen {
+    animation: none;
+  }
+}
 .toast-entra {
   animation: sc-toast-in 0.22s ease forwards;
 }

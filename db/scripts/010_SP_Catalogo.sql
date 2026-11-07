@@ -164,7 +164,7 @@ BEGIN
     INNER JOIN dbo.Categoria c ON c.IDCategoria = p.IDCategoria
     WHERE p.IDProducto = @IDProducto;
 
-    SELECT v.IDVariante, v.SKU, v.Precio, v.Activo,
+    SELECT v.IDVariante, v.SKU, v.Precio, v.Activo, v.ImagenURL,
            inv.Existencia, inv.Reservado, inv.Disponible
     FROM dbo.Variante v
     INNER JOIN dbo.VW_Inventario_Disponible inv ON inv.IDVariante = v.IDVariante
@@ -341,7 +341,8 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CrearVariante
     @SKU              NVARCHAR(50),
     @Precio           DECIMAL(18,2),
     @Atributos        dbo.TVP_VarianteAtributo READONLY,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    @ImagenURL        NVARCHAR(500) = NULL  -- F2: imagen propia de la variante (NULL = usa la del producto)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -366,8 +367,8 @@ BEGIN
     BEGIN TRY
         BEGIN TRAN;
 
-        INSERT dbo.Variante (IDProducto, SKU, Precio)
-        VALUES (@IDProducto, @SkuNorm, @Precio);
+        INSERT dbo.Variante (IDProducto, SKU, Precio, ImagenURL)
+        VALUES (@IDProducto, @SkuNorm, @Precio, NULLIF(LTRIM(RTRIM(@ImagenURL)), N''));
 
         SET @NuevoID = SCOPE_IDENTITY();
 
@@ -382,7 +383,7 @@ BEGIN
         THROW;
     END CATCH
 
-    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, FechaCreacion
+    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, ImagenURL, FechaCreacion
     FROM dbo.Variante
     WHERE IDVariante = @NuevoID;
 
@@ -407,7 +408,12 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ActualizarVariante
     @SKU              NVARCHAR(50),
     @Precio           DECIMAL(18,2),
     @Atributos        dbo.TVP_VarianteAtributo READONLY,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    -- F2 (aditivo): @ConservarImagen = 1 (default) NO toca ImagenURL, para que los
+    -- consumidores existentes de M2 que no envian imagen no borren nada. El editor de
+    -- variantes envia @ConservarImagen = 0 y, con @ImagenURL NULL, "quita" la imagen.
+    @ConservarImagen  BIT           = 1,
+    @ImagenURL        NVARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -429,6 +435,8 @@ BEGIN
         UPDATE dbo.Variante
            SET SKU = @SkuNorm,
                Precio = @Precio,
+               ImagenURL = CASE WHEN @ConservarImagen = 1 THEN ImagenURL
+                                ELSE NULLIF(LTRIM(RTRIM(@ImagenURL)), N'') END,
                FechaActualizacion = SYSUTCDATETIME()
          WHERE IDVariante = @IDVariante;
 
@@ -445,7 +453,7 @@ BEGIN
         THROW;
     END CATCH
 
-    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, FechaCreacion, FechaActualizacion
+    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, ImagenURL, FechaCreacion, FechaActualizacion
     FROM dbo.Variante
     WHERE IDVariante = @IDVariante;
 

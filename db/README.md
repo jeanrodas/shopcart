@@ -49,7 +49,7 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 [099]
+001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 [099]
 ```
 
 `023` y `024` (Fase 2) van **despues** de `018`: agregan SPs sin alterar los de `018`.
@@ -119,6 +119,7 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: `NombreFactura`/`NITFactura` (snapshot) en `dbo.Pedido` con `CHECK CK_Pedido_NITFactura`. Idempotente. |
 | `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. Se aplica despues de `018`. |
 | `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna nullable `Usuario.Telefono`; `SP_Usuarios_ObtenerPerfil` y `SP_Usuarios_ActualizarPerfil` (nombre y telefono del propio usuario); `SP_Auth_ObtenerHashPorID` y `SP_Auth_CambiarContrasena` (guarda el hash nuevo y revoca toda la cadena de refresh del usuario); `SP_Catalogo_ListarAdmin` (listado de administracion con SKUs via `STRING_AGG`, estado derivado por `CASE` —publicado/agotado/incompleto/oculto— filtro de estado, `OFFSET/FETCH` y un recordset de conteos). Sin SQL dinamico. Se aplica despues de `023`. Nota: `009` suma la columna aditiva `CantidadProductosTotal` y `021` excluye de destacados los productos con `DisponibleTotal = 0`. |
+| `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna nullable `dbo.Variante.ImagenURL` (una imagen propia por variante; `NULL` = usa la del producto). Se ejecuta **antes** de `010/012/016/018/023/024` porque esos SPs referencian la columna (por eso en el orden del instalador va reordenado tras `008`, como `022` va antes de `016/018`). `SP_Catalogo_CrearVariante`/`ActualizarVariante` reciben `@ImagenURL` (y `@ConservarImagen BIT = 1` por defecto, para que los consumidores de M2 que no la envian no borren nada); `SP_Catalogo_ObtenerProducto` expone `ImagenURL`; `SP_Catalogo_ListarAdmin` agrega `VariantesConImagen`; y donde se expone la imagen de la linea (`012` carrito, `018` pedido, `023` resumen del cliente) se usa `COALESCE(v.ImagenURL, <imagen principal del producto>)` sin cambiar el nombre de la columna. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
 
 ## Convenciones

@@ -76,6 +76,18 @@ export const varianteSchema = z.object({
       (arr) => new Set(arr.map((a) => a.nombre.toLowerCase())).size === arr.length,
       'los nombres de atributo deben ser unicos',
     ),
+  // F2: imagen propia de la variante. Ausente = no se toca (ConservarImagen); null = quitar;
+  // ruta "/..." (p. ej. /uploads/img/…) o URL http(s). Acepta lo mismo que imagenSchema.url.
+  imagenURL: z
+    .union([
+      z
+        .string()
+        .trim()
+        .max(500)
+        .refine((v) => /^https?:\/\//i.test(v) || /^\/[^/]/.test(v), 'debe ser una URL http/https o una ruta que empiece con /'),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const imagenSchema = z.object({

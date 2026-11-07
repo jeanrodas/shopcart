@@ -15,6 +15,7 @@ import {
   useResumenCheckout,
 } from '../lib/consultas';
 import { claves } from '../lib/claves';
+import { resolverImagen } from '../lib/imagenes';
 import { ErrorApi } from '../api/clienteHttp';
 import {
   firmaCarrito,
@@ -548,7 +549,7 @@ export default function Checkout() {
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-12 bg-fondo-2">
                         {cl?.ImagenPrincipal ? (
                           <img
-                            src={cl.ImagenPrincipal}
+                            src={resolverImagen(cl.ImagenPrincipal)}
                             alt={cl.Producto}
                             className="h-full w-full object-cover"
                           />

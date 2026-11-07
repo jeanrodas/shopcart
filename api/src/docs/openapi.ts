@@ -1192,6 +1192,48 @@ export const openapiDocument = {
       },
     },
 
+    '/api/v1/archivos/imagenes': {
+      post: {
+        tags: ['Archivos'],
+        summary: 'Subir una imagen (Administrador, F2)',
+        description:
+          'multipart/form-data, campo "archivo" (un solo archivo). Valida el tipo por firma de ' +
+          'bytes (JPEG/PNG/WebP; SVG y otros -> 415), maximo 2 MB (-> 413). Guarda con nombre ' +
+          'aleatorio; responde la URL publica servida en /uploads. Rate limit 20/15min por usuario.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['archivo'],
+                properties: { archivo: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Imagen subida',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                url: { type: 'string', example: '/uploads/img/4e40-….png' },
+                bytes: { type: 'integer', example: 1784 },
+                tipo: { type: 'string', example: 'image/png' },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+          '413': errRef,
+          '415': errRef,
+          '429': errRef,
+        },
+      },
+    },
+
     '/api/v1/productos-admin': {
       get: {
         tags: ['Productos'],

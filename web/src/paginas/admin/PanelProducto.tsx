@@ -8,7 +8,9 @@ import { ErrorApi } from '../../api/clienteHttp';
 import * as admin from '../../api/admin';
 import { Boton } from '../../componentes/ui/Boton';
 import { Campo } from '../../componentes/ui/Campo';
+import { CargadorImagen } from '../../componentes/ui/CargadorImagen';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { resolverImagen } from '../../lib/imagenes';
 import { useToast } from '../../componentes/ui/Toast';
 import { IconoCerrar } from '../../componentes/iconos';
 import type { ProductoDetalle } from '../../api/tipos';
@@ -27,6 +29,7 @@ interface VarForm {
   activo: boolean;
   existencia: number;
   disponible: number;
+  imagenURL: string | null;
   atributos: AttrForm[];
   // Fila de alta pendiente (caracteristica/opcion aun sin pulsar "Agregar").
   pNombre: string;
@@ -131,6 +134,7 @@ function Contenido({
       activo: v.Activo,
       existencia: v.Existencia,
       disponible: v.Disponible,
+      imagenURL: v.ImagenURL,
       atributos: v.atributos.map((a, i) => ({ key: `a${v.IDVariante}-${i}`, nombre: a.Nombre, valor: a.Valor })),
       pNombre: '',
       pValor: '',
@@ -226,7 +230,12 @@ function Contenido({
         });
         for (const v of variantes) {
           try {
-            await admin.crearVariante(IDProducto, { sku: v.sku.trim(), precio: Number(v.precio), atributos: atributosDe(v) });
+            await admin.crearVariante(IDProducto, {
+              sku: v.sku.trim(),
+              precio: Number(v.precio),
+              atributos: atributosDe(v),
+              imagenURL: v.imagenURL,
+            });
           } catch (err) {
             if (manejarErrorVariante(v.key, err)) return;
             throw err;
@@ -256,21 +265,29 @@ function Contenido({
               const cambio =
                 !orig ||
                 Number(orig.Precio) !== Number(v.precio) ||
+                (orig.ImagenURL ?? null) !== (v.imagenURL ?? null) ||
                 JSON.stringify(orig.atributos.map((a) => [a.Nombre, a.Valor])) !==
                   JSON.stringify(atributosDe(v).map((a) => [a.nombre, a.valor]));
               // El SKU de una variante existente no cambia (se envia el original).
+              // Se envia imagenURL siempre (ConservarImagen=0 en la API) para fijar/quitar.
               if (cambio) {
                 await admin.actualizarVariante(v.IDVariante, {
                   sku: orig?.SKU ?? v.sku.trim(),
                   precio: Number(v.precio),
                   atributos: atributosDe(v),
+                  imagenURL: v.imagenURL,
                 });
               }
               if (orig && orig.Activo !== v.activo) {
                 await admin.cambiarEstadoVariante(v.IDVariante, v.activo);
               }
             } else {
-              await admin.crearVariante(idProducto, { sku: v.sku.trim(), precio: Number(v.precio), atributos: atributosDe(v) });
+              await admin.crearVariante(idProducto, {
+                sku: v.sku.trim(),
+                precio: Number(v.precio),
+                atributos: atributosDe(v),
+                imagenURL: v.imagenURL,
+              });
             }
           } catch (err) {
             if (manejarErrorVariante(v.key, err)) return;
@@ -417,6 +434,7 @@ function Contenido({
                       activo: true,
                       existencia: 0,
                       disponible: 0,
+                      imagenURL: null,
                       atributos: [],
                       pNombre: '',
                       pValor: '',
@@ -435,7 +453,7 @@ function Contenido({
           <div className="grid gap-3">
             {imagenes.map((im, i) => (
               <div key={im.key} className="flex items-center gap-3 rounded-16 border border-borde bg-white p-3">
-                <img src={im.url} alt="" className="h-14 w-14 shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover" />
+                <img src={resolverImagen(im.url)} alt="" className="h-14 w-14 shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs text-apagado">{im.url}</p>
                   <label className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-marino-700">
@@ -461,11 +479,24 @@ function Contenido({
               </div>
             ))}
             {!soloLectura && (
-              <AgregarImagen
-                onAgregar={(url) =>
-                  setImagenes((arr) => [...arr, { key: nuevaKey(), url, orden: arr.length, esPrincipal: arr.length === 0 }])
-                }
-              />
+              <div className="flex flex-col gap-3 rounded-16 border border-dashed border-marino-600/40 p-3">
+                <AgregarImagen
+                  onAgregar={(url) =>
+                    setImagenes((arr) => [...arr, { key: nuevaKey(), url, orden: arr.length, esPrincipal: arr.length === 0 }])
+                  }
+                />
+                <div className="flex items-center gap-3">
+                  <CargadorImagen
+                    valor={null}
+                    etiqueta="Subir imagen del producto"
+                    onCambio={(url) =>
+                      url &&
+                      setImagenes((arr) => [...arr, { key: nuevaKey(), url, orden: arr.length, esPrincipal: arr.length === 0 }])
+                    }
+                  />
+                  <p className="text-xs text-apagado">Subir imagen (JPG, PNG o WebP, hasta 2 MB) y agregarla a la lista.</p>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -524,33 +555,41 @@ function FichaVariante({
 
   return (
     <div className="rounded-16 border border-borde bg-white p-4" data-sku={v.sku}>
-      {/* Cabecera: SKU + A la venta (sin miniatura) */}
-      <div className="flex items-center gap-3">
+      {/* Cabecera: imagen propia + SKU + A la venta */}
+      <div className="flex items-start gap-3">
+        <CargadorImagen
+          valor={v.imagenURL}
+          onCambio={(url) => onCambio({ imagenURL: url })}
+          soloLectura={soloLectura}
+          etiqueta={`Imagen de ${v.sku || 'la variante'}`}
+        />
         <div className="min-w-0 flex-1">
-          <input
-            value={v.sku}
-            readOnly={!v.esNueva || soloLectura}
-            disabled={soloLectura}
-            title={!v.esNueva ? 'El SKU no cambia una vez creado' : undefined}
-            onChange={(e) => v.esNueva && onCambio({ sku: e.target.value.slice(0, 50), errorSku: undefined })}
-            placeholder="SKU"
-            className={clsx(
-              'w-44 rounded-12 border px-2.5 py-1.5 font-mono text-sm outline-none',
-              v.errorSku ? 'border-error' : 'border-[rgba(15,23,42,.14)] focus:border-marino-600',
-              !v.esNueva || soloLectura ? 'bg-fondo-2 text-apagado' : 'bg-white',
+          <div className="flex items-center gap-3">
+            <input
+              value={v.sku}
+              readOnly={!v.esNueva || soloLectura}
+              disabled={soloLectura}
+              title={!v.esNueva ? 'El SKU no cambia una vez creado' : undefined}
+              onChange={(e) => v.esNueva && onCambio({ sku: e.target.value.slice(0, 50), errorSku: undefined })}
+              placeholder="SKU"
+              className={clsx(
+                'w-40 rounded-12 border px-2.5 py-1.5 font-mono text-sm outline-none',
+                v.errorSku ? 'border-error' : 'border-[rgba(15,23,42,.14)] focus:border-marino-600',
+                !v.esNueva || soloLectura ? 'bg-fondo-2 text-apagado' : 'bg-white',
+              )}
+            />
+            <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-marino-900">
+              <input type="checkbox" checked={v.activo} disabled={soloLectura} onChange={(e) => onCambio({ activo: e.target.checked })} />
+              A la venta
+            </label>
+            {!soloLectura && v.esNueva && (
+              <button type="button" onClick={onEliminar} aria-label="Quitar variante" className="ml-auto text-apagado hover:text-error-texto">
+                <IconoCerrar className="h-4 w-4" />
+              </button>
             )}
-          />
+          </div>
           {v.errorSku && <p className="mt-1 text-xs font-medium text-error-texto">{v.errorSku}</p>}
         </div>
-        <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-marino-900">
-          <input type="checkbox" checked={v.activo} disabled={soloLectura} onChange={(e) => onCambio({ activo: e.target.checked })} />
-          A la venta
-        </label>
-        {!soloLectura && v.esNueva && (
-          <button type="button" onClick={onEliminar} aria-label="Quitar variante" className="text-apagado hover:text-error-texto">
-            <IconoCerrar className="h-4 w-4" />
-          </button>
-        )}
       </div>
 
       {/* Cuerpo: precio + existencia */}

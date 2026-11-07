@@ -10,6 +10,7 @@ import {
   useVaciarCarrito,
 } from '../lib/consultas';
 import { ErrorApi } from '../api/clienteHttp';
+import { resolverImagen } from '../lib/imagenes';
 import { Boton } from '../componentes/ui/Boton';
 import { Modal } from '../componentes/ui/Modal';
 import { EstadoVista } from '../componentes/ui/EstadoVista';
@@ -326,7 +327,7 @@ function FilaCarrito({ linea }: { linea: LineaCarrito }) {
       >
         {linea.ImagenPrincipal ? (
           <img
-            src={linea.ImagenPrincipal}
+            src={resolverImagen(linea.ImagenPrincipal)}
             alt={linea.Producto}
             loading="lazy"
             className={inactiva ? 'h-full w-full object-cover opacity-60 grayscale' : 'h-full w-full object-cover'}

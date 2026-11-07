@@ -5,6 +5,7 @@ import { EtiquetaEstadoPedido } from '../../componentes/ui/EtiquetaEstadoPedido'
 import { Precio, formatearQuetzales } from '../../componentes/ui/Precio';
 import { formatearFechaCorta } from '../../lib/formato';
 import { PASOS_PEDIDO, accionCancelar, enCurso, indicePaso } from '../../lib/pedidos';
+import { resolverImagen } from '../../lib/imagenes';
 import type { PedidoListado } from '../../api/tipos';
 
 /** Mini linea de progreso de 4 pasos; el actual en naranja, los previos en degradado ambar. */
@@ -46,7 +47,7 @@ function Miniaturas({ urls }: { urls: (string | null)[] }) {
       {imgs.map((url, i) => (
         <img
           key={i}
-          src={url}
+          src={resolverImagen(url)}
           alt=""
           className={clsx(
             'h-11 w-11 rounded-12 border-2 border-white bg-fondo-2 object-cover shadow-suave',

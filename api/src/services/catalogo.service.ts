@@ -232,6 +232,7 @@ export async function crearVariante(
     { name: 'Precio', type: sql.Decimal(18, 2), value: datos.precio },
     { name: 'Atributos', value: tvpAtributos(datos.atributos) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+    { name: 'ImagenURL', type: sql.NVarChar(500), value: datos.imagenURL ?? null },
   ]);
   return { variante: result.recordsets[0]?.[0] ?? null, atributos: result.recordsets[1] ?? [] };
 }
@@ -247,6 +248,9 @@ export async function actualizarVariante(
     { name: 'Precio', type: sql.Decimal(18, 2), value: datos.precio },
     { name: 'Atributos', value: tvpAtributos(datos.atributos) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+    // Si el body no trae imagenURL (consumidores de M2), ConservarImagen=1 no toca la columna.
+    { name: 'ConservarImagen', type: sql.Bit, value: datos.imagenURL === undefined },
+    { name: 'ImagenURL', type: sql.NVarChar(500), value: datos.imagenURL ?? null },
   ]);
   // El precio/atributos de la variante pueden afectar reportes: invalida el cache.
   invalidarTodo();

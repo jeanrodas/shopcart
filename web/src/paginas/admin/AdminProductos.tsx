@@ -6,6 +6,7 @@ import { useCategoriasAdmin, useProductosAdmin } from '../../lib/consultas';
 import { Boton } from '../../componentes/ui/Boton';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { Precio } from '../../componentes/ui/Precio';
+import { resolverImagen } from '../../lib/imagenes';
 import { Paginacion } from '../catalogo/Paginacion';
 import { PanelProducto } from './PanelProducto';
 import type { ConteosCatalogo, EstadoDerivado, FiltrosAdmin, ProductoAdminFila } from '../../api/tipos';
@@ -225,7 +226,7 @@ function Fila({ p, onEditar }: { p: ProductoAdminFila; onEditar: () => void }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <img
-            src={p.ImagenPrincipal ?? ''}
+            src={resolverImagen(p.ImagenPrincipal)}
             alt=""
             className="h-[46px] w-[46px] shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover"
           />
@@ -282,7 +283,7 @@ function TarjetaMovil({ p, onEditar }: { p: ProductoAdminFila; onEditar: () => v
     <article className={clsx('rounded-20 border border-borde bg-white p-4 shadow-suave', oculto && 'opacity-60')}>
       <div className="flex gap-3">
         <img
-          src={p.ImagenPrincipal ?? ''}
+          src={resolverImagen(p.ImagenPrincipal)}
           alt=""
           className="h-14 w-14 shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover"
         />

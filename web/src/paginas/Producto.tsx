@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
+import { resolverImagen } from '../lib/imagenes';
 import {
   useAgregarAlCarrito,
   useBuscarProductos,
@@ -87,7 +88,7 @@ export default function Producto() {
 
   const producto = data?.producto;
   const variantes = (data?.variantes ?? []).filter((v) => v.Activo);
-  const imagenes = data?.imagenes ?? [];
+  const imagenes = useMemo(() => data?.imagenes ?? [], [data]);
 
   // Seleccion inicial de variante: ?variante=SKU, o la primera disponible, o la primera.
   useEffect(() => {
@@ -110,6 +111,25 @@ export default function Producto() {
   }, [producto]);
 
   const seleccionada = variantes.find((v) => v.SKU === skuSel) ?? null;
+
+  // Galeria: si la variante tiene imagen propia, va primera y marcada "Variante"; luego
+  // las imagenes del producto. Al cambiar de variante se vuelve a la primera (efecto abajo).
+  const galeria = useMemo(() => {
+    const items: { clave: string; url: string; esVariante: boolean }[] = [];
+    if (seleccionada?.ImagenURL) {
+      items.push({ clave: `var-${seleccionada.SKU}`, url: seleccionada.ImagenURL, esVariante: true });
+    }
+    for (const img of imagenes) {
+      items.push({ clave: `img-${img.IDProductoImagen}`, url: img.Url, esVariante: false });
+    }
+    return items;
+  }, [seleccionada?.ImagenURL, seleccionada?.SKU, imagenes]);
+
+  // Al cambiar la variante seleccionada, mostrar la primera imagen de la galeria (la de la
+  // variante si tiene, o la principal del producto si no).
+  useEffect(() => {
+    setImagenSel(0);
+  }, [skuSel]);
 
   // La cantidad se mantiene dentro de 1..min(Disponible, 1000) al cambiar de variante.
   const topeCantidad = seleccionada ? Math.min(seleccionada.Disponible, MAX_CANTIDAD) : 1;
@@ -177,11 +197,12 @@ export default function Producto() {
               {/* Columna izquierda: imagenes */}
               <div>
                 <div className="relative aspect-square overflow-hidden rounded-[24px] bg-fondo-2 shadow-elevada">
-                  {imagenes.length > 0 ? (
+                  {galeria.length > 0 ? (
                     <img
-                      src={imagenes[imagenSel]?.Url}
+                      key={galeria[imagenSel]?.clave ?? 'base'}
+                      src={resolverImagen(galeria[imagenSel]?.url)}
                       alt={producto.Nombre}
-                      className="h-full w-full object-cover"
+                      className="anim-imagen h-full w-full object-cover"
                     />
                   ) : (
                     <div className="grid h-full w-full place-items-center bg-degradado-marino text-white/40">
@@ -202,20 +223,25 @@ export default function Producto() {
                   </div>
                 </div>
 
-                {imagenes.length > 1 && (
+                {galeria.length > 1 && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {imagenes.map((img, i) => (
+                    {galeria.map((img, i) => (
                       <button
-                        key={img.IDProductoImagen}
+                        key={img.clave}
                         type="button"
                         onClick={() => setImagenSel(i)}
-                        aria-label={`Imagen ${i + 1}`}
+                        aria-label={img.esVariante ? 'Imagen de la variante' : `Imagen ${i + 1}`}
                         className={clsx(
-                          'h-[84px] w-[84px] overflow-hidden rounded-16 border-2',
+                          'relative h-[84px] w-[84px] overflow-hidden rounded-16 border-2',
                           i === imagenSel ? 'border-naranja' : 'border-transparent',
                         )}
                       >
-                        <img src={img.Url} alt="" className="h-full w-full object-cover" />
+                        <img src={resolverImagen(img.url)} alt="" className="h-full w-full object-cover" />
+                        {img.esVariante && (
+                          <span className="absolute inset-x-0 bottom-0 bg-marino-900/80 py-0.5 text-center text-[9px] font-bold uppercase tracking-ancho text-dorado">
+                            Variante
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

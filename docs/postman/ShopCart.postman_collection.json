@@ -416,6 +416,18 @@
 		{
 			"key": "f6C3Refresh",
 			"value": ""
+		},
+		{
+			"key": "faAdminToken",
+			"value": ""
+		},
+		{
+			"key": "faOperToken",
+			"value": ""
+		},
+		{
+			"key": "faUrl",
+			"value": ""
 		}
 	],
 	"item": [
@@ -14296,6 +14308,369 @@
 								"productos-admin"
 							]
 						}
+					}
+				}
+			]
+		},
+		{
+			"name": "F2 Archivos",
+			"item": [
+				{
+					"name": "Setup: Login admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"if(j.accessToken)pm.collectionVariables.set('faAdminToken',j.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"correo\": \"admin@shopcart.local\", \"contrasena\": \"Admin123!\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Setup: Login operador",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"if(j.accessToken)pm.collectionVariables.set('faOperToken',j.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"correo\": \"operador@shopcart.local\", \"contrasena\": \"Operador123!\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Subida PNG valida (201)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('201',()=>pm.expect(pm.response.code).to.eql(201));",
+									"pm.test('url en /uploads/img',()=>pm.expect(j.url).to.match(/^\\/uploads\\/img\\//));",
+									"pm.test('tipo image',()=>pm.expect(j.tipo).to.match(/^image\\//));",
+									"if(j.url)pm.collectionVariables.set('faUrl',j.url);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{faAdminToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "archivo",
+									"type": "file",
+									"src": "valid.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/archivos/imagenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archivos",
+								"imagenes"
+							]
+						}
+					}
+				},
+				{
+					"name": "SVG rechazado (415)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('415',()=>pm.expect(pm.response.code).to.eql(415));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{faAdminToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "archivo",
+									"type": "file",
+									"src": "evil.svg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/archivos/imagenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archivos",
+								"imagenes"
+							]
+						}
+					}
+				},
+				{
+					"name": "PNG renombrado a .jpg, valido por firma (201)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('201',()=>pm.expect(pm.response.code).to.eql(201));",
+									"pm.test('tipo image/png por firma',()=>pm.expect(j.tipo).to.eql('image/png'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{faAdminToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "archivo",
+									"type": "file",
+									"src": "fake.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/archivos/imagenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archivos",
+								"imagenes"
+							]
+						}
+					}
+				},
+				{
+					"name": "Archivo 3 MB (413)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('413',()=>pm.expect(pm.response.code).to.eql(413));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{faAdminToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "archivo",
+									"type": "file",
+									"src": "big.bin"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/archivos/imagenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archivos",
+								"imagenes"
+							]
+						}
+					}
+				},
+				{
+					"name": "Operador no puede subir (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('403',()=>pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{faOperToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "archivo",
+									"type": "file",
+									"src": "valid.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/archivos/imagenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archivos",
+								"imagenes"
+							]
+						}
+					}
+				},
+				{
+					"name": "GET del archivo subido (200 image/*)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('200',()=>pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('content-type image',()=>pm.expect(pm.response.headers.get('Content-Type')).to.match(/^image\\//));",
+									"pm.test('CORP cross-origin',()=>pm.expect(pm.response.headers.get('Cross-Origin-Resource-Policy')).to.eql('cross-origin'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}{{faUrl}}"
+					}
+				},
+				{
+					"name": "Traversal /uploads/../package.json (no 200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"let j={};try{j=pm.response.json();}catch(e){}",
+									"pm.test('no 200',()=>pm.expect(pm.response.code).to.not.eql(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/uploads/../package.json"
 					}
 				}
 			]

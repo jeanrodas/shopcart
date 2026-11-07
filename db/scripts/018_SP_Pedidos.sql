@@ -123,7 +123,7 @@ BEGIN
         pd.DescuentoLinea, pd.TotalLinea, pd.CantidadDevuelta,
         CAST(pd.PrecioUnitario * pd.Cantidad AS DECIMAL(18,2)) AS SubtotalLinea,
         v.IDProducto, pr.Activo AS ProductoActivo,
-        img.Url AS ImagenPrincipal
+        COALESCE(v.ImagenURL, img.Url) AS ImagenPrincipal
     FROM dbo.PedidoDetalle pd
     LEFT JOIN dbo.Categoria cat ON cat.IDCategoria = pd.IDCategoria
     LEFT JOIN dbo.Variante  v   ON v.IDVariante    = pd.IDVariante

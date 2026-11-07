@@ -72,6 +72,8 @@ export interface Variante {
   Existencia: number;
   Reservado: number;
   Disponible: number;
+  /** F2: imagen propia de la variante (null = usa la del producto). */
+  ImagenURL: string | null;
   atributos: Atributo[];
 }
 
@@ -558,6 +560,15 @@ export interface VarianteBody {
   precio: number;
   // La API espera los atributos en minuscula {nombre, valor} (atributoSchema).
   atributos: { nombre: string; valor: string }[];
+  // F2: imagen propia. Ausente = no se toca; null = quitar; string = asignar.
+  imagenURL?: string | null;
+}
+
+/** Respuesta de POST /archivos/imagenes. */
+export interface ImagenSubida {
+  url: string;
+  bytes: number;
+  tipo: string;
 }
 export interface ImagenBody {
   url: string;

@@ -84,7 +84,7 @@ BEGIN
             MAX(CASE WHEN rn = 2 THEN Url END) AS Img2,
             MAX(CASE WHEN rn = 3 THEN Url END) AS Img3
         FROM (
-            SELECT TOP (3) img.Url, ROW_NUMBER() OVER (ORDER BY pd.IDVariante) AS rn
+            SELECT TOP (3) COALESCE(v.ImagenURL, img.Url) AS Url, ROW_NUMBER() OVER (ORDER BY pd.IDVariante) AS rn
             FROM dbo.PedidoDetalle pd
             INNER JOIN dbo.Variante v ON v.IDVariante = pd.IDVariante
             OUTER APPLY (

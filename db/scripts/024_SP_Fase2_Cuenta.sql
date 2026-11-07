@@ -181,6 +181,7 @@ BEGIN
         va.PrecioMinimo,
         ISNULL(va.VariantesActivas, 0)                 AS CantidadVariantesActivas,
         vt.CantidadVariantes,
+        vt.VariantesConImagen,
         CAST(ISNULL(dt.DisponibleTotal, 0) AS INT)     AS DisponibleTotal,
         img.Url AS ImagenPrincipal,
         sk.SkusResumen, sk.SkusTotal,
@@ -194,7 +195,9 @@ BEGIN
         WHERE v.IDProducto = p.IDProducto AND v.Activo = 1
     ) va
     CROSS APPLY (
-        SELECT COUNT(1) AS CantidadVariantes FROM dbo.Variante v WHERE v.IDProducto = p.IDProducto
+        SELECT COUNT(1) AS CantidadVariantes,
+               SUM(CASE WHEN v.ImagenURL IS NOT NULL THEN 1 ELSE 0 END) AS VariantesConImagen
+        FROM dbo.Variante v WHERE v.IDProducto = p.IDProducto
     ) vt
     OUTER APPLY (
         SELECT SUM(inv.Disponible) AS DisponibleTotal
@@ -262,7 +265,8 @@ BEGIN
         SUM(CASE WHEN EstadoDerivado = N'incompleto' THEN 1 ELSE 0 END)        AS Incompletos,
         SUM(CASE WHEN EstadoDerivado = N'oculto'     THEN 1 ELSE 0 END)        AS Ocultos,
         SUM(CASE WHEN EstadoDerivado = N'publicado' AND BajoStock = 1 THEN 1 ELSE 0 END) AS BajoStock,
-        ISNULL(SUM(CantidadVariantes), 0)                                      AS Variantes
+        ISNULL(SUM(CantidadVariantes), 0)                                      AS Variantes,
+        ISNULL(SUM(VariantesConImagen), 0)                                     AS VariantesConImagen
     FROM #PE;
 
     DROP TABLE #PE;

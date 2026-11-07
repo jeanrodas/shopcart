@@ -11,6 +11,7 @@ import checkoutRoutes from './checkout.routes.js';
 import pedidosRoutes from './pedidos.routes.js';
 import bitacoraRoutes from './bitacora.routes.js';
 import reportesRoutes from './reportes.routes.js';
+import archivosRoutes from './archivos.routes.js';
 
 const router = Router();
 
@@ -37,6 +38,8 @@ apiV1.use('/pedidos', pedidosRoutes);
 apiV1.use('/bitacora', bitacoraRoutes);
 // Dashboard y reportes (RF-08): Administrador.
 apiV1.use('/reportes', reportesRoutes);
+// Subida de imagenes del admin (F2).
+apiV1.use('/archivos', archivosRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;
