@@ -39,7 +39,7 @@ export function Paginacion({ pagina, tamanoPagina, total, onPagina, onTamano }: 
       </p>
 
       {totalPaginas > 1 && (
-        <nav className="flex items-center gap-1" aria-label="Paginación">
+        <nav className="flex flex-wrap items-center justify-center gap-1" aria-label="Paginación">
           <button
             type="button"
             className={clsx(BTN, 'border border-borde bg-white disabled:opacity-40')}

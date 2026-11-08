@@ -75,7 +75,9 @@ $orden = @(
     '024_SP_Fase2_Cuenta',
     # 026 (F2): operacion de inventario y pedidos del area interna. Al final; sus SPs solo
     # leen objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
-    '026_SP_Fase2_Operacion'
+    '026_SP_Fase2_Operacion',
+    # 027 (F8): control del area interna (cupones, bitacora, usuarios). Aditivo; despues de 026.
+    '027_SP_Fase2_Control'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

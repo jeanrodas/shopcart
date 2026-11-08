@@ -5,7 +5,11 @@ import { authorize } from '../middlewares/authorize.js';
 import { ROLES } from '../config/roles.js';
 import { idParamSchema } from '../schemas/common.schema.js';
 import { estadoSchema } from '../schemas/catalogo.schema.js';
-import { cuponSchema, listarCuponesSchema } from '../schemas/cupones.schema.js';
+import {
+  cuponSchema,
+  listarCuponesSchema,
+  listarCuponesAdminSchema,
+} from '../schemas/cupones.schema.js';
 import * as c from '../controllers/cupones.controller.js';
 
 const router = Router();
@@ -18,6 +22,9 @@ router.get('/vigentes', c.getCuponesVigentes);
 const admin: RequestHandler[] = [authenticate, authorize(ROLES.Administrador)];
 
 router.get('/', ...admin, validate({ query: listarCuponesSchema }), c.getCupones);
+// F8: listado con estado derivado y KPIs. Antes de '/:id' para no caer en el parametro.
+router.get('/admin', ...admin, validate({ query: listarCuponesAdminSchema }), c.getCuponesAdmin);
+router.get('/resumen', ...admin, c.getResumenCupones);
 router.get('/:id', ...admin, validate({ params: idParamSchema }), c.getCupon);
 router.post('/', ...admin, validate({ body: cuponSchema }), c.postCupon);
 router.put('/:id', ...admin, validate({ params: idParamSchema, body: cuponSchema }), c.putCupon);

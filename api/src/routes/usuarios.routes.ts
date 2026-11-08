@@ -6,6 +6,7 @@ import { ROLES } from '../config/roles.js';
 import { idParamSchema } from '../schemas/common.schema.js';
 import {
   listarUsuariosSchema,
+  listarUsuariosAdminSchema,
   crearUsuarioSchema,
   cambiarRolSchema,
   cambiarEstadoSchema,
@@ -13,7 +14,9 @@ import {
 } from '../schemas/usuarios.schema.js';
 import {
   getUsuarios,
+  getUsuariosAdmin,
   postUsuario,
+  postDesbloquear,
   patchRol,
   patchEstado,
   getMe,
@@ -30,7 +33,10 @@ router.put('/me', authenticate, validate({ body: perfilSchema }), putMe);
 router.use(authenticate, authorize(ROLES.Administrador));
 
 router.get('/', validate({ query: listarUsuariosSchema }), getUsuarios);
+// F8: listado con pedidos y estado de bloqueo. Antes de las rutas con :id.
+router.get('/admin', validate({ query: listarUsuariosAdminSchema }), getUsuariosAdmin);
 router.post('/', validate({ body: crearUsuarioSchema }), postUsuario);
+router.post('/:id/desbloquear', validate({ params: idParamSchema }), postDesbloquear);
 router.patch('/:id/rol', validate({ params: idParamSchema, body: cambiarRolSchema }), patchRol);
 router.patch(
   '/:id/estado',

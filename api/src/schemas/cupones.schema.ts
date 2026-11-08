@@ -52,9 +52,18 @@ export const listarCuponesSchema = z.object({
   tamanoPagina: z.coerce.number().int().positive().max(100).default(20),
 });
 
+/** Query del listado de administracion con estado derivado (F8). */
+export const listarCuponesAdminSchema = z.object({
+  texto: z.string().trim().min(1).max(50).optional(),
+  filtro: z.enum(['vigentes', 'futuros', 'vencidos', 'agotados', 'inactivos']).optional(),
+  pagina: z.coerce.number().int().positive().default(1),
+  tamano: z.coerce.number().int().positive().max(100).default(20),
+});
+
 /** Cuerpo de POST /carrito/cupon: aplicar un codigo al carrito del cliente. */
 export const aplicarCuponSchema = z.object({ codigo });
 
 export type CuponInput = z.infer<typeof cuponSchema>;
 export type ListarCuponesQuery = z.infer<typeof listarCuponesSchema>;
+export type ListarCuponesAdminQuery = z.infer<typeof listarCuponesAdminSchema>;
 export type AplicarCuponInput = z.infer<typeof aplicarCuponSchema>;

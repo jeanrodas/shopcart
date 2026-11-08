@@ -4,6 +4,7 @@ import { UnauthorizedError } from '../errors/index.js';
 import type {
   CuponInput,
   ListarCuponesQuery,
+  ListarCuponesAdminQuery,
   AplicarCuponInput,
 } from '../schemas/cupones.schema.js';
 
@@ -52,6 +53,16 @@ export const getCuponesVigentes: RequestHandler = async (_req, res) => {
 
 export const getCupones: RequestHandler = async (req, res) => {
   res.status(200).json(await cuponesService.listar(req.query as unknown as ListarCuponesQuery));
+};
+
+/** Listado de administracion con estado derivado (F8). */
+export const getCuponesAdmin: RequestHandler = async (req, res) => {
+  res.status(200).json(await cuponesService.listarAdmin(req.query as unknown as ListarCuponesAdminQuery));
+};
+
+/** KPIs del panel de administracion de cupones (F8). */
+export const getResumenCupones: RequestHandler = async (_req, res) => {
+  res.status(200).json(await cuponesService.resumenAdmin());
 };
 
 export const getCupon: RequestHandler = async (req, res) => {

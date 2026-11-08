@@ -9,8 +9,17 @@ export const listarBitacoraSchema = z.object({
   accion: z.enum(['CREAR', 'MODIFICAR', 'DESACTIVAR']).optional(),
   desde: z.string().datetime({ offset: true }).optional(),
   hasta: z.string().datetime({ offset: true }).optional(),
+  // F8: busqueda de texto (LIKE sobre ValorAnterior/ValorNuevo). Aditivo.
+  texto: z.string().trim().min(1).max(100).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamano: z.coerce.number().int().positive().max(100).default(20),
 });
 
+/** Query de GET /bitacora/registro: todos los eventos de un registro (@Tabla, @IDRegistro). */
+export const bitacoraPorRegistroSchema = z.object({
+  tabla: z.string().trim().min(1).max(100),
+  idRegistro: z.coerce.number().int().positive(),
+});
+
 export type ListarBitacoraQuery = z.infer<typeof listarBitacoraSchema>;
+export type BitacoraPorRegistroQuery = z.infer<typeof bitacoraPorRegistroSchema>;

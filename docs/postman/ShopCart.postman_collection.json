@@ -15098,6 +15098,433 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "F2 Control",
+			"item": [
+				{
+					"name": "00 Login admin (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login admin 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('fcAdminToken', d.accessToken);",
+									"pm.collectionVariables.set('fcAdminId', d.usuario.id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "Cupones admin: listado con estado derivado",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('trae filas y total', () => { pm.expect(d.filas).to.be.an('array'); pm.expect(d).to.have.property('total'); });",
+									"pm.test('cada fila trae EstadoDerivado y Alcance', () => d.filas.forEach(c => { pm.expect(c).to.have.property('EstadoDerivado'); pm.expect(c).to.have.property('Alcance'); }));",
+									"const promo = d.filas.find(c => c.Codigo === 'PROMO10');",
+									"if (promo) pm.collectionVariables.set('fcCuponConUsos', promo.IDCupon);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: filtro vigentes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('todas las filas son Vigente', () => d.filas.forEach(c => pm.expect(c.EstadoDerivado).to.eql('Vigente')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?filtro=vigentes&pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: filtro futuros",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('todas las filas son Programado', () => d.filas.forEach(c => pm.expect(c.EstadoDerivado).to.eql('Programado')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?filtro=futuros&pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: filtro vencidos",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('todas las filas son Vencido', () => d.filas.forEach(c => pm.expect(c.EstadoDerivado).to.eql('Vencido')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?filtro=vencidos&pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: filtro agotados",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('todas las filas son Agotado', () => d.filas.forEach(c => pm.expect(c.EstadoDerivado).to.eql('Agotado')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?filtro=agotados&pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: filtro inactivos",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('todas las filas son Inactivo', () => d.filas.forEach(c => pm.expect(c.EstadoDerivado).to.eql('Inactivo')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin?filtro=inactivos&pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Cupones admin: resumen (KPIs)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('KPIs presentes', () => ['DescuentoOtorgado30d','TasaUso','Vigentes','Vencidos','Agotados','Inactivos'].forEach(k => pm.expect(d).to.have.property(k)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/resumen"
+					}
+				},
+				{
+					"name": "Cupones admin: editar un cupon con usos se rechaza (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('409 conflicto (cupon con usos)', () => pm.expect(pm.response.code).to.eql(409));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"codigo\": \"PROMO10\",\n  \"tipoDescuento\": \"PORCENTAJE\",\n  \"valor\": 15,\n  \"montoMinimo\": 0,\n  \"fechaInicio\": \"2026-09-08T05:20:08.000Z\",\n  \"fechaFin\": \"2026-11-28T05:20:08.000Z\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/cupones/{{fcCuponConUsos}}"
+					}
+				},
+				{
+					"name": "Bitacora: busqueda por texto",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('encuentra eventos que mencionan PROMO10', () => pm.expect(d.filas.length).to.be.above(0));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/bitacora?texto=PROMO10&tamano=10"
+					}
+				},
+				{
+					"name": "Bitacora: todos los eventos de un registro",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('al menos el CREAR del cupon', () => pm.expect(d.filas.length).to.be.above(0));",
+									"pm.test('todos son de la misma tabla', () => d.filas.forEach(e => pm.expect(e.Entidad).to.eql('Cupon')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/bitacora/registro?tabla=Cupon&idRegistro={{fcCuponConUsos}}"
+					}
+				},
+				{
+					"name": "Usuarios admin: listado con pedidos y bloqueo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('trae conteos y filas', () => { pm.expect(d.conteos).to.be.an('object'); pm.expect(d.filas).to.be.an('array'); });",
+									"pm.test('cada fila trae CantidadPedidos y MinutosBloqueo', () => d.filas.forEach(u => { pm.expect(u).to.have.property('CantidadPedidos'); pm.expect(u).to.have.property('MinutosBloqueo'); }));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/usuarios/admin?pagina=1&tamano=50"
+					}
+				},
+				{
+					"name": "Usuarios admin: desbloquear una cuenta (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('queda sin bloqueo', () => { pm.expect(d.IntentosFallidos).to.eql(0); pm.expect(d.BloqueadoHasta).to.be.oneOf([null, undefined]); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/usuarios/3/desbloquear"
+					}
+				},
+				{
+					"name": "Usuarios admin: crear interno devuelve contrasena temporal (201)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201', () => pm.expect(pm.response.code).to.eql(201));",
+									"const d = pm.response.json();",
+									"pm.test('devuelve contrasenaTemporal (>=12) una sola vez', () => { pm.expect(d.contrasenaTemporal).to.be.a('string'); pm.expect(d.contrasenaTemporal.length).to.be.at.least(12); });",
+									"pm.test('rol operador', () => pm.expect(d.Rol).to.eql('Operador'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"op-{{$guid}}@shopcart.local\",\n  \"nombre\": \"Operador Postman\",\n  \"idRol\": 2\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/usuarios"
+					}
+				},
+				{
+					"name": "Usuarios admin: cambiar el propio rol se rechaza (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// La regla ya existe en M1 y responde 409 (50409 'No puede cambiar su propio rol'), no 422.",
+									"pm.test('409 (no puede cambiar su propio rol/estado)', () => pm.expect(pm.response.code).to.eql(409));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fcAdminToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"idRol\": 2\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/usuarios/{{fcAdminId}}/rol"
+					}
+				}
+			]
 		}
 	]
 }

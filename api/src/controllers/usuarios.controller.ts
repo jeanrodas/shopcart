@@ -1,10 +1,20 @@
 import type { RequestHandler } from 'express';
 import * as usuariosService from '../services/usuarios.service.js';
 import { UnauthorizedError } from '../errors/index.js';
-import type { ListarUsuariosQuery, PerfilInput } from '../schemas/usuarios.schema.js';
+import type {
+  ListarUsuariosQuery,
+  ListarUsuariosAdminQuery,
+  PerfilInput,
+} from '../schemas/usuarios.schema.js';
 
 export const getUsuarios: RequestHandler = async (req, res) => {
   const result = await usuariosService.listar(req.query as unknown as ListarUsuariosQuery);
+  res.status(200).json(result);
+};
+
+/** Listado de administracion (F8): pedidos, estado de bloqueo y conteos. */
+export const getUsuariosAdmin: RequestHandler = async (req, res) => {
+  const result = await usuariosService.listarAdmin(req.query as unknown as ListarUsuariosAdminQuery);
   res.status(200).json(result);
 };
 
@@ -34,12 +44,23 @@ export const postUsuario: RequestHandler = async (req, res) => {
   }
   const body = req.body as {
     correo: string;
-    contrasena: string;
+    contrasena?: string;
     nombre: string;
     idRol: number;
   };
   const result = await usuariosService.crear(body, usuario.id);
   res.status(201).json(result);
+};
+
+/** Desbloquea una cuenta (limpia intentos fallidos y bloqueo). F8, Administrador. */
+export const postDesbloquear: RequestHandler = async (req, res) => {
+  const usuario = req.usuario;
+  if (!usuario) {
+    throw new UnauthorizedError();
+  }
+  const { id } = req.params as unknown as { id: number };
+  const result = await usuariosService.desbloquear(id, usuario.id);
+  res.status(200).json(result);
 };
 
 export const patchRol: RequestHandler = async (req, res) => {

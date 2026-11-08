@@ -885,26 +885,116 @@ export const openapiDocument = {
       post: {
         tags: ['Usuarios'],
         summary: 'Crear usuario (Operador/Administrador/Cliente)',
+        description:
+          'F8: contrasena es OPCIONAL. Si se omite, el servidor genera una contrasena temporal ' +
+          '(12+ caracteres) y la devuelve UNA sola vez en contrasenaTemporal (nunca se registra en ' +
+          'logs ni en la bitacora). Enviar contrasena sigue funcionando (compatibilidad con M1).',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
           ...jsonBody({
             type: 'object',
-            required: ['correo', 'contrasena', 'nombre', 'idRol'],
+            required: ['correo', 'nombre', 'idRol'],
             properties: {
               correo: { type: 'string', format: 'email', example: 'nuevo.operador@shopcart.local' },
-              contrasena: { type: 'string', example: 'Operador123!' },
+              contrasena: { type: 'string', example: 'Operador123!', description: 'Opcional (F8): si falta, se genera una temporal' },
               nombre: { type: 'string', example: 'Nuevo Operador' },
               idRol: { type: 'integer', example: 2 },
             },
           }),
         },
         responses: {
-          '201': { description: 'Usuario creado', ...jsonBody(usuarioSchema) },
+          '201': {
+            description: 'Usuario creado (contrasenaTemporal solo si el servidor la genero)',
+            ...jsonBody({
+              allOf: [
+                usuarioSchema,
+                { type: 'object', properties: { contrasenaTemporal: { type: 'string', nullable: true, example: 'Kp7#mQ2xZ9vR' } } },
+              ],
+            }),
+          },
           '400': errRef,
           '401': errRef,
           '403': errRef,
           '409': errRef,
+        },
+      },
+    },
+
+    '/api/v1/usuarios/admin': {
+      get: {
+        tags: ['Usuarios'],
+        summary: 'Listado de administracion con pedidos y bloqueo (F8)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string' } },
+          { name: 'idRol', in: 'query', schema: { type: 'integer' } },
+          { name: 'filtro', in: 'query', schema: { type: 'string', enum: ['bloqueados', 'desactivados'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina + conteos por rol/estado',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      IDUsuario: { type: 'integer' },
+                      Nombre: { type: 'string' },
+                      Correo: { type: 'string' },
+                      IDRol: { type: 'integer' },
+                      Rol: { type: 'string' },
+                      Activo: { type: 'boolean' },
+                      IntentosFallidos: { type: 'integer' },
+                      BloqueadoHasta: { type: 'string', format: 'date-time', nullable: true },
+                      MinutosBloqueo: { type: 'integer', nullable: true },
+                      FechaCreacion: { type: 'string', format: 'date-time' },
+                      CantidadPedidos: { type: 'integer' },
+                      TotalComprado: { type: 'number' },
+                    },
+                  },
+                },
+                total: { type: 'integer' },
+                conteos: {
+                  type: 'object',
+                  properties: {
+                    Total: { type: 'integer' },
+                    Administradores: { type: 'integer' },
+                    Operadores: { type: 'integer' },
+                    Clientes: { type: 'integer' },
+                    Bloqueados: { type: 'integer' },
+                    Desactivados: { type: 'integer' },
+                  },
+                },
+                pagina: { type: 'integer' },
+                tamano: { type: 'integer' },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/usuarios/{id}/desbloquear': {
+      post: {
+        tags: ['Usuarios'],
+        summary: 'Desbloquear una cuenta (F8)',
+        description: 'Limpia IntentosFallidos y BloqueadoHasta. Administrador.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': { description: 'Usuario actualizado', ...jsonBody(usuarioSchema) },
+          '401': errRef,
+          '403': errRef,
+          '404': errRef,
         },
       },
     },
@@ -2053,6 +2143,95 @@ export const openapiDocument = {
       },
     },
 
+    '/api/v1/cupones/admin': {
+      get: {
+        tags: ['Cupones'],
+        summary: 'Listado de administracion con estado derivado (F8)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'LIKE sobre el codigo' },
+          { name: 'filtro', in: 'query', schema: { type: 'string', enum: ['vigentes', 'futuros', 'vencidos', 'agotados', 'inactivos'] } },
+          { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Pagina de cupones con EstadoDerivado, Alcance y DiasParaVencer',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                filas: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      IDCupon: { type: 'integer' },
+                      Codigo: { type: 'string' },
+                      Tipo: { type: 'string', enum: ['PORCENTAJE', 'MONTO'] },
+                      Valor: { type: 'number' },
+                      MontoMinimo: { type: 'number' },
+                      IDCategoria: { type: 'integer', nullable: true },
+                      Alcance: { type: 'string', example: 'Todo el carrito' },
+                      FechaInicio: { type: 'string', format: 'date-time' },
+                      FechaFin: { type: 'string', format: 'date-time' },
+                      LimiteUsos: { type: 'integer', nullable: true },
+                      LimitePorCliente: { type: 'integer', nullable: true },
+                      UsosActuales: { type: 'integer' },
+                      Activo: { type: 'boolean' },
+                      DiasParaVencer: { type: 'integer' },
+                      EstadoDerivado: { type: 'string', enum: ['Vigente', 'Programado', 'Vencido', 'Agotado', 'Inactivo'] },
+                    },
+                  },
+                },
+                total: { type: 'integer' },
+                pagina: { type: 'integer' },
+                tamano: { type: 'integer' },
+              },
+            }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/cupones/resumen': {
+      get: {
+        tags: ['Cupones'],
+        summary: 'KPIs del panel de cupones (F8)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Resumen (una fila): descuento 30d, tasa de uso, mas usado, por vencer y conteos por estado',
+            ...jsonBody({
+              type: 'object',
+              properties: {
+                DescuentoOtorgado30d: { type: 'number' },
+                PedidosConCupon30d: { type: 'integer' },
+                Pedidos30d: { type: 'integer' },
+                TasaUso: { type: 'number' },
+                CuponMasUsadoCodigo: { type: 'string', nullable: true },
+                CuponMasUsadoUsos: { type: 'integer', nullable: true },
+                CuponMasUsadoBeneficio: { type: 'number', nullable: true },
+                CuponesPorVencer7d: { type: 'integer' },
+                CuponPorVencerCodigo: { type: 'string', nullable: true },
+                CuponPorVencerFecha: { type: 'string', format: 'date-time', nullable: true },
+                Total: { type: 'integer' },
+                Vigentes: { type: 'integer' },
+                Programados: { type: 'integer' },
+                Vencidos: { type: 'integer' },
+                Agotados: { type: 'integer' },
+                Inactivos: { type: 'integer' },
+              },
+            }),
+          },
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
     '/api/v1/cupones/{id}': {
       get: {
         tags: ['Cupones'],
@@ -2490,6 +2669,7 @@ export const openapiDocument = {
           { name: 'accion', in: 'query', schema: { type: 'string', enum: ['CREAR', 'MODIFICAR', 'DESACTIVAR'] } },
           { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'texto', in: 'query', schema: { type: 'string' }, description: 'F8: LIKE sobre ValorAnterior/ValorNuevo' },
           { name: 'pagina', in: 'query', schema: { type: 'integer', default: 1 } },
           { name: 'tamano', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
         ],
@@ -2523,6 +2703,28 @@ export const openapiDocument = {
                 tamano: { type: 'integer' },
               },
             }),
+          },
+          '400': errRef,
+          '401': errRef,
+          '403': errRef,
+        },
+      },
+    },
+
+    '/api/v1/bitacora/registro': {
+      get: {
+        tags: ['Bitacora'],
+        summary: 'Todos los eventos de un registro (F8)',
+        description: 'Devuelve el historial completo de auditoria de una entidad (Entidad + IDEntidad), mas reciente primero.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'tabla', in: 'query', required: true, schema: { type: 'string', example: 'Variante' } },
+          { name: 'idRegistro', in: 'query', required: true, schema: { type: 'integer', example: 6 } },
+        ],
+        responses: {
+          '200': {
+            description: 'Eventos del registro',
+            ...jsonBody({ type: 'object', properties: { filas: { type: 'array', items: { type: 'object' } } } }),
           },
           '400': errRef,
           '401': errRef,

@@ -210,8 +210,9 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 `012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
 y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
 `NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
-`023`, `024` y `026` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
-`026` (operacion del area interna) cierra la lista: solo lee objetos ya creados. La
+`023`, `024`, `026` y `027` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
+`026` (operacion del area interna) y `027` (control: cupones, bitacora y usuarios) cierran la
+lista: solo leen/extienden objetos ya creados. La
 tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
@@ -242,6 +243,7 @@ tabla describe cada script en orden numerico de archivo:
 | `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna `Usuario.Telefono`; perfil del cliente (`SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil`); cambio de contrasena (`SP_Auth_ObtenerHashPorID` + `SP_Auth_CambiarContrasena`, que revoca toda la cadena de refresh); y `SP_Catalogo_ListarAdmin` (listado de administracion con estado derivado por `CASE`, SKUs via `STRING_AGG`, filtros y conteos). Ademas `009` suma `CantidadProductosTotal` y `021` excluye de destacados los productos sin existencia disponible. |
 | `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna `dbo.Variante.ImagenURL` (imagen propia por variante; `NULL` = usa la del producto). Reordenada **antes** de `010/012/016/018/023/024`, que la referencian. Los SPs de crear/actualizar variante reciben `@ImagenURL` y `@ConservarImagen` (1 por defecto: no toca la imagen, para no romper M2); `ObtenerProducto` devuelve `ImagenURL`; `ListarAdmin` suma `VariantesConImagen`; carrito/pedido/resumen usan `COALESCE(v.ImagenURL, <imagen del producto>)`. |
 | `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion, existencia/reservado/disponible, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`); `SP_Inventario_Resumen` (KPIs + movimientos de hoy por tipo + inconsistencias + `UmbralBajoStock`/`ReservaMinutos`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura**: `Permitido`/`Motivo`); `SP_Pedidos_ResumenOperacion` (conteos del flujo y antiguedad del PAGADO mas viejo); `SP_Pedidos_ListarOperacion` (estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango y columnas de operacion). Solo lectura/simulacion: el registro real y los cambios de estado siguen en `011`/`018`. Va al final. |
+| `027_SP_Fase2_Control.sql` | Fase 2 (aditivo, F8): control del area interna. Cupones (`SP_Cupones_ListarAdmin` con estado derivado/alcance/dias-para-vencer y filtros; `SP_Cupones_ResumenAdmin` con KPIs de 30 dias y conteos por estado), bitacora (`SP_Bitacora_Consultar` +`@Texto` LIKE sobre los JSON; `SP_Bitacora_ListarPorRegistro`) y usuarios (`SP_Usuarios_ListarAdmin` con pedidos/bloqueo/conteos; `SP_Usuarios_Desbloquear`). No altera los SP de M1/M5/M8. Va al final. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9); asigna la imagen propia (`/img/productos/<SKU>.jpeg`) a las tres presentaciones del Refrigerante. Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -900,6 +902,39 @@ sigue en `011` y los cambios de estado/devoluciones en `018`, sin cambios de fir
   "Inventario" = bajo stock + agotadas) se unifican a estos resumenes.
 - **Exportar Excel** se **omitio** en Pedidos: la exportacion `.xlsx` de M9 solo cubre ventas,
   categorias y top-productos, no pedidos (ver "Diferencias" del reporte de F7).
+
+### Fase 2: control del area interna (F8)
+
+Pantallas **`/admin/cupones`**, **`/admin/bitacora`** y **`/admin/usuarios`**. Backend solo
+aditivo (migracion `027`); los SP de M1/M5/M8 no cambian de firma. Ninguna cifra se calcula en
+el navegador. Las tablas ocupan todo el ancho, sin scroll horizontal a ningun ancho; el detalle
+y la edicion se abren en `PanelLateral` (560 px; pantalla completa en <1024) y en <1024 la tabla
+pasa a tarjetas.
+
+- **Cupones** (`GET /cupones/admin`, `GET /cupones/resumen`; Administrador escribe, **Operador
+  solo lectura**). KPIs del resumen (descuento otorgado 30 d, cupon mas usado, por vencer ≤ 7 d,
+  tasa de uso), chips por estado derivado (Vigente/Programado/Vencido/Agotado/Inactivo) con
+  conteos, y tabla con beneficio, alcance, vigencia, barra de usos y estado. El alta/edicion
+  (reutiliza `POST`/`PUT /cupones`, `PATCH /cupones/:id/estado` de M5) deshabilita codigo/tipo/
+  valor/alcance si el cupon ya tiene usos (el SP lo rechaza con **409**, no 422); crear/editar/
+  desactivar invalida `GET /cupones/vigentes`, por lo que el nuevo cupon aparece en la cinta de la
+  tienda y en la tarjeta de cupones del catalogo.
+- **Bitacora** (`GET /bitacora` +`texto`, `GET /bitacora/registro`; Administrador, Operador -> 403).
+  Filtros por tabla (entidades auditadas de `019`), accion, rango de fechas (7 dias por defecto) y
+  texto/ID. Cada fila resume el cambio comparando los dos JSON **en el navegador** (presentacion,
+  no negocio): UPDATE muestra `Campo: antes -> despues`. El detalle abre dos columnas Antes/Despues
+  resaltando las claves que cambiaron y enlaza "Ver todos los eventos de \<Tabla\> #id"
+  (`SP_Bitacora_ListarPorRegistro`). Es inmutable: sin exportar (M9 no lo cubre) ni editar.
+- **Usuarios** (`GET /usuarios/admin`, `POST /usuarios/:id/desbloquear`; Administrador, Operador
+  -> 403). Chips por rol/estado con conteos, pedidos por cliente, y estado Activo/Bloqueado
+  (con minutos restantes)/Desactivado. "Editar" cambia rol y estado (confirma al promover a
+  Administrador o al desactivar) y "Desbloquear" limpia el bloqueo; sobre la propia cuenta no hay
+  acciones (el backend ya impide auto-cambiar rol/estado con **409**). "Nuevo usuario interno"
+  (`POST /usuarios` **sin** contrasena) genera una **contrasena temporal** en el servidor
+  (`crypto`, 14 caracteres) devuelta **una sola vez** en la respuesta y nunca registrada en logs
+  ni en la bitacora (`dbo.Usuario` no se audita); el usuario la cambia en **Mi cuenta**
+  (`/cuenta`, habilitada tambien para roles internos: solo Datos y Seguridad). Los clientes se
+  registran desde la tienda.
 
 ## Logs
 

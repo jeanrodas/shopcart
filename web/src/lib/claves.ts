@@ -1,9 +1,12 @@
 import type {
   BusquedaParams,
   FiltrosAdmin,
+  FiltrosBitacora,
+  FiltrosCupones,
   FiltrosInventario,
   FiltrosPedidos,
   FiltrosPedidosOperacion,
+  FiltrosUsuarios,
 } from '../api/tipos';
 
 /** Convencion de claves de cache por modulo para TanStack Query. */
@@ -16,6 +19,10 @@ export const claves = {
   },
   cupones: {
     vigentes: ['cupones', 'vigentes'] as const,
+    // Raiz para invalidar la administracion de cupones (lista + resumen) tras una escritura.
+    admin: ['cupones', 'admin'] as const,
+    lista: (filtros: FiltrosCupones) => ['cupones', 'admin', 'lista', filtros] as const,
+    resumen: ['cupones', 'admin', 'resumen'] as const,
   },
   carrito: ['carrito'] as const,
   direcciones: ['direcciones'] as const,
@@ -56,5 +63,16 @@ export const claves = {
     lista: (filtros: FiltrosPedidosOperacion) => ['operacion', 'lista', filtros] as const,
     resumen: ['operacion', 'resumen'] as const,
     uno: (id: number) => ['operacion', 'pedido', id] as const,
+  },
+  bitacora: {
+    todo: ['bitacora'] as const,
+    lista: (filtros: FiltrosBitacora) => ['bitacora', 'lista', filtros] as const,
+    modulos: ['bitacora', 'modulos'] as const,
+    registro: (tabla: string, id: number) => ['bitacora', 'registro', tabla, id] as const,
+  },
+  usuarios: {
+    // Raiz para invalidar la administracion de usuarios tras una escritura.
+    admin: ['usuarios', 'admin'] as const,
+    lista: (filtros: FiltrosUsuarios) => ['usuarios', 'admin', 'lista', filtros] as const,
   },
 };

@@ -59,3 +59,17 @@ npx --yes newman run docs/postman/ShopCart.postman_collection.json \
   --folder "F2 Operacion" \
   --env-var baseUrl=http://localhost:3000
 ```
+
+## Carpeta `F2 Control` (F8)
+
+Control del area interna: cupones admin (listado con estado derivado, cada filtro y resumen),
+edicion de cupon con usos rechazada (409), bitacora por texto y por registro, usuarios admin,
+desbloquear, crear usuario interno (201 con `contrasenaTemporal`) y auto-cambio de rol rechazado
+(409 — la regla de M1 responde 409, no 422). Trae su propio login de admin (setup) y crea un
+operador con correo `op-{{$guid}}` (no colisiona en reejecuciones). No necesita `--working-dir`:
+
+```bash
+npx --yes newman run docs/postman/ShopCart.postman_collection.json \
+  --folder "F2 Control" \
+  --env-var baseUrl=http://localhost:3000
+```

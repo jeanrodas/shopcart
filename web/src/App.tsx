@@ -30,6 +30,9 @@ const AdminCategorias = lazy(() => import('./paginas/admin/AdminCategorias'));
 const AdminInventario = lazy(() => import('./paginas/admin/AdminInventario'));
 const AdminPedidos = lazy(() => import('./paginas/admin/AdminPedidos'));
 const PedidoOperacion = lazy(() => import('./paginas/admin/PedidoOperacion'));
+const AdminCupones = lazy(() => import('./paginas/admin/AdminCupones'));
+const AdminBitacora = lazy(() => import('./paginas/admin/AdminBitacora'));
+const AdminUsuarios = lazy(() => import('./paginas/admin/AdminUsuarios'));
 
 export function App() {
   return (
@@ -79,7 +82,7 @@ export function App() {
                   <Route
                     path="/cuenta"
                     element={
-                      <RutaProtegida roles={['Cliente']}>
+                      <RutaProtegida roles={['Cliente', 'Operador', 'Administrador']}>
                         <Cuenta />
                       </RutaProtegida>
                     }
@@ -103,19 +106,14 @@ export function App() {
                   <Route path="inventario" element={<AdminInventario />} />
                   <Route path="productos" element={<AdminProductos />} />
                   <Route path="categorias" element={<AdminCategorias />} />
-                  <Route
-                    path="cupones"
-                    element={
-                      <RutaProtegida roles={['Administrador']}>
-                        <EnConstruccion titulo="Cupones" />
-                      </RutaProtegida>
-                    }
-                  />
+                  {/* Cupones: Administrador escribe; Operador puede ver (solo lectura). El marco
+                      /admin ya permite ambos roles, por eso no lleva candado adicional. */}
+                  <Route path="cupones" element={<AdminCupones />} />
                   <Route
                     path="bitacora"
                     element={
                       <RutaProtegida roles={['Administrador']}>
-                        <EnConstruccion titulo="Bitácora" />
+                        <AdminBitacora />
                       </RutaProtegida>
                     }
                   />
@@ -123,7 +121,7 @@ export function App() {
                     path="usuarios"
                     element={
                       <RutaProtegida roles={['Administrador']}>
-                        <EnConstruccion titulo="Usuarios" />
+                        <AdminUsuarios />
                       </RutaProtegida>
                     }
                   />

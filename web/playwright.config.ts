@@ -10,6 +10,10 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   reporter: 'list',
+  // Las pruebas comparten estado (misma BD/sesion), por eso corren en serie: 1 worker y sin
+  // paralelismo dentro de un archivo. Asi `npx playwright test` sin parametros pasa.
+  workers: 1,
+  fullyParallel: false,
   use: {
     baseURL: 'http://localhost:5173',
     ...devices['Desktop Chrome'],

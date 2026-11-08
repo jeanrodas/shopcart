@@ -73,6 +73,8 @@ ORDEN=(
   # 026 (F2): operacion de inventario y pedidos del area interna. Al final; solo lee
   # objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
   026_SP_Fase2_Operacion
+  # 027 (F8): control del area interna (cupones, bitacora, usuarios). Aditivo; despues de 026.
+  027_SP_Fase2_Control
 )
 [[ $SEMILLAS -eq 1 ]] && ORDEN+=(099_Semillas)
 

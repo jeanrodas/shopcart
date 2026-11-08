@@ -28,12 +28,21 @@ import type { Direccion, DireccionInput } from '../api/tipos';
 const NIT_RE = /^(CF|\d{1,9}-?[\dK])$/;
 const MAX_DIRECCIONES = 10;
 
-const SECCIONES = [
+interface Seccion {
+  id: string;
+  texto: string;
+}
+// Direcciones y Facturación son del Cliente; los usuarios internos solo ven Datos y Seguridad.
+const SECCIONES_CLIENTE: Seccion[] = [
   { id: 'datos', texto: 'Datos personales' },
   { id: 'direcciones', texto: 'Direcciones' },
   { id: 'facturacion', texto: 'Facturación' },
   { id: 'seguridad', texto: 'Seguridad' },
-] as const;
+];
+const SECCIONES_INTERNO: Seccion[] = [
+  { id: 'datos', texto: 'Datos personales' },
+  { id: 'seguridad', texto: 'Seguridad' },
+];
 
 function mesAnio(iso: string): string {
   const d = new Date(iso.endsWith('Z') ? iso : `${iso}Z`);
@@ -43,9 +52,11 @@ function mesAnio(iso: string): string {
 
 export default function Cuenta() {
   const { usuario } = useAuth();
+  const esCliente = usuario?.rol === 'Cliente';
+  const secciones = esCliente ? SECCIONES_CLIENTE : SECCIONES_INTERNO;
   const { data: perfil, isPending, isError, refetch } = usePerfil();
-  const { data: resumen } = useResumenPedidos();
-  const { data: direcciones } = useDirecciones();
+  const { data: resumen } = useResumenPedidos(esCliente);
+  const { data: direcciones } = useDirecciones(esCliente);
 
   useEffect(() => {
     document.title = 'Mi cuenta · ShopCart';
@@ -76,24 +87,29 @@ export default function Cuenta() {
             </h1>
             <p className="mt-0.5 truncate text-sm text-white/80">
               {perfil?.Correo ?? usuario?.correo}
-              {perfil?.FechaCreacion && <> · cliente desde {mesAnio(perfil.FechaCreacion)}</>}
+              {esCliente && perfil?.FechaCreacion && <> · cliente desde {mesAnio(perfil.FechaCreacion)}</>}
+              {!esCliente && <> · {usuario?.rol}</>}
             </p>
-            <p className="mt-1 text-sm font-semibold text-dorado">
-              {totalPedidos} {totalPedidos === 1 ? 'pedido' : 'pedidos'} · {totalDirecciones}{' '}
-              {totalDirecciones === 1 ? 'dirección' : 'direcciones'}
-            </p>
+            {esCliente && (
+              <p className="mt-1 text-sm font-semibold text-dorado">
+                {totalPedidos} {totalPedidos === 1 ? 'pedido' : 'pedidos'} · {totalDirecciones}{' '}
+                {totalDirecciones === 1 ? 'dirección' : 'direcciones'}
+              </p>
+            )}
           </div>
-          <Link
-            to="/mis-pedidos"
-            className="rounded-pill border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20"
-          >
-            Ver mis pedidos →
-          </Link>
+          {esCliente && (
+            <Link
+              to="/mis-pedidos"
+              className="rounded-pill border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Ver mis pedidos →
+            </Link>
+          )}
         </div>
       </header>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
-        <NavLateral />
+        <NavLateral secciones={secciones} />
         <div className="min-w-0">
           <EstadoVista
             cargando={isPending}
@@ -108,8 +124,8 @@ export default function Cuenta() {
                   correo={perfil.Correo}
                   telefono={perfil.Telefono}
                 />
-                <SeccionDirecciones />
-                <SeccionFacturacion />
+                {esCliente && <SeccionDirecciones />}
+                {esCliente && <SeccionFacturacion />}
                 <SeccionSeguridad />
               </div>
             )}
@@ -122,7 +138,7 @@ export default function Cuenta() {
 
 /* ------------------------------ Navegacion -------------------------------- */
 
-function NavLateral() {
+function NavLateral({ secciones }: { secciones: Seccion[] }) {
   const { cerrarSesion } = useAuth();
   const [activa, setActiva] = useState<string>('datos');
 
@@ -136,17 +152,17 @@ function NavLateral() {
       },
       { rootMargin: '-96px 0px -60% 0px', threshold: [0.1, 0.5] },
     );
-    for (const s of SECCIONES) {
+    for (const s of secciones) {
       const el = document.getElementById(s.id);
       if (el) obs.observe(el);
     }
     return () => obs.disconnect();
-  }, []);
+  }, [secciones]);
 
   return (
     <nav className="lg:sticky lg:top-24 lg:self-start" aria-label="Secciones de mi cuenta">
       <ul className="flex gap-2 overflow-x-auto sin-barra lg:flex-col lg:gap-1">
-        {SECCIONES.map((s) => (
+        {secciones.map((s) => (
           <li key={s.id} className="shrink-0">
             <a
               href={`#${s.id}`}

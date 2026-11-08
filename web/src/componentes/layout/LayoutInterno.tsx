@@ -44,7 +44,8 @@ const GRUPOS: Grupo[] = [
     items: [
       { a: '/admin/productos', texto: 'Productos', Icono: IconoCarrito },
       { a: '/admin/categorias', texto: 'Categorías', Icono: IconoFiltro },
-      { a: '/admin/cupones', texto: 'Cupones', Icono: IconoTarjeta, soloAdmin: true },
+      // Cupones: tambien visible para Operador (solo lectura); el resto de Catalogo/Control es soloAdmin.
+      { a: '/admin/cupones', texto: 'Cupones', Icono: IconoTarjeta },
     ],
   },
   {
@@ -136,9 +137,16 @@ function Lateral({ onNavegar }: { onNavegar?: () => void }) {
         <Link
           to="/"
           onClick={onNavegar}
-          className="mb-3 flex items-center gap-2 rounded-12 px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+          className="mb-1 flex items-center gap-2 rounded-12 px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
         >
           <IconoInicio className="h-5 w-5" /> Ver la tienda
+        </Link>
+        <Link
+          to="/cuenta"
+          onClick={onNavegar}
+          className="mb-3 flex items-center gap-2 rounded-12 px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+        >
+          <IconoUsuario className="h-5 w-5" /> Mi cuenta
         </Link>
         <div className="rounded-16 bg-white/5 p-3">
           <p className="truncate text-sm font-bold">{usuario?.nombre}</p>

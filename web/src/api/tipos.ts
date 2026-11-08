@@ -779,3 +779,171 @@ export interface ImagenBody {
   orden?: number;
   esPrincipal?: boolean;
 }
+
+/* ----------------------- Fase 2 (F8): control del area interna ------------ */
+
+export type EstadoCupon = 'Vigente' | 'Programado' | 'Vencido' | 'Agotado' | 'Inactivo';
+
+/** Fila del listado de administracion de cupones (SP_Cupones_ListarAdmin). */
+export interface CuponAdminFila {
+  IDCupon: number;
+  Codigo: string;
+  Tipo: 'PORCENTAJE' | 'MONTO';
+  Valor: number;
+  MontoMinimo: number;
+  IDCategoria: number | null;
+  Alcance: string;
+  FechaInicio: string;
+  FechaFin: string;
+  LimiteUsos: number | null;
+  LimitePorCliente: number | null;
+  UsosActuales: number;
+  Activo: boolean;
+  DiasParaVencer: number;
+  EstadoDerivado: EstadoCupon;
+}
+
+export interface PaginaCupones {
+  filas: CuponAdminFila[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}
+
+export interface FiltrosCupones {
+  texto?: string;
+  filtro?: 'vigentes' | 'futuros' | 'vencidos' | 'agotados' | 'inactivos';
+  pagina: number;
+  tamano: number;
+}
+
+/** KPIs del panel de cupones (SP_Cupones_ResumenAdmin). */
+export interface ResumenCupones {
+  DescuentoOtorgado30d: number;
+  PedidosConCupon30d: number;
+  Pedidos30d: number;
+  TasaUso: number;
+  CuponMasUsadoCodigo: string | null;
+  CuponMasUsadoUsos: number | null;
+  CuponMasUsadoBeneficio: number | null;
+  CuponesPorVencer7d: number;
+  CuponPorVencerCodigo: string | null;
+  CuponPorVencerFecha: string | null;
+  Total: number;
+  Vigentes: number;
+  Programados: number;
+  Vencidos: number;
+  Agotados: number;
+  Inactivos: number;
+}
+
+/** Cuerpo de creacion/actualizacion de un cupon (mismas reglas que cuponSchema). */
+export interface CuponBody {
+  codigo: string;
+  tipoDescuento: 'PORCENTAJE' | 'MONTO';
+  valor: number;
+  idCategoria?: number;
+  montoMinimo: number;
+  fechaInicio: string;
+  fechaFin: string;
+  limiteUsosTotal?: number;
+  limiteUsosPorCliente?: number;
+}
+
+export type AccionBitacora = 'CREAR' | 'MODIFICAR' | 'DESACTIVAR';
+
+/** Entrada de la bitacora (SP_Bitacora_Consultar / ListarPorRegistro). */
+export interface BitacoraEvento {
+  IDBitacora: string;
+  Modulo: string;
+  Entidad: string;
+  IDEntidad: number;
+  Accion: AccionBitacora;
+  ValorAnterior: string | null;
+  ValorNuevo: string | null;
+  IDUsuario: number | null;
+  UsuarioCorreo: string | null;
+  UsuarioNombre: string | null;
+  Fecha: string;
+}
+
+export interface PaginaBitacora {
+  filas: BitacoraEvento[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}
+
+export interface FiltrosBitacora {
+  modulo?: string;
+  entidad?: string;
+  idEntidad?: number;
+  idUsuario?: number;
+  accion?: AccionBitacora;
+  desde?: string;
+  hasta?: string;
+  texto?: string;
+  pagina: number;
+  tamano: number;
+}
+
+/** Fila del listado de administracion de usuarios (SP_Usuarios_ListarAdmin). */
+export interface UsuarioAdminFila {
+  IDUsuario: number;
+  Nombre: string;
+  Correo: string;
+  IDRol: number;
+  Rol: Rol;
+  Activo: boolean;
+  IntentosFallidos: number;
+  BloqueadoHasta: string | null;
+  MinutosBloqueo: number | null;
+  FechaCreacion: string;
+  CantidadPedidos: number;
+  TotalComprado: number;
+}
+
+export interface ConteosUsuarios {
+  Total: number;
+  Administradores: number;
+  Operadores: number;
+  Clientes: number;
+  Bloqueados: number;
+  Desactivados: number;
+}
+
+export interface PaginaUsuarios {
+  filas: UsuarioAdminFila[];
+  total: number;
+  conteos: ConteosUsuarios | null;
+  pagina: number;
+  tamano: number;
+}
+
+export interface FiltrosUsuarios {
+  texto?: string;
+  idRol?: number;
+  filtro?: 'bloqueados' | 'desactivados';
+  pagina: number;
+  tamano: number;
+}
+
+/** Cuerpo de creacion de un usuario interno (sin contrasena: la genera el servidor). */
+export interface UsuarioInternoBody {
+  correo: string;
+  nombre: string;
+  idRol: number;
+}
+
+/** Respuesta 201 de POST /usuarios cuando el servidor genero la contrasena. */
+export interface UsuarioCreado {
+  IDUsuario: number;
+  Correo: string;
+  Nombre: string;
+  Activo: boolean;
+  IDRol: number;
+  Rol: Rol;
+  FechaCreacion: string;
+  /** Solo presente cuando el servidor genero la clave temporal (una sola vez). */
+  contrasenaTemporal?: string;
+}

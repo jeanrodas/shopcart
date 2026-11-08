@@ -32,6 +32,9 @@ import {
 import { obtenerMetadatos } from '../api/sistema';
 import { obtenerPerfil, actualizarPerfil } from '../api/cuenta';
 import { listarProductosAdmin, obtenerProductoAdmin, listarCategoriasAdmin } from '../api/admin';
+import { listarCuponesAdmin, obtenerResumenCupones } from '../api/cupones';
+import { listarBitacora, listarModulosBitacora } from '../api/bitacora';
+import { listarUsuariosAdmin } from '../api/usuarios';
 import {
   listarInventarioAdmin,
   obtenerResumenInventario,
@@ -55,9 +58,12 @@ import type {
   DireccionInput,
   EntradaBody,
   FiltrosAdmin,
+  FiltrosBitacora,
+  FiltrosCupones,
   FiltrosInventario,
   FiltrosPedidos,
   FiltrosPedidosOperacion,
+  FiltrosUsuarios,
   PagarBody,
   PerfilInput,
 } from '../api/tipos';
@@ -192,8 +198,8 @@ function useMutacionInvalidando<V, R>(
   });
 }
 
-export function useDirecciones() {
-  return useQuery({ queryKey: claves.direcciones, queryFn: listarDirecciones });
+export function useDirecciones(habilitado = true) {
+  return useQuery({ queryKey: claves.direcciones, queryFn: listarDirecciones, enabled: habilitado });
 }
 
 export function useCrearDireccion() {
@@ -280,8 +286,8 @@ export function usePedidos(filtros: FiltrosPedidos) {
 }
 
 /** Resumen de "Mis pedidos" (conteos, total comprado y envio en curso). */
-export function useResumenPedidos() {
-  return useQuery({ queryKey: claves.pedidos.resumen, queryFn: obtenerResumenPedidos });
+export function useResumenPedidos(habilitado = true) {
+  return useQuery({ queryKey: claves.pedidos.resumen, queryFn: obtenerResumenPedidos, enabled: habilitado });
 }
 
 /** Detalle de un pedido. retry:false para que el 404 (ajeno/inexistente) llegue de una vez. */
@@ -538,5 +544,44 @@ export function useRegistrarDevolucion() {
       void qc.invalidateQueries({ queryKey: claves.operacion.todo });
       void qc.invalidateQueries({ queryKey: ['admin', 'badge', 'pedidos'] });
     },
+  });
+}
+
+/* ------------------------------ Control (F8) ------------------------------ */
+
+/** Listado de administracion de cupones. keepPreviousData: filtros/paginacion sin parpadeo. */
+export function useCuponesAdmin(filtros: FiltrosCupones) {
+  return useQuery({
+    queryKey: claves.cupones.lista(filtros),
+    queryFn: () => listarCuponesAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** KPIs del panel de cupones. */
+export function useResumenCupones() {
+  return useQuery({ queryKey: claves.cupones.resumen, queryFn: obtenerResumenCupones, staleTime: 15_000 });
+}
+
+/** Bitacora de auditoria. keepPreviousData para filtros/paginacion. */
+export function useBitacora(filtros: FiltrosBitacora) {
+  return useQuery({
+    queryKey: claves.bitacora.lista(filtros),
+    queryFn: () => listarBitacora(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Modulos presentes en la bitacora (para el filtro). */
+export function useModulosBitacora() {
+  return useQuery({ queryKey: claves.bitacora.modulos, queryFn: listarModulosBitacora, staleTime: Infinity });
+}
+
+/** Listado de administracion de usuarios. keepPreviousData para filtros/paginacion. */
+export function useUsuariosAdmin(filtros: FiltrosUsuarios) {
+  return useQuery({
+    queryKey: claves.usuarios.lista(filtros),
+    queryFn: () => listarUsuariosAdmin(filtros),
+    placeholderData: keepPreviousData,
   });
 }

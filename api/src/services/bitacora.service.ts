@@ -1,6 +1,9 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
-import type { ListarBitacoraQuery } from '../schemas/bitacora.schema.js';
+import type {
+  ListarBitacoraQuery,
+  BitacoraPorRegistroQuery,
+} from '../schemas/bitacora.schema.js';
 
 export async function consultar(q: ListarBitacoraQuery): Promise<{
   filas: unknown[];
@@ -18,11 +21,21 @@ export async function consultar(q: ListarBitacoraQuery): Promise<{
     { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'TamanoPagina', type: sql.Int, value: q.tamano },
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
   return { filas, total, pagina: q.pagina, tamano: q.tamano };
+}
+
+/** Todos los eventos de un registro (@Tabla = Entidad, @IDRegistro = IDEntidad). */
+export async function porRegistro(q: BitacoraPorRegistroQuery): Promise<{ filas: unknown[] }> {
+  const result = await executeSp('SP_Bitacora_ListarPorRegistro', [
+    { name: 'Tabla', type: sql.NVarChar(100), value: q.tabla },
+    { name: 'IDRegistro', type: sql.Int, value: q.idRegistro },
+  ]);
+  return { filas: (result.recordset as unknown[]) ?? [] };
 }
 
 export async function modulos(): Promise<string[]> {
