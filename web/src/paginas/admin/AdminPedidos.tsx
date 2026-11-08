@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { usePedidosOperacion, useResumenOperacion, usePedidoOperacion } from '../../lib/consultas';
+import { useOperacionVivo } from '../../lib/useEventosVivo';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { EtiquetaEstadoPedido } from '../../componentes/ui/EtiquetaEstadoPedido';
 import { Precio, formatearQuetzales } from '../../componentes/ui/Precio';
-import { Paginacion } from '../catalogo/Paginacion';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { formatearHace, formatearFechaHora } from '../../lib/formato';
 import { siguientePaso } from '../../lib/operacion';
 import { AccionesPedido } from './AccionesPedido';
@@ -89,6 +90,11 @@ export default function AdminPedidos() {
     document.title = 'Pedidos · Operación';
   }, []);
 
+  // Refresco en vivo: un evento SSE (pedido.creado/pedido.estado) o volver el foco invalida
+  // claves.operacion.todo, por lo que la tarjeta (resumen) y la tabla (listado) se refrescan
+  // JUNTAS y el pedido recién creado aparece sin recargar.
+  const estadoVivo = useOperacionVivo();
+
   useEffect(() => {
     const t = window.setTimeout(() => setTextoDeb(texto.trim()), 300);
     return () => window.clearTimeout(t);
@@ -130,6 +136,8 @@ export default function AdminPedidos() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      {/* Indicador no visible del estado de la suscripción SSE (para pruebas y diagnóstico). */}
+      <span data-testid="sse-operacion" data-estado={estadoVivo} className="sr-only" />
       <div className="min-w-0">
         {/* Cabecera */}
         <div className="mb-5">
@@ -164,7 +172,7 @@ export default function AdminPedidos() {
                 <p className={clsx('text-xs font-semibold uppercase tracking-ancho', oscura ? 'text-white/60' : 'text-apagado')}>
                   {t.titulo}
                 </p>
-                <p className={clsx('mt-1 text-2xl font-extrabold', oscura ? 'text-white' : 'text-marino-900')}>
+                <p data-testid={`tarjeta-${t.clave}`} className={clsx('mt-1 text-2xl font-extrabold', oscura ? 'text-white' : 'text-marino-900')}>
                   {resumen ? t.conteo(resumen) : '—'}
                 </p>
                 {t.sub && resumen && (
@@ -246,7 +254,7 @@ export default function AdminPedidos() {
               </div>
 
               {data.total > tamanoPagina && (
-                <Paginacion pagina={pagina} tamanoPagina={tamanoPagina} total={data.total} onPagina={setPagina} onTamano={setTamanoPagina} />
+                <Paginacion pagina={pagina} tamanoPagina={tamanoPagina} total={data.total} onPagina={setPagina} onTamano={setTamanoPagina} tamanos={TAMANOS_PAGINA_ADMIN} />
               )}
             </>
           )}

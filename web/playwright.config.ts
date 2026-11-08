@@ -7,6 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
+  // Chequeo previo: avisa si el limitador de /auth esta saturado (ver tests/global-setup.ts).
+  globalSetup: './tests/global-setup.ts',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   reporter: 'list',
@@ -16,6 +18,16 @@ export default defineConfig({
   fullyParallel: false,
   use: {
     baseURL: 'http://localhost:5173',
-    ...devices['Desktop Chrome'],
   },
+  // Dos navegadores (instalar firefox con `npx playwright install firefox`). Con workers:1
+  // ambos proyectos corren en serie (comparten BD/sesion). chromium corre la suite COMPLETA;
+  // firefox corre solo las pruebas de la COMPRA (compra / compra-estable), que es el foco de
+  // F9.4 y donde el fallo aparecía en Firefox: así se valida el checkout en ambos navegadores
+  // sin ejecutar DOS veces las pruebas que mutan las semillas (no son idempotentes en una sola
+  // BD y el protocolo prohíbe reinstalar a mitad de la corrida). Esas pruebas de compra usan
+  // una variante de alto stock, por lo que no agotan existencia aunque corran en ambos.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /compra(-estable)?\.spec\.ts$/ },
+  ],
 });

@@ -13,8 +13,8 @@ import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { useToast } from '../../componentes/ui/Toast';
 import { formatearQuetzales } from '../../componentes/ui/Precio';
-import { formatearFechaCorta } from '../../lib/formato';
-import { Paginacion } from '../catalogo/Paginacion';
+import { formatearFechaCorta, plural } from '../../lib/formato';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import type { CuponAdminFila, CuponBody, EstadoCupon, FiltrosCupones } from '../../api/tipos';
 
 type ClaveChip = 'todos' | 'vigentes' | 'futuros' | 'vencidos' | 'agotados' | 'inactivos';
@@ -149,14 +149,14 @@ export default function AdminCupones() {
         <div className="rounded-20 bg-degradado-marino p-4 text-white shadow-marino">
           <p className="text-xs font-semibold uppercase tracking-ancho text-white/60">Descuento otorgado (30 d)</p>
           <p className="mt-1 text-2xl font-extrabold">{resumen ? formatearQuetzales(resumen.DescuentoOtorgado30d) : '—'}</p>
-          <p className="mt-0.5 text-xs text-white/60">en {resumen?.PedidosConCupon30d ?? 0} pedidos</p>
+          <p className="mt-0.5 text-xs text-white/60">en {plural(resumen?.PedidosConCupon30d ?? 0, 'pedido')}</p>
         </div>
         <div className="rounded-20 border border-borde bg-white p-4 shadow-suave">
           <p className="text-xs font-semibold uppercase tracking-ancho text-apagado">Más usado</p>
           <p className="mt-1 font-mono text-lg font-extrabold text-marino-900">{resumen?.CuponMasUsadoCodigo ?? '—'}</p>
           <p className="mt-0.5 text-xs text-apagado">
             {resumen?.CuponMasUsadoCodigo
-              ? `${resumen.CuponMasUsadoUsos} usos · ${formatearQuetzales(resumen.CuponMasUsadoBeneficio ?? 0)}`
+              ? `${plural(resumen.CuponMasUsadoUsos ?? 0, 'uso')} · ${formatearQuetzales(resumen.CuponMasUsadoBeneficio ?? 0)}`
               : 'sin usos aún'}
           </p>
         </div>
@@ -256,7 +256,7 @@ export default function AdminCupones() {
             </div>
 
             {data.total > tamano && (
-              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} />
+              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} tamanos={TAMANOS_PAGINA_ADMIN} />
             )}
           </>
         )}

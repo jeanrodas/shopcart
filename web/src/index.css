@@ -43,6 +43,26 @@ body {
   .sin-barra::-webkit-scrollbar {
     display: none;
   }
+
+  /* Barra fina que se mezcla con el fondo y solo se nota al pasar el cursor
+     (barra lateral del area interna, sobre el degradado marino). */
+  .scroll-fino {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .scroll-fino:hover {
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+  .scroll-fino::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scroll-fino::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+  .scroll-fino:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+  }
 }
 
 /* -------------------------- Animaciones (keyframes) ----------------------- */

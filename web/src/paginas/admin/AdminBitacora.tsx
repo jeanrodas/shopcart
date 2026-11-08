@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { claves } from '../../lib/claves';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
-import { Paginacion } from '../catalogo/Paginacion';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { formatearMomento, formatearFechaHora } from '../../lib/formato';
 import type { AccionBitacora, BitacoraEvento, FiltrosBitacora } from '../../api/tipos';
 
@@ -183,7 +183,7 @@ export default function AdminBitacora() {
             </div>
 
             {data.total > tamano && (
-              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} />
+              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} tamanos={TAMANOS_PAGINA_ADMIN} />
             )}
           </>
         )}

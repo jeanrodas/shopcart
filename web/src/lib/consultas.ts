@@ -36,6 +36,15 @@ import { listarCuponesAdmin, obtenerResumenCupones } from '../api/cupones';
 import { listarBitacora, listarModulosBitacora } from '../api/bitacora';
 import { listarUsuariosAdmin } from '../api/usuarios';
 import {
+  obtenerResumenDashboard,
+  obtenerVentasPorDia,
+  obtenerVentasPorCategoria,
+  obtenerEmbudo,
+  obtenerHorasPico,
+  obtenerTopProductosDashboard,
+  obtenerCuponesDashboard,
+} from '../api/dashboard';
+import {
   listarInventarioAdmin,
   obtenerResumenInventario,
   listarKardex,
@@ -66,6 +75,7 @@ import type {
   FiltrosUsuarios,
   PagarBody,
   PerfilInput,
+  RangoDashboard,
 } from '../api/tipos';
 
 export function useDestacados(limite = 8) {
@@ -582,6 +592,67 @@ export function useUsuariosAdmin(filtros: FiltrosUsuarios) {
   return useQuery({
     queryKey: claves.usuarios.lista(filtros),
     queryFn: () => listarUsuariosAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/* ------------------------------ Dashboard (F9) ---------------------------- */
+
+// El periodo gobierna todos los bloques; keepPreviousData evita el parpadeo al cambiarlo.
+// Cada bloque es una consulta independiente para que un error no tumbe el resto.
+
+export function useDashboardResumen(r: RangoDashboard) {
+  return useQuery({
+    queryKey: claves.dashboard.resumen(r),
+    queryFn: () => obtenerResumenDashboard(r),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useVentasPorDia(r: RangoDashboard) {
+  return useQuery({
+    queryKey: claves.dashboard.ventasDia(r),
+    queryFn: () => obtenerVentasPorDia(r),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCategoriasDashboard(r: RangoDashboard) {
+  return useQuery({
+    queryKey: claves.dashboard.categorias(r),
+    queryFn: () => obtenerVentasPorCategoria(r),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useEmbudo(r: RangoDashboard) {
+  return useQuery({
+    queryKey: claves.dashboard.embudo(r),
+    queryFn: () => obtenerEmbudo(r),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useHorasPico(r: RangoDashboard) {
+  return useQuery({
+    queryKey: claves.dashboard.horas(r),
+    queryFn: () => obtenerHorasPico(r),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTopProductosDashboard(r: RangoDashboard, top = 8) {
+  return useQuery({
+    queryKey: [...claves.dashboard.top(r), top] as const,
+    queryFn: () => obtenerTopProductosDashboard(r, top),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCuponesDashboard(r: RangoDashboard, top = 8) {
+  return useQuery({
+    queryKey: [...claves.dashboard.cupones(r), top] as const,
+    queryFn: () => obtenerCuponesDashboard(r, top),
     placeholderData: keepPreviousData,
   });
 }

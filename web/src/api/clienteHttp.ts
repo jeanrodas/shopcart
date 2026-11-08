@@ -130,6 +130,8 @@ interface OpcionesPeticion {
    * tardia podria repoblar la cache (p. ej. el carrito del usuario tras cerrar sesion).
    */
   signal?: AbortSignal;
+  /** Callback con las cabeceras de la respuesta (p. ej. para leer X-Cache del dashboard). */
+  alResponder?: (headers: Headers) => void;
 }
 
 function rutaUsaCarrito(ruta: string): boolean {
@@ -232,6 +234,7 @@ export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Pro
   }
 
   if (!res.ok && !opc.estadosOk?.includes(res.status)) throw await construirError(res);
+  opc.alResponder?.(res.headers);
   if (res.status === 204) return undefined as T;
 
   const texto = await res.text();

@@ -1,6 +1,7 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { invalidarTodo } from '../utils/reportesCache.js';
+import { emitir } from '../eventos/bus.js';
 import type {
   EntradaInput,
   AjusteInput,
@@ -14,28 +15,61 @@ import type {
 // defecto para el resto (origen no interno y sin pedido asociado). Los tipos
 // reservados al sistema quedan asi fuera del alcance del backend.
 
+interface MovimientoRow {
+  CodigoTipo: string;
+  Cantidad: number;
+  Disponible: number;
+}
+interface EstadoVarianteRow {
+  SKU: string;
+  Disponible: number;
+  Umbral: number;
+  BajoStock: boolean;
+}
+
+/**
+ * Tras confirmar un movimiento, emite el evento SSE inventario.movimiento (y
+ * inventario.bajoStock si la variante quedo en o bajo el umbral). El evento tambien
+ * invalida el cache de reportes (via bus). El SKU/umbral vienen de un SP de solo
+ * lectura (028), nunca de SQL en TypeScript.
+ */
+async function emitirMovimiento(idVariante: number, mov: MovimientoRow | undefined): Promise<void> {
+  if (!mov) {
+    invalidarTodo(); // caso defensivo: sin fila del SP, se invalida igual
+    return;
+  }
+  const est = await executeSp<EstadoVarianteRow>('SP_Eventos_EstadoVariante', [
+    { name: 'IDVariante', type: sql.Int, value: idVariante },
+  ]);
+  const e = est.recordset[0];
+  const sku = e?.SKU ?? '';
+  const disponible = e?.Disponible ?? mov.Disponible;
+  emitir('inventario.movimiento', { sku, tipo: mov.CodigoTipo, cantidad: mov.Cantidad, disponible });
+  if (e?.BajoStock) emitir('inventario.bajoStock', { sku, disponible, umbral: e.Umbral });
+}
+
 export async function registrarEntrada(datos: EntradaInput, actorId: number): Promise<unknown> {
-  const result = await executeSp('SP_Inventario_RegistrarMovimiento', [
+  const result = await executeSp<MovimientoRow>('SP_Inventario_RegistrarMovimiento', [
     { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
     { name: 'CodigoTipo', type: sql.NVarChar(30), value: 'ENTRADA_COMPRA' },
     { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
     { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
-  // Cambia la existencia: invalida el cache de reportes (productos bajo stock).
-  invalidarTodo();
+  // Cambia la existencia: emite el evento (que invalida el cache de reportes).
+  await emitirMovimiento(datos.idVariante, result.recordset[0]);
   return result.recordset[0];
 }
 
 export async function registrarAjuste(datos: AjusteInput, actorId: number): Promise<unknown> {
-  const result = await executeSp('SP_Inventario_RegistrarMovimiento', [
+  const result = await executeSp<MovimientoRow>('SP_Inventario_RegistrarMovimiento', [
     { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
     { name: 'CodigoTipo', type: sql.NVarChar(30), value: datos.tipo },
     { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
     { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
-  invalidarTodo();
+  await emitirMovimiento(datos.idVariante, result.recordset[0]);
   return result.recordset[0];
 }
 

@@ -7,6 +7,7 @@ import type {
   FiltrosPedidos,
   FiltrosPedidosOperacion,
   FiltrosUsuarios,
+  RangoDashboard,
 } from '../api/tipos';
 
 /** Convencion de claves de cache por modulo para TanStack Query. */
@@ -74,5 +75,15 @@ export const claves = {
     // Raiz para invalidar la administracion de usuarios tras una escritura.
     admin: ['usuarios', 'admin'] as const,
     lista: (filtros: FiltrosUsuarios) => ['usuarios', 'admin', 'lista', filtros] as const,
+  },
+  dashboard: {
+    todo: ['dashboard'] as const,
+    resumen: (r: RangoDashboard) => ['dashboard', 'resumen', r] as const,
+    ventasDia: (r: RangoDashboard) => ['dashboard', 'ventas-dia', r] as const,
+    categorias: (r: RangoDashboard) => ['dashboard', 'categorias', r] as const,
+    embudo: (r: RangoDashboard) => ['dashboard', 'embudo', r] as const,
+    horas: (r: RangoDashboard) => ['dashboard', 'horas', r] as const,
+    top: (r: RangoDashboard) => ['dashboard', 'top', r] as const,
+    cupones: (r: RangoDashboard) => ['dashboard', 'cupones', r] as const,
   },
 };

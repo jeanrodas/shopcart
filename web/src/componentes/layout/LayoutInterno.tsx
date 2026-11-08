@@ -96,7 +96,7 @@ function Lateral({ onNavegar }: { onNavegar?: () => void }) {
         </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Navegación de administración">
+      <nav className="scroll-fino flex-1 overflow-y-auto px-3 pb-4" aria-label="Navegación de administración">
         {GRUPOS.map((g) => {
           const items = g.items.filter((it) => !it.soloAdmin || esAdmin);
           if (items.length === 0) return null;

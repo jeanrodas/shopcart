@@ -1,5 +1,13 @@
 /** Utilidades de formato de fecha/tiempo para la tienda. */
 
+/**
+ * "1 pedido" / "2 pedidos". El plural por defecto es el singular + 's'; pásalo
+ * explícito para los irregulares (p. ej. plural(n, 'variante')).
+ */
+export function plural(n: number, singular: string, formaPlural = `${singular}s`): string {
+  return `${n} ${n === 1 ? singular : formaPlural}`;
+}
+
 const fechaCorta = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'long' });
 const fechaConAnio = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'long', year: 'numeric' });
 const fechaLargaHora = new Intl.DateTimeFormat('es-GT', {
@@ -10,6 +18,12 @@ const fechaLargaHora = new Intl.DateTimeFormat('es-GT', {
   minute: '2-digit',
 });
 const horaCorta = new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fechaLarga = new Intl.DateTimeFormat('es-GT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+/** "lunes, 3 de noviembre de 2026" (fecha larga para cabeceras). */
+export function formatearFechaLarga(d: Date = new Date()): string {
+  return fechaLarga.format(d);
+}
 
 /** "3 de noviembre"; incluye el ano ("3 de noviembre de 2027") si no es del ano en curso. */
 export function formatearFechaCorta(iso: string): string {

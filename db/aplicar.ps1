@@ -77,7 +77,9 @@ $orden = @(
     # leen objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
     '026_SP_Fase2_Operacion',
     # 027 (F8): control del area interna (cupones, bitacora, usuarios). Aditivo; despues de 026.
-    '027_SP_Fase2_Control'
+    '027_SP_Fase2_Control',
+    # 028 (F9): datos del dashboard del area interna. Aditivo; despues de 020/026 (usa VW_Reportes_*).
+    '028_SP_Fase2_Dashboard'
 )
 if ($IncluirSemillas) { $orden += '099_Semillas' }
 

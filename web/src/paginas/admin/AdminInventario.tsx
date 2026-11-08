@@ -14,7 +14,7 @@ import { Modal } from '../../componentes/ui/Modal';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { resolverImagen } from '../../lib/imagenes';
 import { formatearMomento } from '../../lib/formato';
-import { Paginacion } from '../catalogo/Paginacion';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { IconoDevolucion, IconoMas, IconoEscudo, IconoReloj } from '../../componentes/iconos';
 import { PanelMovimiento } from './PanelMovimiento';
 import type {
@@ -334,7 +334,7 @@ export default function AdminInventario() {
               </div>
 
               {data.total > tamano && (
-                <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} />
+                <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} tamanos={TAMANOS_PAGINA_ADMIN} />
               )}
             </>
           )}

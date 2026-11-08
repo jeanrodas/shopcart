@@ -15525,6 +15525,514 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "F2 Eventos",
+			"item": [
+				{
+					"name": "00 Login (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('feAdminToken', d.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "00 Login (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('feCliToken', d.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"cliente2@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "Ticket SSE: admin obtiene un ticket (201)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201', () => pm.expect(pm.response.code).to.eql(201));",
+									"const d = pm.response.json();",
+									"pm.test('devuelve un ticket (hex de 64)', () => { pm.expect(d.ticket).to.be.a('string'); pm.expect(d.ticket.length).to.eql(64); });",
+									"pm.collectionVariables.set('feTicket', d.ticket);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{feAdminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/eventos/ticket"
+					}
+				},
+				{
+					"name": "Ticket SSE: un cliente no puede pedir ticket (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('403', () => pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{feCliToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/eventos/ticket"
+					}
+				},
+				{
+					"name": "Stream SSE: ticket invalido/vencido/reutilizado (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('401', () => pm.expect(pm.response.code).to.eql(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/eventos?ticket=ticket-que-no-existe"
+					}
+				},
+				{
+					"name": "Stream SSE: sin ticket (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('401', () => pm.expect(pm.response.code).to.eql(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/eventos"
+					}
+				}
+			]
+		},
+		{
+			"name": "F2 Dashboard",
+			"item": [
+				{
+					"name": "00 Login (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('fdToken', d.accessToken);",
+									"const now = new Date();",
+									"pm.collectionVariables.set('dashHasta', now.toISOString());",
+									"pm.collectionVariables.set('dashDesde', new Date(now.getTime() - 40*24*60*60*1000).toISOString());"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "Resumen: primera lectura (X-Cache MISS)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('X-Cache MISS', () => pm.expect(pm.response.headers.get('X-Cache')).to.eql('MISS'));",
+									"const d = pm.response.json();",
+									"pm.test('trae los 4 KPIs con comparativo', () => ['VentasNetas','Pedidos','TicketPromedio','UnidadesVendidas','VariacionVentasPct','VariacionUnidadesPct'].forEach(k => pm.expect(d).to.have.property(k)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Resumen: segunda lectura (X-Cache HIT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('X-Cache HIT', () => pm.expect(pm.response.headers.get('X-Cache')).to.eql('HIT'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Ventas por dia (serie con ceros)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('es una serie diaria', () => { pm.expect(d).to.be.an('array'); pm.expect(d.length).to.be.above(0); });",
+									"pm.test('cada dia trae Fecha, VentaNeta, UnidadesNetas, TicketPromedio', () => d.forEach(p => ['Fecha','VentaNeta','UnidadesNetas','TicketPromedio'].forEach(k => pm.expect(p).to.have.property(k))));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/ventas-dia?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Ventas por categoria (con porcentaje)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('cada fila trae Porcentaje', () => d.forEach(c => pm.expect(c).to.have.property('Porcentaje')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/categorias?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Embudo de compra (con tasas)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('trae conteos y tasas', () => ['CarritosCreados','CarritosConLineas','CheckoutsIniciados','PagosAprobados','PagosRechazados','TasaAprobacion'].forEach(k => pm.expect(d).to.have.property(k)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/embudo?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Horas pico (matriz)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('celdas con DiaSemana/Hora/Pedidos', () => { pm.expect(d).to.be.an('array'); d.forEach(c => ['DiaSemana','Hora','Pedidos'].forEach(k => pm.expect(c).to.have.property(k))); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/horas-pico?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Top productos (reusa M9, tambien Operador)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('es una lista', () => pm.expect(pm.response.json()).to.be.an('array'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/top-productos?desde={{dashDesde}}&hasta={{dashHasta}}&top=5"
+					}
+				},
+				{
+					"name": "Cupones del periodo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('cada cupon trae Codigo, Usos, DescuentoOtorgado', () => d.forEach(c => ['Codigo','Usos','DescuentoOtorgado'].forEach(k => pm.expect(c).to.have.property(k))));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/cupones?desde={{dashDesde}}&hasta={{dashHasta}}&top=5"
+					}
+				},
+				{
+					"name": "00 Login (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('fdOpeToken', d.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "Operador tambien ve el dashboard (200)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdOpeToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "00 Login (setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('fdCliToken', d.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"cliente2@shopcart.local\",\n  \"contrasena\": \"Cliente123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/auth/login"
+					}
+				},
+				{
+					"name": "Un cliente no ve el dashboard (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('403', () => pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdCliToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				}
+			]
 		}
 	]
 }

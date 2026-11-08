@@ -75,6 +75,8 @@ ORDEN=(
   026_SP_Fase2_Operacion
   # 027 (F8): control del area interna (cupones, bitacora, usuarios). Aditivo; despues de 026.
   027_SP_Fase2_Control
+  # 028 (F9): datos del dashboard del area interna. Aditivo; despues de 020/026 (usa VW_Reportes_*).
+  028_SP_Fase2_Dashboard
 )
 [[ $SEMILLAS -eq 1 ]] && ORDEN+=(099_Semillas)
 

@@ -2918,5 +2918,138 @@ export const openapiDocument = {
         },
       },
     },
+
+    /* ------------------------------ Dashboard (F9) ------------------------------ */
+    // Administrador y Operador (lectura). Rango [desde, hasta) semiabierto; X-Cache HIT/MISS.
+    '/api/v1/dashboard/resumen': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'KPIs del dashboard con comparativo (Administrador/Operador)',
+        description:
+          'Ventas netas, pedidos, ticket promedio y unidades del periodo, cada uno con su valor del ' +
+          'periodo anterior y VariacionPct (NULL si el anterior es 0). X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, description: 'Exclusivo: el rango es [desde, hasta).', schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': { description: 'Resumen (una fila)' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+    '/api/v1/dashboard/ventas-dia': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Serie diaria de ventas con ceros (Administrador/Operador)',
+        description: 'Un renglon por dia del rango (0 en dias sin ventas): Pedidos, VentaNeta, UnidadesNetas, TicketPromedio. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': { description: 'Serie diaria' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+    '/api/v1/dashboard/categorias': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Ventas por categoria con porcentaje (Administrador/Operador)',
+        description: 'Monto y unidades netas por categoria en el rango, mas el Porcentaje del total. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': { description: 'Filas por categoria' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+    '/api/v1/dashboard/embudo': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Embudo de compra con tasas (Administrador/Operador)',
+        description: 'Carritos creados / con lineas / checkouts iniciados / pagos aprobados / rechazados, con las tasas entre pasos calculadas en SQL. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': { description: 'Embudo (una fila)' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+    '/api/v1/dashboard/horas-pico': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Pedidos por dia de semana y hora local (Administrador/Operador)',
+        description: 'Celdas (DiaSemana 1-7, Hora 0-23 en HORA LOCAL, Pedidos) con al menos un pedido; el cliente arma la matriz 7x24. La hora se convierte a ?zona= (nombre de sys.time_zone_info; por defecto Guatemala; zona invalida -> 422). X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'zona', in: 'query', description: "Nombre de zona de sys.time_zone_info (p. ej. 'Central America Standard Time').", schema: { type: 'string', maxLength: 64 } },
+        ],
+        responses: { '200': { description: 'Celdas de la matriz' }, '400': errRef, '401': errRef, '403': errRef, '422': errRef },
+      },
+    },
+    '/api/v1/dashboard/top-productos': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Top productos del periodo (Administrador/Operador)',
+        description: 'Reusa el reporte de M9 (SP_Reportes_TopProductos) exponiendolo tambien al Operador dentro del dashboard. X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'top', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 50 } },
+        ],
+        responses: { '200': { description: 'Filas de productos' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+    '/api/v1/dashboard/cupones': {
+      get: {
+        tags: ['Dashboard'],
+        summary: 'Cupones mas usados del periodo (Administrador/Operador)',
+        description: 'Codigo, usos y descuento otorgado por cupon en el rango (pedidos no cancelados). X-Cache HIT/MISS.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date-time' } },
+          { name: 'top', in: 'query', schema: { type: 'integer', default: 8, minimum: 1, maximum: 50 } },
+        ],
+        responses: { '200': { description: 'Filas de cupones' }, '400': errRef, '401': errRef, '403': errRef },
+      },
+    },
+
+    /* ------------------------------ Eventos en vivo (F9, SSE) ------------------------------ */
+    '/api/v1/eventos/ticket': {
+      post: {
+        tags: ['Eventos'],
+        summary: 'Emite un ticket de un solo uso para el stream SSE (Administrador/Operador)',
+        description:
+          'Devuelve { ticket } aleatorio (32 bytes hex) valido 60 s y de un solo uso, para abrir ' +
+          'GET /eventos sin exponer el JWT en la URL. Rate limit 10/min.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '201': { description: 'Ticket emitido', content: { 'application/json': { schema: { type: 'object', properties: { ticket: { type: 'string' } } } } } },
+          '401': errRef,
+          '403': errRef,
+          '429': errRef,
+        },
+      },
+    },
+    '/api/v1/eventos': {
+      get: {
+        tags: ['Eventos'],
+        summary: 'Stream de eventos en vivo del area interna (SSE)',
+        description:
+          'text/event-stream autenticado por el ticket (consumido al conectar; reusado o vencido -> 401). ' +
+          'Envia un evento "hola" con el estado inicial (incluye "instalacion" = fecha de creacion de la BD, para que ' +
+          'el cliente descarte su feed si la BD cambio), un comentario ": ping" cada 25 s y los eventos del bus ' +
+          '(pedido.creado y pedido.estado incluyen idPedido; inventario.movimiento, inventario.bajoStock, cupon.usado) con id incremental y retry 5000.',
+        parameters: [{ name: 'ticket', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Flujo SSE', content: { 'text/event-stream': { schema: { type: 'string' } } } },
+          '401': errRef,
+        },
+      },
+    },
   },
 };

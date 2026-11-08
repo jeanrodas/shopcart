@@ -52,6 +52,8 @@ const envSchema = z
   RATE_LIMIT_AUTH_VENTANA_MIN: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_CHECKOUT_MAX: z.coerce.number().int().positive().default(20),
   RATE_LIMIT_CUPON_MAX: z.coerce.number().int().positive().default(10),
+  // Tickets de eventos en vivo (F9, SSE): POST /eventos/ticket por minuto.
+  RATE_LIMIT_EVENTOS_MAX: z.coerce.number().int().positive().default(10),
 
   // Saltos de confianza para Express (X-Forwarded-For) detras de un proxy/balanceador.
   // 0 = sin proxy (usa la IP del socket). Ver app.ts.

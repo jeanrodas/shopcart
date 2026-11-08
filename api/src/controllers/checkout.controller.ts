@@ -27,6 +27,7 @@ export const postPagar: RequestHandler = async (req, res) => {
     clienteId(req),
     req.idempotencyKey as string,
     req.body as PagarInput,
+    req.usuario?.nombre ?? '',
   );
   res.status(result.aprobado ? 201 : 402).json(result);
 };

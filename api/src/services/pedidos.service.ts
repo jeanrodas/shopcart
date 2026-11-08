@@ -1,6 +1,7 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { invalidarTodo } from '../utils/reportesCache.js';
+import { emitir } from '../eventos/bus.js';
 import { ROLES } from '../config/roles.js';
 import type { DevolucionInput, ListarPedidosQuery } from '../schemas/pedidos.schema.js';
 
@@ -148,9 +149,35 @@ export async function cambiarEstado(
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuarioEjecuta },
     { name: 'RolEjecuta', type: sql.NVarChar(30), value: rolEjecuta },
   ]);
-  // Un cambio de estado (incluida la cancelacion) altera ventas/inventario netos.
-  invalidarTodo();
-  return ensamblarPedido(result.recordsets as unknown[][]);
+  const pedido = ensamblarPedido(result.recordsets as unknown[][]);
+  // Un cambio de estado (incluida la cancelacion) altera ventas/inventario netos: emite
+  // pedido.estado (que ademas invalida el cache de reportes via el bus). El "de"/"a" y el
+  // usuario salen del ultimo renglon del historial que devuelve el SP.
+  emitirEstado(idPedido, pedido);
+  return pedido;
+}
+
+interface HistorialRow {
+  EstadoAnteriorCodigo: string | null;
+  EstadoNuevoCodigo: string;
+  UsuarioNombre: string | null;
+}
+
+function emitirEstado(idPedido: number, p: Pedido): void {
+  const cab = p.pedido as { NumeroPedido?: string } | null;
+  const hist = p.historial as HistorialRow[];
+  const ult = hist[hist.length - 1];
+  if (!cab || !ult) {
+    invalidarTodo(); // caso defensivo: sin datos del historial, se invalida igual
+    return;
+  }
+  emitir('pedido.estado', {
+    idPedido,
+    numero: cab.NumeroPedido ?? '',
+    de: ult.EstadoAnteriorCodigo,
+    a: ult.EstadoNuevoCodigo,
+    usuario: ult.UsuarioNombre ?? 'sistema',
+  });
 }
 
 export async function registrarDevolucion(

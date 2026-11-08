@@ -26,6 +26,30 @@ npm run dev              # http://localhost:5173
 | `npm run lint` | ESLint (flat config). |
 | `npm run typecheck` | Solo chequeo de tipos. |
 
+## Pruebas de navegador (Playwright)
+
+Prueban flujos completos en un navegador real (`web/tests/*.spec.ts`), incluida la prueba de
+humo de la compra (`compra.spec.ts`) y el dashboard en vivo (`dashboard.spec.ts`).
+
+**Requisitos:**
+
+- La **API** (`:3000`) y **Vite** (`:5173`) ya corriendo (la config no levanta servidores).
+- La **BD sembrada** (`db/aplicar.ps1`, incluye `099`); varias pruebas compran/mutan datos.
+- **`RATE_LIMIT_AUTH_MAX=400` en `api/.env`** mientras corren las pruebas: la suite hace ~25
+  inicios de sesión y cada `page.goto` renueva el access con `/auth/refresh`, que comparte ese
+  limitador; con el default saltaría `429` en las últimas pruebas. (Déjalo en 400 solo para
+  correr la suite; `api/.env` es local y no se versiona.) `global-setup.ts` hace un login de
+  prueba y avisa por consola si detecta `429`.
+
+```bash
+cd web
+npx playwright test          # toda la suite
+npx playwright test compra   # un archivo
+```
+
+Las pruebas corren **en serie** (`workers: 1`, `fullyParallel: false`) porque **comparten
+estado** (misma BD y sesión); así `npx playwright test` sin parámetros pasa de forma estable.
+
 ## Estructura
 
 - `src/api` — cliente HTTP (tokens, refresh single-flight, errores) y llamadas por módulo.

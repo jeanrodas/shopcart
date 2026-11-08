@@ -73,3 +73,33 @@ npx --yes newman run docs/postman/ShopCart.postman_collection.json \
   --folder "F2 Control" \
   --env-var baseUrl=http://localhost:3000
 ```
+
+## Carpeta `F2 Eventos` (F9)
+
+Ciclo del ticket SSE: admin obtiene ticket (201), un cliente no puede (403), y un ticket
+invalido/vencido/reutilizado al abrir el stream da 401 (todos caen en la misma rama, porque
+el ticket se consume al usarse). El stream valido abierto, el reuso tras consumir y la llegada
+del evento `pedido.creado` en menos de 2 s se prueban en `api/tests/sse.mjs` (newman no puede
+sostener un `text/event-stream` abierto). No necesita `--working-dir`:
+
+```bash
+npx --yes newman run docs/postman/ShopCart.postman_collection.json \
+  --folder "F2 Eventos" \
+  --env-var baseUrl=http://localhost:3000
+
+node api/tests/sse.mjs   # flujo completo del stream (abre SSE, compra y verifica pedido.creado)
+```
+
+## Carpeta `F2 Dashboard` (F9)
+
+Datos del dashboard del area interna: resumen con los 4 KPIs y su comparativo, serie diaria
+con ceros, categorias con porcentaje, embudo con tasas, horas pico y cupones del periodo.
+Verifica `X-Cache` MISS en la primera lectura y HIT en la segunda, que el Operador tambien
+lee el dashboard (200) y que un cliente no (403). Solo lee; es repetible. No necesita
+`--working-dir`:
+
+```bash
+npx --yes newman run docs/postman/ShopCart.postman_collection.json \
+  --folder "F2 Dashboard" \
+  --env-var baseUrl=http://localhost:3000
+```

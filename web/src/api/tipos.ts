@@ -947,3 +947,101 @@ export interface UsuarioCreado {
   /** Solo presente cuando el servidor genero la clave temporal (una sola vez). */
   contrasenaTemporal?: string;
 }
+
+/* ----------------------------- Dashboard (F9) ----------------------------- */
+
+/** Periodo del dashboard; gobierna todos los bloques. */
+export interface RangoDashboard {
+  desde: string; // ISO UTC
+  hasta: string; // ISO UTC
+}
+
+/** Respuesta de un bloque del dashboard + si vino del cache (cabecera X-Cache). */
+export interface DashboardRespuesta<T> {
+  datos: T;
+  cache: boolean;
+}
+
+export interface ResumenDashboard {
+  VentasNetas: number;
+  VentasNetasAnterior: number;
+  VariacionVentasPct: number | null;
+  Pedidos: number;
+  PedidosAnterior: number;
+  VariacionPedidosPct: number | null;
+  TicketPromedio: number;
+  TicketPromedioAnterior: number;
+  VariacionTicketPct: number | null;
+  UnidadesVendidas: number;
+  UnidadesVendidasAnterior: number;
+  VariacionUnidadesPct: number | null;
+}
+
+export interface PuntoVentaDia {
+  Fecha: string;
+  Pedidos: number;
+  VentaNeta: number;
+  UnidadesNetas: number;
+  TicketPromedio: number;
+}
+
+export interface CategoriaVenta {
+  IDCategoria: number;
+  Categoria: string;
+  Pedidos: number;
+  UnidadesNetas: number;
+  MontoNeto: number;
+  Porcentaje: number;
+}
+
+export interface EmbudoDashboard {
+  CarritosCreados: number;
+  CarritosConLineas: number;
+  CheckoutsIniciados: number;
+  PagosAprobados: number;
+  PagosRechazados: number;
+  TasaConLineas: number | null;
+  TasaCheckout: number | null;
+  TasaAprobacion: number | null;
+  TasaRechazo: number | null;
+}
+
+export interface CeldaHoraPico {
+  DiaSemana: number; // 1=Lunes .. 7=Domingo
+  Hora: number; // 0-23 UTC
+  Pedidos: number;
+}
+
+export interface TopProductoDashboard {
+  IDProducto: number;
+  Producto: string;
+  Categoria: string;
+  UnidadesNetas: number;
+  MontoNeto: number;
+}
+
+export interface CuponDashboard {
+  IDCupon: number;
+  Codigo: string;
+  Usos: number;
+  DescuentoOtorgado: number;
+}
+
+/* -------- Eventos en vivo (SSE) -------- */
+
+export type TipoEventoVivo =
+  | 'pedido.creado'
+  | 'pedido.estado'
+  | 'inventario.movimiento'
+  | 'inventario.bajoStock'
+  | 'cupon.usado';
+
+export interface EventoVivo {
+  /** Id local incremental para el feed (no es el id del servidor). */
+  id: number;
+  tipo: TipoEventoVivo;
+  datos: Record<string, unknown>;
+  fecha: number; // Date.now() de recepcion
+}
+
+export type EstadoConexionVivo = 'conectando' | 'conectado' | 'reconectando';

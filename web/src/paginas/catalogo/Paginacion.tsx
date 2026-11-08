@@ -2,12 +2,17 @@ import clsx from 'clsx';
 import { IconoFlechaDerecha, IconoFlechaIzquierda } from '../../componentes/iconos';
 import { TAMANOS_PAGINA } from './estado';
 
+/** Tamaños de página de las tablas del área interna (su defecto es 20). */
+export const TAMANOS_PAGINA_ADMIN = [20, 50, 100] as const;
+
 interface Props {
   pagina: number;
   tamanoPagina: number;
   total: number;
   onPagina: (p: number) => void;
   onTamano: (t: number) => void;
+  /** Opciones del selector "Por página"; por defecto las de la tienda (12/24/48). */
+  tamanos?: readonly number[];
 }
 
 /** Ventana de 5 numeros alrededor de la pagina actual, con 1, total y "…". */
@@ -25,7 +30,14 @@ function ventana(pagina: number, totalPaginas: number): (number | '…')[] {
 
 const BTN = 'grid h-11 min-w-11 place-items-center rounded-12 px-3 text-sm font-semibold';
 
-export function Paginacion({ pagina, tamanoPagina, total, onPagina, onTamano }: Props) {
+export function Paginacion({
+  pagina,
+  tamanoPagina,
+  total,
+  onPagina,
+  onTamano,
+  tamanos = TAMANOS_PAGINA,
+}: Props) {
   const totalPaginas = Math.max(1, Math.ceil(total / tamanoPagina));
   const desde = total === 0 ? 0 : (pagina - 1) * tamanoPagina + 1;
   const hasta = Math.min(pagina * tamanoPagina, total);
@@ -90,7 +102,7 @@ export function Paginacion({ pagina, tamanoPagina, total, onPagina, onTamano }: 
           onChange={(e) => onTamano(Number(e.target.value))}
           className="rounded-pill border border-[rgba(15,23,42,.14)] bg-white px-3 py-1.5 text-sm font-semibold text-marino-700 outline-none focus:border-marino-600"
         >
-          {TAMANOS_PAGINA.map((t) => (
+          {tamanos.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

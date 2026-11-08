@@ -9,7 +9,6 @@ import { LayoutTienda } from './componentes/layout/LayoutTienda';
 import { LayoutCheckout } from './componentes/layout/LayoutCheckout';
 import { LayoutInterno } from './componentes/layout/LayoutInterno';
 import { PantallaCarga } from './componentes/PantallaCarga';
-import { EnConstruccion } from './paginas/EnConstruccion';
 import { NoEncontrado } from './paginas/NoEncontrado';
 import { Prohibido } from './paginas/Prohibido';
 
@@ -31,6 +30,7 @@ const AdminInventario = lazy(() => import('./paginas/admin/AdminInventario'));
 const AdminPedidos = lazy(() => import('./paginas/admin/AdminPedidos'));
 const PedidoOperacion = lazy(() => import('./paginas/admin/PedidoOperacion'));
 const AdminCupones = lazy(() => import('./paginas/admin/AdminCupones'));
+const Dashboard = lazy(() => import('./paginas/admin/Dashboard'));
 const AdminBitacora = lazy(() => import('./paginas/admin/AdminBitacora'));
 const AdminUsuarios = lazy(() => import('./paginas/admin/AdminUsuarios'));
 
@@ -100,7 +100,7 @@ export function App() {
                     </RutaProtegida>
                   }
                 >
-                  <Route index element={<EnConstruccion titulo="Dashboard" />} />
+                  <Route index element={<Dashboard />} />
                   <Route path="pedidos" element={<AdminPedidos />} />
                   <Route path="pedidos/:id" element={<PedidoOperacion />} />
                   <Route path="inventario" element={<AdminInventario />} />

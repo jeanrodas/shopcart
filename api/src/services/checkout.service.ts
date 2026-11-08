@@ -2,6 +2,7 @@ import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { env } from '../config/env.js';
 import { invalidarTodo } from '../utils/reportesCache.js';
+import { emitir } from '../eventos/bus.js';
 import type { PagarInput } from '../schemas/checkout.schema.js';
 
 /** Fila de resumen de checkout (recordset 1 de Iniciar/Resumen). */
@@ -142,6 +143,7 @@ export async function pagar(
   idUsuario: number,
   claveIdempotencia: string,
   datos: PagarInput,
+  clienteNombre = '',
 ): Promise<ResultadoPago> {
   // El resultado del pago lo decide el backend, nunca el cliente. Con PAGO_SIMULADO
   // desactivado se ignora simularResultado del body y siempre se cobra APROBADO.
@@ -164,9 +166,21 @@ export async function pagar(
   const replay = Boolean((recordsets[2]?.[0] as { Replay?: boolean } | undefined)?.Replay);
   const aprobado = Boolean(cab?.Aprobado);
 
-  // Un pedido aprobado NUEVO cambia ventas e inventario: invalida el cache de
-  // reportes. Un replay no muta nada (idempotente), por eso no invalida.
-  if (aprobado && !replay) invalidarTodo();
+  // Un pedido aprobado NUEVO cambia ventas e inventario: emite pedido.creado (y
+  // cupon.usado si uso cupon), que ademas invalida el cache de reportes via el bus.
+  // Un replay no muta nada (idempotente), por eso no anuncia ni invalida.
+  if (aprobado && !replay && cab) {
+    emitir('pedido.creado', {
+      idPedido: cab.IDPedido ?? 0,
+      numero: cab.NumeroPedido ?? '',
+      total: cab.Total ?? 0,
+      cliente: clienteNombre,
+      fecha: cab.FechaCreacion ?? new Date().toISOString(),
+    });
+    if (cab.CuponCodigo) {
+      emitir('cupon.usado', { codigo: cab.CuponCodigo, numeroPedido: cab.NumeroPedido ?? '' });
+    }
+  }
 
   return {
     aprobado,

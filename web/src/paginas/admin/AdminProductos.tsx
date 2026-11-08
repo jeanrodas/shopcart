@@ -7,7 +7,7 @@ import { Boton } from '../../componentes/ui/Boton';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { Precio } from '../../componentes/ui/Precio';
 import { resolverImagen } from '../../lib/imagenes';
-import { Paginacion } from '../catalogo/Paginacion';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { PanelProducto } from './PanelProducto';
 import type { ConteosCatalogo, EstadoDerivado, FiltrosAdmin, ProductoAdminFila } from '../../api/tipos';
 
@@ -200,6 +200,7 @@ export default function AdminProductos() {
                 total={data.total}
                 onPagina={setPagina}
                 onTamano={setTamano}
+                tamanos={TAMANOS_PAGINA_ADMIN}
               />
             )}
           </>

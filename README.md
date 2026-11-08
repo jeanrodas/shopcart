@@ -244,6 +244,7 @@ tabla describe cada script en orden numerico de archivo:
 | `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna `dbo.Variante.ImagenURL` (imagen propia por variante; `NULL` = usa la del producto). Reordenada **antes** de `010/012/016/018/023/024`, que la referencian. Los SPs de crear/actualizar variante reciben `@ImagenURL` y `@ConservarImagen` (1 por defecto: no toca la imagen, para no romper M2); `ObtenerProducto` devuelve `ImagenURL`; `ListarAdmin` suma `VariantesConImagen`; carrito/pedido/resumen usan `COALESCE(v.ImagenURL, <imagen del producto>)`. |
 | `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion, existencia/reservado/disponible, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`); `SP_Inventario_Resumen` (KPIs + movimientos de hoy por tipo + inconsistencias + `UmbralBajoStock`/`ReservaMinutos`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura**: `Permitido`/`Motivo`); `SP_Pedidos_ResumenOperacion` (conteos del flujo y antiguedad del PAGADO mas viejo); `SP_Pedidos_ListarOperacion` (estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango y columnas de operacion). Solo lectura/simulacion: el registro real y los cambios de estado siguen en `011`/`018`. Va al final. |
 | `027_SP_Fase2_Control.sql` | Fase 2 (aditivo, F8): control del area interna. Cupones (`SP_Cupones_ListarAdmin` con estado derivado/alcance/dias-para-vencer y filtros; `SP_Cupones_ResumenAdmin` con KPIs de 30 dias y conteos por estado), bitacora (`SP_Bitacora_Consultar` +`@Texto` LIKE sobre los JSON; `SP_Bitacora_ListarPorRegistro`) y usuarios (`SP_Usuarios_ListarAdmin` con pedidos/bloqueo/conteos; `SP_Usuarios_Desbloquear`). No altera los SP de M1/M5/M8. Va al final. |
+| `028_SP_Fase2_Dashboard.sql` | Fase 2 (aditivo, F9): datos del dashboard. Solo lo que `020` no cubre: `SP_Dashboard_Resumen` (4 KPIs con comparativo y `VariacionPct` en SQL), `SP_Dashboard_VentasPorDia` (serie diaria con ceros via CTE recursiva + unidades y ticket por dia), `SP_Dashboard_VentasPorCategoria` (+`Porcentaje`), `SP_Dashboard_Embudo` (carritos/checkouts/pagos con tasas), `SP_Dashboard_HorasPico` (matriz dia×hora en hora local; `@ZonaHoraria` validada contra `sys.time_zone_info`, Guatemala por defecto), `SP_Dashboard_Cupones` (mas usados del periodo) y `SP_Eventos_EstadoVariante` (para el evento SSE de inventario). Top productos se reusa de `020`. Usa `VW_Reportes_*`; va al final. |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9); asigna la imagen propia (`/img/productos/<SKU>.jpeg`) a las tres presentaciones del Refrigerante. Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -775,13 +776,16 @@ anterior es 0). Ademas devuelve `CarritosAbandonados` y `VariantesBajoStock`.
 cache en memoria con TTL (`REPORTES_CACHE_TTL_SEGUNDOS`, default 60; `0` lo desactiva). La
 **clave** es el nombre del reporte mas sus parametros ordenados de forma estable; no guarda
 nada por usuario (todas las rutas son de Administrador). Responde el header **`X-Cache:
-HIT|MISS`**. Limite de 200 entradas con desalojo LRU simple. Nunca cachea respuestas de
-error. **Invalidacion por evento:** los servicios que cambian ventas o inventario
-(`checkout.service` al aprobar un pedido, `pedidos.service` al cambiar estado/cancelar/
-devolver, `inventario.service` en cada movimiento) llaman `invalidarTodo()` tras el SP
-exitoso, de modo que el proximo reporte recomputa. Con varias instancias de API el cache
-seria por-proceso; el equivalente compartido es Redis con la misma clave y el mismo evento
-de invalidacion.
+HIT|MISS`** (tambien en los endpoints de `/dashboard`, que comparten este cache). Limite de
+200 entradas con desalojo LRU simple. Nunca cachea respuestas de error. **Invalidacion por
+evento (F9):** las mutaciones que cambian ventas o inventario emiten un evento al bus
+(`api/src/eventos/bus.ts`) despues de que el SP confirma —`pedido.creado` (checkout al
+aprobar), `pedido.estado` (cambio de estado/cancelacion), `inventario.movimiento` (cada
+movimiento) y `cupon.usado`— y un listener del bus llama `invalidarTodo()`, de modo que el
+proximo reporte/dashboard recomputa. Los caminos sin evento propio (reserva del checkout,
+liberacion de reservas vencidas y escrituras de catalogo) siguen llamando `invalidarTodo()`
+directo. Con varias instancias de API el cache seria por-proceso; el equivalente compartido
+es Redis con la misma clave y el mismo evento de invalidacion.
 
 **Export a Excel.** `GET /reportes/{ventas,categorias,top-productos}/export` generan un
 `.xlsx` en memoria con `exceljs` (sin dependencias nativas): una hoja con titulo, rango de
@@ -936,6 +940,62 @@ pasa a tarjetas.
   (`/cuenta`, habilitada tambien para roles internos: solo Datos y Seguridad). Los clientes se
   registran desde la tienda.
 
+### Fase 2: dashboard, eventos en vivo y ajustes (F9)
+
+Pantalla **`/admin`** (Dashboard del area interna) sobre los reportes de M9, mas un canal de
+eventos **en vivo** (SSE). Administrador y **Operador** ven el dashboard completo en solo
+lectura. Backend solo aditivo (migracion `028`, SPs `/dashboard` nuevos; el bus reusa el evento
+de invalidacion de M9). Ninguna cifra se calcula en el navegador.
+
+- **Datos (`GET /dashboard/*`, Administrador/Operador).** Pasan por el **mismo cache** de M9
+  (`X-Cache HIT|MISS`), invalidado por los eventos del bus. `028` solo agrega lo que `020` no
+  cubria: `resumen` (4 KPIs con su valor del periodo anterior y `VariacionPct` en SQL),
+  `ventas-dia` (serie diaria con ceros, tabla de numeros por CTE recursiva), `categorias`
+  (+porcentaje del total), `embudo` (carritos→pagos con tasas), `horas-pico` (matriz dia×hora
+  UTC) y `cupones` del periodo. **Top productos reusa** `SP_Reportes_TopProductos` de M9 desde
+  `/dashboard/top-productos` (para habilitarlo tambien al Operador). Export a Excel solo en los
+  bloques cuyo export existe en M9 (ventas, categorias, top), visible solo para Administrador.
+- **Eventos en vivo (SSE).** `api/src/eventos/bus.ts` es un `EventEmitter` de proceso con los
+  tipos `pedido.creado`, `pedido.estado`, `inventario.movimiento`, `inventario.bajoStock` y
+  `cupon.usado`; los servicios emiten **despues** de que el SP confirma. **Autenticacion sin JWT
+  en la URL:** `POST /eventos/ticket` (autenticado, Admin/Operador, rate limit 10/min) devuelve un
+  ticket aleatorio (`crypto.randomBytes(32)`) de **un solo uso** que caduca en **60 s**; un token
+  en el query quedaria en logs/historial/proxies, por eso se usa el ticket. `GET /eventos?ticket=…`
+  lo consume y responde `text/event-stream` (`Cache-Control: no-cache`, `X-Accel-Buffering: no`,
+  `Connection: keep-alive`): envia un evento `hola` con el estado inicial, un comentario `: ping`
+  cada 25 s y los eventos del bus con `id` incremental y `retry: 5000`; limpia el listener al
+  cerrar y limita a **5 conexiones por usuario** (la 6.ª cierra la mas antigua). El cliente
+  (`web/src/lib/useEventosVivo.ts`) **reconecta con un ticket nuevo** ante un corte (el reintento
+  nativo de `EventSource` reusaria el ticket ya consumido). Prueba de flujo HTTP: `node
+  api/tests/sse.mjs` (abre el stream, completa una compra y verifica que `pedido.creado` llega en
+  < 2 s).
+- **Tablero (`/admin`).** Cabecera "Hola, \<nombre\>" + fecha larga, selector de periodo
+  (Hoy/7/30/Mes/Personalizado) que gobierna todos los bloques, chip **"En vivo"** (verde con punto
+  pulsante / gris "Reconectando…") y contador de eventos. Cuatro KPI (el primero en degradado
+  marino) con variacion y **sparkline SVG**; "Ventas por dia" (area con degradado ambar, tooltip),
+  "Ventas por categoria" (barras horizontales con %), "Embudo de compra", "Horas pico" (mapa de
+  calor 7×24, unico scroll horizontal permitido —interno de la matriz), "Top productos" y
+  "Cupones". Columna **"Ahora mismo"**: contadores (de `SP_Pedidos_ResumenOperacion` e inventario)
+  que se actualizan **sin recargar** cuando llegan eventos, y un feed de los ultimos 30 eventos.
+  Graficas con **SVG propio** (sin libreria). Skeleton y error con "Reintentar" **por bloque**;
+  indicador discreto "en caché" cuando la respuesta trae `X-Cache: HIT`. Si un evento del feed
+  enlaza a un pedido que ya no existe (404) se avisa ("Ese pedido ya no existe") y se quita del
+  feed; y si al reconectar el "hola" trae otra `instalacion` de BD (`SP_Sistema_Instalacion`
+  lee `sys.databases.create_date`) el feed se vacia, porque lo creado antes dejo de existir.
+- **Operación en vivo.** `/admin/pedidos` también se suscribe al bus (`useOperacionVivo`): ante
+  `pedido.creado`/`pedido.estado` —o al volver el foco— invalida `claves.operacion.todo`, de
+  modo que **la tarjeta (resumen) y la tabla (listado) se refrescan juntas** y un pedido recién
+  creado aparece sin recargar. (El resumen cuenta por estado actual y el listado filtra por ese
+  mismo estado: coinciden; el desfase anterior era por no refrescar ambas con el mismo evento.)
+- **Ajustes menores.** (1) La presentacion del inventario mostraba `Â·`: el literal `N' · '` ya
+  era correcto; la causa era que `026` (unico `.sql` de Fase 2 con byte no-ASCII) no tenia **BOM
+  UTF-8** y `sqlcmd` lo leia como Windows-1252 —se le agrego el BOM, como ya lo tenia `001`. (2)
+  Barra lateral del area interna con scrollbar fina del color del fondo que solo aparece al pasar
+  el cursor (`.scroll-fino`). (3) Helper `plural()` en `lib/formato.ts` (corrige "1 pedidos"/"1
+  usos"). (4) Tablas del area interna: tamano por pagina **20** por defecto con opciones
+  **20/50/100** (antes el selector mostraba 12/24/48 y no cuadraba con el pie). (5) La prueba E6 de
+  bloqueo ejecuta `db/scripts/pruebas/bloquear_usuario.sql` con `sqlcmd -i` (sin SQL en TypeScript).
+
 ## Logs
 
 La API usa [pino](https://getpino.io) (`api/src/config/logger.ts`). El `logger` emite JSON
@@ -966,9 +1026,10 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
 - **Exportacion a Excel.** Reportes de ventas, categorias y top productos como `.xlsx`
   (`exceljs`, en memoria), con formato de dinero/fecha y proteccion contra inyeccion de
   formulas (ver M9).
-- **SSE (planificado, Fase 2).** Un canal `Server-Sent Events` para refrescar el dashboard en
-  vivo colgaria del **mismo evento de invalidacion** (`invalidarTodo()`): cada mutacion que
-  invalida el cache emitiria tambien un evento al stream. No esta implementado en esta fase.
+- **SSE (implementado en F9).** El canal `Server-Sent Events` del dashboard cuelga del **mismo
+  evento de invalidacion**: cada mutacion emite al bus (`api/src/eventos/bus.ts`) y un listener
+  llama `invalidarTodo()`, de modo que el stream en vivo y la invalidacion del cache comparten los
+  mismos eventos. Ver "Fase 2: dashboard, eventos en vivo y ajustes (F9)".
 
 ## Pruebas
 
@@ -1020,6 +1081,32 @@ Contenido por carpeta (en el orden sugerido):
 | `M8 Bitacora` | Genera eventos en 4 modulos y los consulta por `GET /bitacora`; `403` a no-admin; modulo inexistente `200`+0 filas | Si (sufijo) |
 | `M9 Reportes` | 3 pedidos (A compra, B cancela, C devuelve); ventas/categorias/top/resumen/abandonados; `X-Cache` MISS->HIT; export `.xlsx`; rechazos `403`/`401`/`400` | Si (sufijo) |
 | `Manual (rate limit)` | "Login x11" -> `429`. **Fuera del flujo principal**: correr aparte con `RATE_LIMIT_AUTH_MAX` por defecto | Si |
+
+### Pruebas de navegador (Playwright)
+
+Flujos completos en un navegador real (`web/tests/*.spec.ts`): compra de punta a punta
+(`compra.spec.ts`, la prueba de humo de la tienda), área interna (`control.spec.ts`,
+`operacion.spec.ts`) y dashboard en vivo (`dashboard.spec.ts`).
+
+**Requisitos:**
+
+- La **API** (`:3000`) y **Vite** (`:5173`) ya corriendo (la config **no** levanta servidores).
+- La **BD con semillas** (`db/aplicar.ps1`, incluye `099`); varias pruebas compran/mutan datos.
+- **`RATE_LIMIT_AUTH_MAX=400` en `api/.env` solo mientras corren las pruebas**: la suite hace
+  **~25 inicios de sesión** y cada `page.goto` renueva el access con `/auth/refresh`, que
+  comparte ese limitador; con el default (10) saltaría `429` en las últimas pruebas. `api/.env`
+  es local (ignorado por git); déjalo en 400 únicamente para la suite. El `globalSetup` de
+  Playwright hace un login de prueba y avisa por consola ("Sube RATE_LIMIT_AUTH_MAX a 400 en
+  api/.env para correr la suite") si recibe `429`.
+
+```bash
+cd web
+npx playwright test
+```
+
+Las pruebas corren **en serie** (`workers: 1`) porque **comparten datos** (misma BD y sesión);
+por eso `npx playwright test` sin parámetros pasa de forma estable. Ver también
+[`web/README.md`](web/README.md).
 
 ### Pruebas de carga (Node puro, solo HTTP)
 

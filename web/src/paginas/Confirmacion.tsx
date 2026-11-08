@@ -2,12 +2,14 @@ import { useEffect, useMemo } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { obtenerPedido } from '../api/pedidos';
+import { ErrorApi } from '../api/clienteHttp';
 import { limpiarClaveIdem } from '../lib/idempotencia';
 import { Boton } from '../componentes/ui/Boton';
 import { EstadoVista } from '../componentes/ui/EstadoVista';
 import { EtiquetaEstadoPedido } from '../componentes/ui/EtiquetaEstadoPedido';
 import { formatearQuetzales } from '../componentes/ui/Precio';
 import { IconoCheck } from '../componentes/iconos';
+import { NoEncontrado } from './NoEncontrado';
 import type { ResultadoPago } from '../api/tipos';
 
 interface Info {
@@ -20,17 +22,24 @@ interface Info {
   nitFactura: string | null;
 }
 
+/**
+ * Confirmacion AUTOSUFICIENTE: lee :idPedido de la URL y obtiene el pedido con GET /pedidos/:id
+ * (TanStack). location.state (resultado del pago) es solo un dato inicial opcional para pintar
+ * al instante tras pagar. Si el pedido no existe (404) -> NoEncontrado. NUNCA redirige a /carrito;
+ * la regla de "carrito vacio" vive solo en /checkout.
+ */
 export default function Confirmacion() {
   const { idPedido } = useParams();
   const id = Number(idPedido);
+  const idValido = Number.isFinite(id) && id > 0;
   const location = useLocation();
   const resultado = (location.state as { resultado?: ResultadoPago } | null)?.resultado ?? null;
 
-  // Sin state (p. ej. al recargar): se carga el pedido desde la API.
-  const { data, isPending, isError, refetch } = useQuery({
+  const pedido = useQuery({
     queryKey: ['pedido', id],
     queryFn: () => obtenerPedido(id),
-    enabled: !resultado && Number.isFinite(id) && id > 0,
+    enabled: idValido,
+    retry: false,
   });
 
   useEffect(() => {
@@ -42,6 +51,19 @@ export default function Confirmacion() {
   }, []);
 
   const info = useMemo<Info | null>(() => {
+    // La API manda; el state del pago es solo el dato inicial mientras llega la respuesta.
+    if (pedido.data?.pedido) {
+      const p = pedido.data.pedido;
+      return {
+        numero: p.NumeroPedido,
+        estado: p.EstadoCodigo,
+        direccion: p.DireccionEntrega,
+        total: p.Total,
+        cupon: p.CuponCodigo,
+        nombreFactura: p.NombreFactura,
+        nitFactura: p.NITFactura,
+      };
+    }
     if (resultado?.pedido) {
       const p = resultado.pedido;
       return {
@@ -54,27 +76,20 @@ export default function Confirmacion() {
         nitFactura: p.NITFactura,
       };
     }
-    if (data?.pedido) {
-      const p = data.pedido;
-      return {
-        numero: p.NumeroPedido,
-        estado: p.EstadoCodigo,
-        direccion: p.DireccionEntrega,
-        total: p.Total,
-        cupon: p.CuponCodigo,
-        nombreFactura: p.NombreFactura,
-        nitFactura: p.NITFactura,
-      };
-    }
     return null;
-  }, [resultado, data]);
+  }, [pedido.data, resultado]);
+
+  // El pedido no existe (id invalido o 404 de la API): pagina de no encontrado, nunca /carrito.
+  const noExiste =
+    !idValido || (pedido.isError && pedido.error instanceof ErrorApi && pedido.error.status === 404);
+  if (noExiste) return <NoEncontrado />;
 
   return (
     <div className="mx-auto max-w-xl px-4 py-14">
       <EstadoVista
-        cargando={!resultado && isPending}
-        error={!resultado && isError}
-        alReintentar={() => void refetch()}
+        cargando={!info && pedido.isPending}
+        error={!info && pedido.isError}
+        alReintentar={() => void pedido.refetch()}
         esqueleto={<div className="esqueleto h-72 w-full rounded-20" />}
       >
         {info && (
@@ -83,7 +98,7 @@ export default function Confirmacion() {
               <IconoCheck className="h-10 w-10" />
             </span>
             <h1 className="text-[32px] font-extrabold tracking-apretado text-marino-900">
-              Pago aprobado
+              Pedido confirmado
             </h1>
             <p className="mt-1 text-apagado">¡Gracias, tu pedido va en camino!</p>
 

@@ -1,9 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-/** Ejecuta una sentencia contra ShopCart (setup de prueba; mismo sqlcmd que el instalador). */
-function sqlcmd(q: string) {
-  execFileSync('sqlcmd', ['-S', 'localhost', '-E', '-C', '-b', '-d', 'ShopCart', '-Q', q], {
+/**
+ * Ejecuta un script .sql de db/scripts/pruebas contra ShopCart (mismo sqlcmd que el
+ * instalador). El SQL vive en el .sql, nunca en TypeScript: aqui solo se pasa la ruta.
+ */
+function ejecutarScript(rutaRelativa: string) {
+  const archivo = fileURLToPath(new URL(`../../${rutaRelativa}`, import.meta.url));
+  execFileSync('sqlcmd', ['-S', 'localhost', '-E', '-C', '-b', '-d', 'ShopCart', '-i', archivo], {
     stdio: 'ignore',
   });
 }
@@ -120,9 +125,8 @@ test('usuarios: una cuenta bloqueada se desbloquea y el cliente vuelve a iniciar
   // Se simula la cuenta bloqueada fijando BloqueadoHasta (lock de BD por IntentosFallidos). El
   // login real no llega a ese lock desde una sola IP: auth.service la frena antes (throttle por
   // IP = 5). Lo que se prueba aqui es el ciclo UI: ver "Bloqueado" → Desbloquear → iniciar sesion.
-  sqlcmd(
-    "UPDATE dbo.Usuario SET IntentosFallidos = 9, BloqueadoHasta = DATEADD(MINUTE, 15, SYSUTCDATETIME()) WHERE Correo = N'cliente2@shopcart.local';",
-  );
+  // El UPDATE vive en el script .sql, ejecutado con sqlcmd (-i); no hay SQL en TypeScript.
+  ejecutarScript('db/scripts/pruebas/bloquear_usuario.sql');
 
   await entrar(page, 'admin@shopcart.local', 'Admin123!');
   await page.goto('/admin/usuarios');

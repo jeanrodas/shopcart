@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    026_SP_Fase2_Operacion.sql
    ShopCart - Fase 2 (aditivo): operacion de inventario y pedidos para el area
    interna (Administrador y Operador).

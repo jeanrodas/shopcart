@@ -18,7 +18,7 @@ import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { useToast } from '../../componentes/ui/Toast';
 import { formatearQuetzales } from '../../componentes/ui/Precio';
-import { Paginacion } from '../catalogo/Paginacion';
+import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { IconoCopiar } from '../../componentes/iconos';
 import type { FiltrosUsuarios, Rol, UsuarioAdminFila, UsuarioCreado } from '../../api/tipos';
 
@@ -193,7 +193,7 @@ export default function AdminUsuarios() {
             </div>
 
             {data.total > tamano && (
-              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} />
+              <Paginacion pagina={pagina} tamanoPagina={tamano} total={data.total} onPagina={setPagina} onTamano={setTamano} tamanos={TAMANOS_PAGINA_ADMIN} />
             )}
           </>
         )}

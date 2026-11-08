@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useAuth } from '../auth/useAuth';
@@ -109,7 +109,9 @@ export default function Checkout() {
   const modoDemo = Boolean(meta?.modoDemo);
 
   const { data: direcciones } = useDirecciones();
-  const { data: carrito } = useCarrito();
+  const carritoQuery = useCarrito();
+  const carrito = carritoQuery.data;
+  const { pathname } = useLocation();
   const iniciar = useIniciarCheckout();
   const { data: resumenData } = useResumenCheckout(esCliente);
   const crear = useCrearDireccion();
@@ -174,12 +176,25 @@ export default function Checkout() {
     }
   }, [facturacion]);
 
-  // Carrito vacio: fuera del checkout.
+  // "Pago aprobado" como señal INMEDIATA de la mutación (pagar.data llega al resolverse, antes
+  // de que el estado exitoPago o la navegación se confirmen). Cierra la ventana real del bug:
+  // el pago resuelve -> isPending pasa a false -> un refetch del carrito (ya Convertido = 0 u.)
+  // resuelve ANTES de que onSuccess ponga exitoPago y navegue, y el efecto de "carrito vacío"
+  // corría sin guarda. Con esto queda guardado desde el instante en que la mutación aprueba.
+  const pagoAprobado = exitoPago || (pagar.isSuccess && Boolean(pagar.data?.aprobado));
+
+  // UNICA regla "carrito vacío -> /carrito" de la app, y vive solo en esta página. Corre solo
+  // cuando: (1) la ruta es EXACTAMENTE /checkout; (2) no hay pago en curso ni aprobado; y (3) el
+  // carrito ya se cargó al menos una vez (no en la carga inicial ni con datos provisionales). La
+  // confirmación jamás redirige a /carrito.
   useEffect(() => {
-    if (carrito && (carrito.carrito?.totales.CantidadUnidades ?? 0) === 0) {
+    if (pathname !== '/checkout') return;
+    if (pagar.isPending || pagoAprobado) return;
+    if (!carritoQuery.isSuccess || carritoQuery.isPlaceholderData) return;
+    if ((carrito?.carrito?.totales.CantidadUnidades ?? 0) === 0) {
       navigate('/carrito', { replace: true });
     }
-  }, [carrito, navigate]);
+  }, [pathname, carrito, carritoQuery.isSuccess, carritoQuery.isPlaceholderData, navigate, pagar.isPending, pagoAprobado]);
 
   // Preseleccion de direccion (ultima usada o la primera); si no hay, abre el form.
   useEffect(() => {
@@ -297,11 +312,15 @@ export default function Checkout() {
         onSuccess: (res) => {
           if (res.aprobado && res.pedido) {
             limpiarClaveIdem();
-            void qc.invalidateQueries({ queryKey: claves.carrito });
+            // Marcar el pago como completado y navegar a la confirmacion ANTES de invalidar
+            // ['carrito']: asi el efecto de "carrito vacio" (ya bloqueado por exitoPago) nunca
+            // pisa esta navegacion. replace:true para que "atras" no vuelva al checkout.
             setExitoPago(true);
             navigate(`/checkout/confirmacion/${res.pedido.IDPedido}`, {
+              replace: true,
               state: { resultado: res },
             });
+            void qc.invalidateQueries({ queryKey: claves.carrito });
           } else {
             // Rechazado (402): el pago previo quedo consumido -> clave nueva.
             setErrorRechazo(res.pago.MensajeResultado ?? 'El pago fue rechazado');
