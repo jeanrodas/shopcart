@@ -61,7 +61,7 @@ npx --yes newman run docs/postman/ShopCart.postman_collection.json \
 
 ```powershell
 # PowerShell
-$fs=[IO.File]::Create("docs/postman/fixtures/big.bin"); $fs.SetLength(3MB); $fs.Close()
+$big=Join-Path $PWD 'docs/postman/fixtures/big.bin'; $fs=[IO.File]::Create($big); $fs.SetLength(3MB); $fs.Close()
 npx --yes newman run docs/postman/ShopCart.postman_collection.json `
   --folder "F2 Archivos" `
   --working-dir docs/postman/fixtures `

@@ -89,6 +89,10 @@ cd db
 Al terminar imprime los conteos de verificacion: **26 tablas**, procedimientos, triggers,
 vistas y el login `shopcart_app`. Si ves "Instalacion completada", esta lista.
 
+> El instalador asume que no existe una base de datos ShopCart en la instancia. Si ya
+> existe (p. ej. de una instalacion previa), ejecuta `db\reinstalar.ps1 -Force` (o
+> `db/reinstalar.sh --force`), que la elimina y la vuelve a crear con semillas.
+
 > **Avisos esperados (no son errores).** Al aplicar `014`, SQL Server emite "The module '…'
 > depends on the missing object 'dbo.SP_Carrito_Obtener'… will still be created": es normal
 > porque en el orden canonico `012` (que crea ese SP) va **despues** de `014`; la resolucion
