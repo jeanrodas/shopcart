@@ -2,6 +2,12 @@
 
 Tienda de ShopCart (Gasolineras Don Arturo): React 18 + Vite + TypeScript (strict).
 
+> La **arquitectura** (estado, sesion/renovacion de token, rutas por rol, decisiones por
+> pantalla) y el **recorrido de evaluacion** estan en el README raiz:
+> [Fase 2 — Frontend y proyecto completo](../README.md#fase-2--frontend-y-proyecto-completo)
+> y [`docs/GUIA-EVALUACION-FASE2.md`](../docs/GUIA-EVALUACION-FASE2.md). Este README cubre lo
+> propio de `web/`: scripts, variables, estructura, pruebas y limitaciones.
+
 ## Requisitos
 
 - Node >= 24
@@ -15,6 +21,18 @@ npm install
 cp .env.example .env     # VITE_API_URL=http://localhost:3000 (sin barra final; el front agrega /api/v1)
 npm run dev              # http://localhost:5173
 ```
+
+## Variables de entorno
+
+Se definen en `web/.env` (plantilla en `web/.env.example`); Vite solo expone las que empiezan
+con `VITE_`.
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `VITE_API_URL` | URL base de la API **sin barra final** (el front agrega `/api/v1` y antepone este origen a las imágenes `/uploads/…`). | `http://localhost:3000` |
+
+En producción el front se sirve detrás del **mismo origen** que la API (ver
+[deploy/](../deploy/)), por lo que `VITE_API_URL` puede quedar vacío o apuntar a ese origen.
 
 ## Scripts
 
@@ -78,9 +96,15 @@ estado** (misma BD y sesión); así `npx playwright test` sin parámetros pasa d
 
 ## Estructura
 
-- `src/api` — cliente HTTP (tokens, refresh single-flight, errores) y llamadas por módulo.
-- `src/auth` — contexto de sesión, hook `useAuth` y `RutaProtegida`.
-- `src/componentes/ui` — componentes reutilizables (Boton, Campo, TarjetaProducto, …).
-- `src/componentes/layout` — layout de la tienda y barra inferior móvil.
-- `src/paginas` — páginas (Inicio con sus secciones, Login y placeholders).
+- `src/api` — cliente HTTP (tokens, refresh single-flight, errores), tipos y llamadas por módulo.
+- `src/lib` — estado de servidor con TanStack Query (`claves.ts`, hooks `consultas.ts`),
+  `queryClient`, eventos en vivo (`useEventosVivo`) y utilidades (formato, imágenes, idempotencia).
+- `src/auth` — `AuthContext`, hook `useAuth` y `RutaProtegida` (guard por rol).
+- `src/componentes/ui` — componentes reutilizables (Boton, Campo, TarjetaProducto, EstadoVista,
+  Orden, Modal, PanelLateral, …).
+- `src/componentes/layout` — `LayoutTienda`, `LayoutCheckout`, `LayoutInterno` y barra inferior móvil.
+- `src/componentes/direcciones` — formulario y tarjeta de dirección (compartidos checkout / Mi cuenta).
+- `src/paginas` — una página por ruta: tienda (Inicio y sus secciones, Catálogo, Producto, Carrito,
+  Checkout, Confirmación, MisPedidos, PedidoDetalle, Cuenta, Login, Registro) y `admin/` (Dashboard,
+  Pedidos, Inventario, Productos, Categorías, Cupones, Bitácora, Usuarios).
 - `public/img` — imágenes servidas por el front (hero y productos).

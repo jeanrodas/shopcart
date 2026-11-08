@@ -2,6 +2,10 @@
 
 Esta guia es el punto de partida para evaluar ShopCart.
 
+> **Fase 2 (frontend web):** para recorrer la tienda y el area interna en el navegador
+> (cliente, operador y administrador), siga
+> [`GUIA-EVALUACION-FASE2.md`](GUIA-EVALUACION-FASE2.md).
+
 ---
 
 ## Prerrequisitos (2 minutos)

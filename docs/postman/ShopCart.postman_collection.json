@@ -1412,6 +1412,420 @@
 			]
 		},
 		{
+			"name": "00 Recorrido guiado Fase 2",
+			"description": "Recorrido guiado de Fase 2: los 15 requests que respaldan los recorridos de docs/GUIA-EVALUACION-FASE2.md (cliente, operador y administrador). Solo lectura/idempotente, repetible sin reinstalar la base. Ejecutar de arriba hacia abajo (los primeros tres fijan los tokens por rol). Requiere los RATE_LIMIT_*_MAX=100 de api/.env.example.",
+			"item": [
+				{
+					"name": "01 Login admin (setup) — RF-01",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login admin 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.collectionVariables.set('rf2Admin', d.accessToken);",
+									"const now = new Date();",
+									"pm.collectionVariables.set('rf2Hasta', now.toISOString());",
+									"pm.collectionVariables.set('rf2Desde', new Date(now.getTime() - 40*24*60*60*1000).toISOString());"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/auth/login",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"admin@shopcart.local\",\n  \"contrasena\": \"Admin123!\"\n}"
+						}
+					}
+				},
+				{
+					"name": "02 Login operador (setup) — RF-01",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('login operador 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.collectionVariables.set('rf2Oper', pm.response.json().accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/auth/login",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"operador@shopcart.local\",\n  \"contrasena\": \"Operador123!\"\n}"
+						}
+					}
+				},
+				{
+					"name": "03 Registro de cliente — el carrito se conserva al entrar (RF-01, Pantalla 5)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('registro 201', () => pm.expect(pm.response.code).to.eql(201));",
+									"const d = pm.response.json();",
+									"pm.test('rol Cliente', () => pm.expect(d.usuario.rol).to.eql('Cliente'));",
+									"pm.collectionVariables.set('rf2Cliente', d.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/auth/registro",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"correo\": \"rf2-{{$guid}}@shopcart.local\",\n  \"contrasena\": \"Cliente123\",\n  \"nombre\": \"Cliente Recorrido F2\"\n}"
+						}
+					}
+				},
+				{
+					"name": "04 Mi cuenta: perfil del cliente (GET /usuarios/me) — F6",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('perfil 200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('trae Correo y Nombre', () => { const d = pm.response.json(); pm.expect(d).to.have.property('Correo'); pm.expect(d).to.have.property('Nombre'); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Cliente}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/usuarios/me"
+					}
+				},
+				{
+					"name": "05 Catalogo de administracion ordenado por precio desc (ordenamiento en servidor) — F6",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('trae filas y conteos', () => { pm.expect(d.filas).to.be.an('array'); pm.expect(d).to.have.property('conteos'); });",
+									"pm.test('precio desc: la 1a fila con precio es el maximo', () => {",
+									"  const precios = d.filas.map(f => f.PrecioMinimo).filter(p => p !== null && p !== undefined);",
+									"  if (precios.length > 1) pm.expect(precios[0]).to.eql(Math.max(...precios));",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/productos-admin?orden=precio&direccion=DESC&tamano=20"
+					}
+				},
+				{
+					"name": "06 Inventario de operacion ordenado por disponible asc — F7",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('trae filas', () => pm.expect(d.filas).to.be.an('array').that.is.not.empty);",
+									"pm.collectionVariables.set('rf2Variante', d.filas[0].IDVariante);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Oper}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/admin?orden=disponible&direccion=ASC&tamano=20"
+					}
+				},
+				{
+					"name": "07 Simular ajuste negativo mayor al disponible: Permitido=false (RF-03) — F7",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 (solo lectura)', () => pm.expect(pm.response.code).to.eql(200));",
+									"const d = pm.response.json();",
+									"pm.test('no permitido + motivo', () => { pm.expect(d.Permitido).to.eql(false); pm.expect(d.Motivo).to.be.a('string').and.not.empty; });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Oper}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/inventario/simular",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"idVariante\": \"{{rf2Variante}}\",\n  \"tipo\": \"AJUSTE_NEGATIVO\",\n  \"cantidad\": 100000\n}"
+						}
+					}
+				},
+				{
+					"name": "08 Cola de pedidos: resumen de operacion — F7",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('trae conteos del flujo', () => { const d = pm.response.json(); ['Pagado','EnPreparacion','Despachado'].forEach(k => pm.expect(d).to.have.property(k)); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Oper}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/pedidos/resumen-operacion"
+					}
+				},
+				{
+					"name": "09 Dashboard: resumen, primera lectura (X-Cache MISS) — RF-08/F9",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('X-Cache MISS', () => pm.expect(pm.response.headers.get('X-Cache')).to.eql('MISS'));",
+									"pm.test('4 KPIs con comparativo', () => { const d = pm.response.json(); ['VentasNetas','Pedidos','TicketPromedio','UnidadesVendidas'].forEach(k => pm.expect(d).to.have.property(k)); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{rf2Desde}}&hasta={{rf2Hasta}}"
+					}
+				},
+				{
+					"name": "10 Dashboard: resumen, segunda lectura (X-Cache HIT) — extra: cache",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('X-Cache HIT', () => pm.expect(pm.response.headers.get('X-Cache')).to.eql('HIT'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{rf2Desde}}&hasta={{rf2Hasta}}"
+					}
+				},
+				{
+					"name": "11 Dashboard: ventas por semana (granularidad SEMANA) — RF-08/F9",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('serie (array) con Fecha/VentaNeta/Pedidos', () => { const d = pm.response.json(); pm.expect(d).to.be.an('array'); if (d.length) ['Fecha','VentaNeta','Pedidos'].forEach(k => pm.expect(d[0]).to.have.property(k)); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/ventas-dia?desde={{rf2Desde}}&hasta={{rf2Hasta}}&granularidad=SEMANA"
+					}
+				},
+				{
+					"name": "12 Eventos en vivo: ticket SSE de un solo uso (Admin) — extra: SSE/F9",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201', () => pm.expect(pm.response.code).to.eql(201));",
+									"pm.test('trae ticket', () => pm.expect(pm.response.json().ticket).to.be.a('string').and.not.empty);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/eventos/ticket"
+					}
+				},
+				{
+					"name": "13 Un cliente NO puede pedir ticket SSE (403) — F9",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('403', () => pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Cliente}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/eventos/ticket"
+					}
+				},
+				{
+					"name": "14 Cupones de administracion con estado derivado — F8",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('trae filas con EstadoDerivado', () => { const d = pm.response.json(); pm.expect(d.filas).to.be.an('array'); if (d.filas.length) pm.expect(d.filas[0]).to.have.property('EstadoDerivado'); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Admin}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/cupones/admin"
+					}
+				},
+				{
+					"name": "15 Bitacora: el Operador no accede (403) — RF-09/F8",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('403 (bitacora es solo Administrador)', () => pm.expect(pm.response.code).to.eql(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{rf2Oper}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/bitacora?modulo=PRODUCTOS"
+					}
+				}
+			]
+		},
+		{
 			"name": "Auth",
 			"item": [
 				{

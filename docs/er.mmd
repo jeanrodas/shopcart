@@ -1,5 +1,7 @@
 %% ShopCart - Diagrama entidad-relacion completo (26 tablas de 001_CreateDatabase.sql).
 %% Render: npx @mermaid-js/mermaid-cli -i docs/er.mmd -o er.svg
+%% Fase 2 agrego columnas aditivas (sin tablas nuevas): Usuario.Telefono (024),
+%% Variante.ImagenURL (025) y Pedido.NombreFactura/NITFactura (022).
 erDiagram
     Rol ||--o{ Usuario : IDRol
     Rol ||--o{ TransicionEstadoPedido : IDRolRequerido
@@ -62,6 +64,7 @@ erDiagram
         nvarchar Correo
         nvarchar HashContrasena
         nvarchar Nombre
+        nvarchar Telefono
         bit Activo
         int IntentosFallidos
         datetime2 BloqueadoHasta
@@ -122,6 +125,7 @@ erDiagram
         nvarchar SKU
         decimal Precio
         int Existencia
+        nvarchar ImagenURL
         bit Activo
         datetime2 FechaCreacion
         datetime2 FechaActualizacion
@@ -193,6 +197,8 @@ erDiagram
         int IDEstadoPedido FK
         int IDDireccion FK
         int IDCupon FK
+        nvarchar NombreFactura
+        nvarchar NITFactura
         nvarchar DireccionEntrega
         decimal Subtotal
         decimal Descuento

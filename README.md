@@ -45,7 +45,8 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 > **Evaluadores: empiece por aqui** -> [`docs/GUIA-EVALUACION.md`](docs/GUIA-EVALUACION.md):
 > recorrido guiado de 10 minutos, mapa RF -> evidencia, pruebas automatizadas y punteros
-> de codigo para la defensa.
+> de codigo para la defensa. Para el **frontend** (Fase 2), siga el recorrido en el navegador
+> de [`docs/GUIA-EVALUACION-FASE2.md`](docs/GUIA-EVALUACION-FASE2.md).
 
 ### 0. Probar sin instalar (ambiente desplegado)
 
@@ -156,6 +157,255 @@ reservado a un ambiente publico de demostracion); `TRUST_PROXY` igual al numero 
 propios delante de la API; secretos JWT y contrasena de BD fuertes y **rotados** fuera del
 control de versiones; y los `RATE_LIMIT_*_MAX` en sus valores reales (no 100). El archivo de
 semillas `099` no se aplica en produccion. Ver [Despliegue](#despliegue) y `deploy/README.md`.
+
+## Fase 2 — Frontend y proyecto completo
+
+La Fase 2 agrega el **frontend web** (tienda para cliente/invitado y area interna para
+Operador/Administrador) sobre la API de Fase 1, con cambios de backend **solo aditivos**.
+Para evaluarla paso a paso, vea la **[Guia de evaluacion Fase 2](docs/GUIA-EVALUACION-FASE2.md)**
+(recorridos de Cliente, Operador y Administrador) y la carpeta Postman
+`00 Recorrido guiado Fase 2`.
+
+### a. Que se entrega
+
+**Tienda** (React 18 + Vite + TS strict en `web/`), con `LayoutTienda`/`LayoutCheckout`:
+
+| Pantalla | Ruta | Acceso |
+|----------|------|--------|
+| Inicio (hero, categorias, mas vendidos, ofertas) | `/` | Publico |
+| Catalogo (busqueda, filtros, orden, paginacion) | `/catalogo` | Publico |
+| Detalle de producto (variantes, imagen por variante) | `/producto/:id` | Publico |
+| Carrito | `/carrito` | Publico (cliente o invitado) |
+| Checkout (una sola pagina) | `/checkout` | Cliente |
+| Confirmacion del pedido | `/checkout/confirmacion/:idPedido` | Cliente |
+| Mis pedidos | `/mis-pedidos` | Cliente |
+| Detalle de pedido (linea de tiempo) | `/mis-pedidos/:id` | Cliente |
+| Mi cuenta (datos, direcciones, seguridad, facturacion) | `/cuenta` | Cliente / Operador / Administrador |
+| Iniciar sesion | `/login` | Publico |
+| Crear cuenta | `/registro` | Publico |
+
+**Area interna** (`/admin`, `LayoutInterno`; el Operador ve en **solo lectura** lo que no
+puede escribir, los elementos sin acceso se ocultan):
+
+| Pantalla | Ruta | Acceso |
+|----------|------|--------|
+| Dashboard (KPIs, graficas, eventos en vivo) | `/admin` | Operador / Administrador |
+| Pedidos (cola de operacion) | `/admin/pedidos` | Operador / Administrador |
+| Detalle de pedido (operacion) | `/admin/pedidos/:id` | Operador / Administrador |
+| Inventario (existencias, kardex, movimientos) | `/admin/inventario` | Operador / Administrador |
+| Productos (catalogo de administracion) | `/admin/productos` | Operador (lectura) / Administrador |
+| Categorias | `/admin/categorias` | Operador (lectura) / Administrador |
+| Cupones | `/admin/cupones` | Operador (lectura) / Administrador |
+| Bitacora | `/admin/bitacora` | Administrador |
+| Usuarios | `/admin/usuarios` | Administrador |
+
+Un Cliente que entra a `/admin` recibe la pagina `/403`.
+
+### b. Levantar todo en una maquina limpia
+
+Requisitos: **SQL Server 2022** (los SP del dashboard usan `DATETRUNC`, introducido en 2022;
+no sirve 2019), **Node >= 24** y **npm**. Orden: base de datos -> API -> frontend.
+
+**1 · Base de datos** (desde `db/`):
+
+```powershell
+# Windows (PowerShell)
+cd db
+.\aplicar.ps1                                  # autenticacion de Windows
+.\aplicar.ps1 -User sa -Password '<pass>'      # autenticacion SQL
+```
+
+```bash
+# Linux / macOS
+cd db
+./aplicar.sh                                   # -u sa -p '<pass>' para autenticacion SQL
+```
+
+Deja las 26 tablas, los SP, las semillas (`099`) y el login `shopcart_app` (detalle en
+[`db/README.md`](db/README.md)).
+
+**2 · API** (desde `api/`, queda en `http://localhost:3000`):
+
+```bash
+cd api
+npm ci
+cp .env.example .env     # Windows PowerShell: Copy-Item .env.example .env
+npm run dev
+```
+
+`api/.env.example` trae valores listos para evaluacion local (clave de `shopcart_app`,
+secretos JWT validos, `PAGO_SIMULADO=true`, `RATE_LIMIT_*_MAX=100`). Verifique
+`GET http://localhost:3000/health` -> `db: "ok"`.
+
+**3 · Frontend** (desde `web/`, queda en `http://localhost:5173`):
+
+```bash
+cd web
+npm ci
+cp .env.example .env     # VITE_API_URL=http://localhost:3000 (sin barra final; el front agrega /api/v1). Windows: Copy-Item .env.example .env
+npm run dev
+```
+
+Abra `http://localhost:5173` (tienda). El CORS de la API ya permite ese origen
+(`api/.env.example`, `CORS_ORIGIN`).
+
+**Variante de produccion.** `cd web && npm run build` genera `web/dist` (estaticos); se
+sirven detras del **mismo origen** que la API (un reverse proxy enruta `/api` y `/uploads`
+a la API y el resto a `web/dist`), de modo que no hace falta CORS ni `VITE_API_URL`
+apuntando a otro host. El ejemplo real con Docker Compose + Caddy esta en
+[`deploy/`](deploy/) (ver [Despliegue](#despliegue)).
+
+### c. Credenciales de prueba
+
+Las crea `db/scripts/099_Semillas.sql` (no se aplican en produccion; ver
+[Credenciales de prueba](#credenciales-de-prueba) para la nota de seguridad). `cliente2` y
+`cliente3` son clientes demo que agrega la Fase 2 para poblar pedidos y el dashboard.
+
+| Correo | Contrasena | Rol | Que puede hacer |
+|--------|-----------|-----|-----------------|
+| `admin@shopcart.local` | `Admin123!` | Administrador | Todo: catalogo, inventario, pedidos, cupones, usuarios, bitacora, dashboard |
+| `operador@shopcart.local` | `Operador123!` | Operador | Operacion: pedidos (avanzar/cancelar/devolver), inventario (movimientos), dashboard; el resto en solo lectura; sin bitacora ni usuarios |
+| `cliente@shopcart.local` | `Cliente123!` | Cliente | Comprar: catalogo, carrito, checkout, mis pedidos, mi cuenta |
+| `cliente2@shopcart.local` | `Cliente123!` | Cliente | Igual que el cliente (datos demo) |
+| `cliente3@shopcart.local` | `Cliente123!` | Cliente | Igual que el cliente (datos demo) |
+
+### d. Arquitectura del frontend
+
+Carpetas en `web/src`: **`api/`** (cliente HTTP y llamadas por modulo), **`lib/`**
+(TanStack Query: claves, hooks `useXxx`; utilidades), **`auth/`** (`AuthContext`, `useAuth`,
+`RutaProtegida`), **`componentes/`** (`ui/`, `layout/`, `direcciones/`) y **`paginas/`**
+(una por ruta, con `admin/` y `catalogo/`). Puntos clave:
+
+- **Estado de servidor con TanStack Query** (claves por modulo en `lib/claves.ts`,
+  `keepPreviousData`, `staleTime`); **sesion con Context** (`useAuth`); **formularios con
+  react-hook-form + zod** usando **las mismas reglas que la API** (p. ej. contrasena min 8
+  con letra y numero).
+- **Rutas protegidas por rol** (`RutaProtegida` + pagina `/403`); el area interna vive bajo
+  `/admin` con guard de Administrador/Operador y candados extra en bitacora/usuarios.
+- **Renovacion transparente del token:** access token **en memoria**, refresh token en
+  `localStorage` con **rotacion**; ante un `401 TOKEN_EXPIRED` se renueva con **single-flight**
+  (una sola llamada a `/auth/refresh`) y se reintenta la peticion; el refresh se **serializa con
+  Web Locks** entre pestanas para no presentar el mismo refresh dos veces (la deteccion de
+  reutilizacion del backend revocaria la cadena).
+- **Ninguna cifra se calcula en el navegador:** precios, totales, IVA, descuentos,
+  existencias resultantes y KPIs vienen de la API/SQL; el front solo cuenta, compara y
+  formatea en quetzales.
+- **Estados de carga/vacio/error** unificados (`EstadoVista`: esqueleto, mensaje de vacio y
+  error con "Reintentar"); **responsive** (las tablas del area interna pasan a tarjetas en
+  < 1024 px, sin scroll horizontal); **accesibilidad basica** (roles/aria, foco atrapado en
+  paneles y modales, `aria-sort` en las cabeceras ordenables, `prefers-reduced-motion`).
+
+Detalle pantalla por pantalla en [Frontend (web/)](#frontend-web) y en las secciones de
+decisiones F6-F9 mas abajo.
+
+### e. Cambios de backend (solo aditivos)
+
+Scripts nuevos de Fase 2 (orden canonico e idempotencia en [`db/aplicar.ps1`](db/aplicar.ps1)
+y [`db/README.md`](db/README.md)):
+
+| Script | Objetos | Pantalla(s) que lo usan |
+|--------|---------|-------------------------|
+| `021_SP_Catalogo_Publico` | `SP_Catalogo_Destacados`, `SP_Cupones_Vigentes` (excluyen `DisponibleTotal = 0`) | Inicio (mas vendidos / ofertas) |
+| `022_Migracion_PedidoFacturacion` | `Pedido.NombreFactura`, `Pedido.NITFactura` | Checkout, Confirmacion, Detalle de pedido |
+| `023_SP_Pedidos_Cliente` | `SP_Pedidos_ListarCliente`, `SP_Pedidos_ResumenCliente`, `SP_Pedidos_PagoCliente` | Mis pedidos, Detalle de pedido |
+| `024_SP_Fase2_Cuenta` | `Usuario.Telefono`; `SP_Usuarios_ObtenerPerfil`/`ActualizarPerfil`, `SP_Auth_ObtenerHashPorID`/`CambiarContrasena`, `SP_Catalogo_ListarAdmin` | Mi cuenta, Productos (admin) |
+| `025_Migracion_VarianteImagen` | `Variante.ImagenURL` | Detalle, Carrito, Checkout, Pedidos (imagen por variante), Productos (admin) |
+| `026_SP_Fase2_Operacion` | `SP_Inventario_ListarAdmin`/`Resumen`/`SimularMovimiento`, `SP_Pedidos_ListarOperacion`/`ResumenOperacion` | Inventario, Pedidos (operacion) |
+| `027_SP_Fase2_Control` | `SP_Cupones_ListarAdmin`/`ResumenAdmin`, `SP_Bitacora_Consultar`/`ListarPorRegistro`, `SP_Usuarios_ListarAdmin`/`Desbloquear` | Cupones, Bitacora, Usuarios |
+| `028_SP_Fase2_Dashboard` | `SP_Dashboard_Resumen`/`VentasPorDia`/`VentasPorCategoria`/`Embudo`/`HorasPico`/`TopProductos`/`Cupones`, `SP_Eventos_EstadoVariante`, `SP_Sistema_Instalacion` | Dashboard, eventos en vivo |
+
+**SP/columnas de Fase 1 que recibieron adiciones compatibles** (parametros opcionales con
+valor por defecto o columnas nuevas en el recordset; las firmas y los consumidores de Fase 1
+no cambian):
+
+| Script (Fase 1) | Adicion aditiva |
+|-----------------|-----------------|
+| `009_SP_Categorias` | Columna `CantidadProductosTotal` ("visibles / totales" en Categorias admin) |
+| `010_SP_Catalogo` | `SP_Catalogo_ActualizarVariante` acepta `@ConservarImagen` (default `1`: no toca `ImagenURL` si el cuerpo no trae imagen) |
+| `012_SP_Carrito` | Las lineas devuelven `COALESCE(imagen de la variante, imagen del producto)` (resuelto en SQL) |
+| `018_SP_Pedidos` | El recordset de detalle agrega `Categoria`, `IDProducto`, `ProductoActivo`, `ImagenPrincipal` por linea |
+| `021_SP_Catalogo_Publico` | Destacados/ofertas excluyen productos con `DisponibleTotal = 0` |
+
+> **Compatibilidad verificada:** las carpetas de Fase 1 de la coleccion Postman (M1-M9)
+> siguen pasando en verde con estos cambios (newman, `exit 0`).
+
+**Orden canonico del instalador** (una sola lista en `aplicar.ps1`/`aplicar.sh`):
+`001…008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]`.
+Reglas de **dependencia de compilacion** (`CREATE OR ALTER` valida las columnas al compilar):
+**`025` va antes de `010`** (y de `012/016/018/023/024`) porque agrega `Variante.ImagenURL` que
+esos SP referencian; **`022` va antes de `016`/`018`** porque agrega `Pedido.NombreFactura`/
+`NITFactura`; y `012` va tras `013`/`014`. Convencion: los scripts con caracteres **no ASCII**
+se guardan en **UTF-8 con BOM** (si no, `sqlcmd` los lee como Windows-1252; fue la causa del
+`Â·` que `026` mostraba antes de llevar BOM).
+
+### f. Decisiones de la Fase 2 (propias)
+
+Una linea de justificacion cada una (detalle en F6-F9 y en [Frontend (web/)](#frontend-web)):
+
+- **Checkout en una sola pagina** — menos pasos y abandono; entrega, facturacion, metodo de
+  pago y reserva conviven con la cuenta regresiva en vivo.
+- **Facturacion (NIT/CF) como snapshot en el pedido** — el pedido guarda `NombreFactura`/
+  `NITFactura` tal como se eligieron; validacion de formato del NIT, **sin consulta a la SAT**.
+- **Checkout solo con cuenta (fusion del carrito de invitado)** — el pago crea un pedido con
+  dueno, direccion y auditoria; al entrar, el carrito de invitado (`X-Cart-Token`) se fusiona
+  con el del cliente, asi que no se pierde nada y no hace falta un checkout de invitado.
+- **Imagen por variante y subida de archivos** — `Variante.ImagenURL`; la subida valida por
+  **firma de bytes** (no por extension), guarda con **nombre aleatorio** (`randomUUID`) y limita
+  a 2 MB / 1 archivo (SVG y otros -> `415`; mayor a 2 MB -> `413`).
+- **Estado derivado de productos** (Publicado / Agotado / Incompleto / Oculto) calculado en SQL;
+  **"borrador" = inactivo** (oculto). Un panel refleja el estado sin un campo de estado extra.
+- **"Agotado" visible en la tienda** — un producto activo sin disponible se muestra agotado (no
+  se oculta), para no romper enlaces ni perder SEO/interes.
+- **SSE con ticket de un solo uso** — `POST /eventos/ticket` (60 s, un uso) evita poner el JWT en
+  la URL del `EventSource` (quedaria en logs/historial/proxies).
+- **Cache de reportes invalidado por eventos** — el dashboard usa el mismo cache de M9; cada
+  mutacion de ventas/inventario emite al bus y dispara `invalidarTodo()`.
+- **Hora local de Guatemala en "horas pico"** — la matriz dia x hora se interpreta en la zona del
+  negocio, no en UTC, para que "las 7 pm" sea la hora real.
+- **Paleta y tipografia** — Tailwind con tokens propios (marino/ambar/naranja, radios, sombras,
+  degradados) y fuente Plus Jakarta Sans, para una identidad consistente de "Gasolineras Don Arturo".
+
+### g. Extras implementados
+
+Los cuatro extras (detalle y como verlos en [Extras implementados](#extras-implementados) y en
+la coleccion Postman):
+
+- **Rate limiting** (`/auth`, checkout, cupones; `429` con error estandar) — carpeta
+  `Manual (rate limit)` ("Login x11 -> 429").
+- **Cache de reportes con invalidacion correcta** (`X-Cache: HIT|MISS`) — `F2 Dashboard` y
+  `M9 Reportes` (MISS -> HIT y reinicio por evento).
+- **Exportacion a Excel** (ventas/categorias/top en `.xlsx`) — boton "Exportar Excel" del
+  dashboard (solo Administrador) y `M9 Reportes`.
+- **SSE / eventos en vivo** — el chip "En vivo" y el feed "Ahora mismo" del dashboard; abra el
+  dashboard y, en otra ventana, compre como cliente para ver llegar el evento.
+
+### h. Pruebas
+
+- **Postman / newman:** carpetas `F2 *` (y `00 Recorrido guiado Fase 2`, los 15 requests que
+  respaldan los recorridos). Ver [`docs/postman/README.md`](docs/postman/README.md) y la
+  seccion [Postman / newman](#postman--newman).
+- **`api/tests` (Node puro):** `test:concurrencia` (10 clientes por 1 unidad), `sse.mjs` (flujo
+  del stream) y `test:rendimiento` (p50/p95 de reportes). Ver
+  [Pruebas de carga](#pruebas-de-carga-node-puro-solo-http).
+- **Playwright (`web/`):** `npm run test:e2e` reinstala la BD (semillas frescas) y corre la
+  suite (compra de punta a punta, area interna, dashboard en vivo, ordenamiento, RF-03). Requiere
+  API (`:3000`) y Vite (`:5173`) arriba y **`RATE_LIMIT_AUTH_MAX=400`** en `api/.env` mientras
+  corre la suite (hace ~25 logins). Ver [`web/README.md`](web/README.md).
+
+### i. Limitaciones conocidas y mejoras futuras
+
+- **Checkout de invitado** con usuario sombra: hoy el pago exige cuenta (el carrito de invitado
+  se fusiona al entrar).
+- **Exportacion a Excel de pedidos e inventario**: hoy el `.xlsx` cubre ventas, categorias y top
+  productos (M9), no pedidos ni inventario.
+- **Filtro "sistema" en la bitacora**: hoy no se distingue en la UI el autor `NULL` (acciones del
+  sistema) de los usuarios.
+- **Cambio de contrasena obligatorio en el primer acceso** del usuario interno: hoy la contrasena
+  temporal funciona hasta que el usuario decide cambiarla en Mi cuenta (no se fuerza).
+- **Ratings/resenas** de productos y **notificaciones por correo** (pedido confirmado, cambio de
+  estado): no implementados.
+- Otras notas de alcance de las pruebas de navegador estan en
+  [`web/README.md`](web/README.md#limitaciones-conocidas).
 
 ## Variables de entorno
 
@@ -1349,6 +1599,7 @@ erDiagram
         int IDRol FK
         nvarchar Correo
         nvarchar Nombre
+        nvarchar Telefono
         bit Activo
         int IntentosFallidos
         datetime2 BloqueadoHasta
@@ -1365,6 +1616,7 @@ erDiagram
         nvarchar SKU
         decimal Precio
         int Existencia
+        nvarchar ImagenURL
         bit Activo
     }
     Carrito {
@@ -1381,6 +1633,8 @@ erDiagram
         int IDEstadoPedido FK
         int IDDireccion FK
         int IDCupon FK
+        nvarchar NombreFactura
+        nvarchar NITFactura
         decimal Subtotal
         decimal Descuento
         decimal Total

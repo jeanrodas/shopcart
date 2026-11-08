@@ -1,10 +1,31 @@
 # Coleccion Postman / newman — ShopCart
 
 `ShopCart.postman_collection.json` cubre la API de Fase 1 (M1–M9) y los bloques de Fase 2
-(`F2 Pedidos cliente`, `F2 Cuenta y catalogo admin`, `F2 Archivos`, `F2 Operacion`). Las
-variables viven en la coleccion (`baseUrl`, tokens por rol e IDs que los requests capturan
-solos); no hace falta un entorno aparte. Ajusta `baseUrl` si la API no corre en
-`http://localhost:3000`.
+(`00 Recorrido guiado Fase 2`, `F2 Pedidos cliente`, `F2 Cuenta y catalogo admin`,
+`F2 Archivos`, `F2 Operacion`, `F2 Control`, `F2 Eventos`, `F2 Dashboard`). Las variables
+viven en la coleccion (`baseUrl`, tokens por rol e IDs que los requests capturan solos); no
+hace falta un entorno aparte. Ajusta `baseUrl` si la API no corre en `http://localhost:3000`.
+
+## Carpeta `00 Recorrido guiado Fase 2`
+
+Los 15 requests que respaldan por API los recorridos de
+[`docs/GUIA-EVALUACION-FASE2.md`](../GUIA-EVALUACION-FASE2.md) (cliente, operador y
+administrador): login por rol, perfil, catalogo e inventario **ordenados en el servidor**,
+simulacion de ajuste no permitido (RF-03), resumen de operacion, dashboard con `X-Cache`
+MISS/HIT y granularidad SEMANA (RF-08), ticket SSE (201 admin / 403 cliente) y el 403 de
+bitacora al Operador. Es **solo lectura / idempotente** (el registro usa `{{$guid}}`), asi que
+es repetible sin reinstalar la base. Ejecutalo de arriba hacia abajo (los primeros tres fijan
+los tokens). No necesita `--working-dir`:
+
+```bash
+npx --yes newman run docs/postman/ShopCart.postman_collection.json \
+  --folder "00 Recorrido guiado Fase 2" \
+  --env-var baseUrl=http://localhost:3000
+```
+
+> Esta carpeta se genera con el script de ayuda `docs/postman/build-recorrido-f2.mjs`
+> (`node docs/postman/build-recorrido-f2.mjs`), que la inserta o la reemplaza de forma
+> idempotente conservando el formato del archivo.
 
 Requisitos: la API arriba, la base sembrada (`db/aplicar.ps1`, incluye `099`) y, para la
 coleccion completa, `RATE_LIMIT_*_MAX=100` (los trae `api/.env.example`) para que los
