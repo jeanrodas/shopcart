@@ -124,6 +124,7 @@ BEGIN
 
         UPDATE dbo.Usuario
            SET HashContrasena = @HashNuevo,
+               DebeCambiarContrasena = 0,  -- ya cambio la temporal
                FechaActualizacion = SYSUTCDATETIME()
          WHERE IDUsuario = @IDUsuario;
 
@@ -179,7 +180,8 @@ BEGIN
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
-    DECLARE @Patron NVARCHAR(102) = N'%' + @Texto + N'%';
+    -- Escapa los comodines de LIKE (% _ [) con clases [..] para que el texto del usuario sea literal.
+    DECLARE @Patron NVARCHAR(320) = N'%' + REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]') + N'%';
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
 
     /* Base filtrada por texto y categoria (NO por estado): los conteos deben

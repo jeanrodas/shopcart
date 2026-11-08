@@ -4,6 +4,7 @@ import { useInventarioAdmin, useKardex, useRegistrarMovimiento } from '../../lib
 import { simularMovimiento } from '../../api/inventario';
 import { Boton } from '../../componentes/ui/Boton';
 import { Modal } from '../../componentes/ui/Modal';
+import { EstadoVista } from '../../componentes/ui/EstadoVista';
 import { resolverImagen } from '../../lib/imagenes';
 import { formatearMomento } from '../../lib/formato';
 import { IconoCerrar } from '../../componentes/iconos';
@@ -53,7 +54,7 @@ function FilaKardex({ k }: { k: KardexFila }) {
 
 function KardexModal({ idVariante, onCerrar }: { idVariante: number; onCerrar: () => void }) {
   const [pagina, setPagina] = useState(1);
-  const { data } = useKardex(idVariante, pagina, 10);
+  const { data, isPending, isError, refetch } = useKardex(idVariante, pagina, 10);
   const total = data?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / 10));
   return (
@@ -65,12 +66,21 @@ function KardexModal({ idVariante, onCerrar }: { idVariante: number; onCerrar: (
       alConfirmar={onCerrar}
       alCancelar={onCerrar}
     >
+      <EstadoVista
+        cargando={isPending}
+        error={isError}
+        vacio={!isPending && !isError && total === 0}
+        alReintentar={() => void refetch()}
+        esqueleto={<div className="esqueleto h-40 w-full rounded-16" />}
+        tituloVacio="Sin movimientos"
+        textoVacio="Esta variante aún no tiene movimientos de kardex."
+      >
       <ul className="flex max-h-[50vh] flex-col divide-y divide-borde overflow-y-auto">
         {(data?.filas ?? []).map((k) => (
           <FilaKardex key={k.IDKardex} k={k} />
         ))}
-        {total === 0 && <li className="py-4 text-center text-apagado">Sin movimientos.</li>}
       </ul>
+      </EstadoVista>
       {totalPaginas > 1 && (
         <div className="mt-3 flex items-center justify-between text-sm">
           <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} className="rounded-pill border border-borde px-3 py-1.5 font-semibold disabled:opacity-40">
@@ -94,7 +104,7 @@ function BuscadorVariante({ onSeleccionar }: { onSeleccionar: (id: number) => vo
     const t = window.setTimeout(() => setDeb(texto.trim()), 250);
     return () => window.clearTimeout(t);
   }, [texto]);
-  const { data, isPending } = useInventarioAdmin({ texto: deb || undefined, pagina: 1, tamano: 8 });
+  const { data, isPending, isError, refetch } = useInventarioAdmin({ texto: deb || undefined, pagina: 1, tamano: 8 });
   return (
     <section className="rounded-20 border border-borde bg-white p-5 shadow-suave">
       <h2 className="text-sm font-extrabold uppercase tracking-ancho text-apagado">Registrar movimiento</h2>
@@ -106,30 +116,39 @@ function BuscadorVariante({ onSeleccionar }: { onSeleccionar: (id: number) => vo
         placeholder="Buscar por SKU o producto…"
         className="w-full rounded-pill border border-[rgba(15,23,42,.14)] bg-fondo px-4 py-2.5 text-sm outline-none focus:border-marino-600"
       />
-      <ul className="mt-3 flex flex-col divide-y divide-borde">
-        {(data?.filas ?? []).map((f) => (
-          <li key={f.IDVariante}>
-            <button
-              type="button"
-              onClick={() => onSeleccionar(f.IDVariante)}
-              className="flex w-full items-center gap-3 rounded-12 px-1 py-2 text-left hover:bg-fondo-2"
-            >
-              <img src={resolverImagen(f.ImagenPrincipal)} alt="" className="h-10 w-10 shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-marino-900">{f.Producto}</p>
-                <p className="truncate font-mono text-xs text-apagado">
-                  {f.Presentacion ? `${f.Presentacion} · ` : ''}
-                  {f.SKU}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-apagado">disp {f.Disponible}</span>
-            </button>
-          </li>
-        ))}
-        {!isPending && (data?.filas.length ?? 0) === 0 && (
-          <li className="py-4 text-center text-sm text-apagado">Sin coincidencias.</li>
-        )}
-      </ul>
+      <div className="mt-3">
+        <EstadoVista
+          cargando={isPending}
+          error={isError}
+          vacio={!isPending && !isError && (data?.filas.length ?? 0) === 0}
+          alReintentar={() => void refetch()}
+          esqueleto={<div className="esqueleto h-24 w-full rounded-16" />}
+          tituloVacio="Sin coincidencias"
+          textoVacio="Prueba con otro SKU o nombre de producto."
+        >
+          <ul className="flex flex-col divide-y divide-borde">
+            {(data?.filas ?? []).map((f) => (
+              <li key={f.IDVariante}>
+                <button
+                  type="button"
+                  onClick={() => onSeleccionar(f.IDVariante)}
+                  className="flex w-full items-center gap-3 rounded-12 px-1 py-2 text-left hover:bg-fondo-2"
+                >
+                  <img src={resolverImagen(f.ImagenPrincipal)} alt="" className="h-10 w-10 shrink-0 rounded-12 border border-borde bg-fondo-2 object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-marino-900">{f.Producto}</p>
+                    <p className="truncate font-mono text-xs text-apagado">
+                      {f.Presentacion ? `${f.Presentacion} · ` : ''}
+                      {f.SKU}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-apagado">disp {f.Disponible}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </EstadoVista>
+      </div>
     </section>
   );
 }

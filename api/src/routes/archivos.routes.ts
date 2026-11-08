@@ -9,7 +9,12 @@ import { AppError } from '../errors/AppError.js';
 
 // En memoria: 1 solo archivo de hasta 2 MB. El tipo NO se valida aqui (se hace por
 // firma de bytes en el controlador); multer solo acota tamano y numero.
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
+// Limites endurecidos: 1 archivo <= 2 MB, SIN campos de texto (fields:0) y a lo sumo 2 partes
+// (el archivo + su encabezado), para acotar la superficie del multipart.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 2 },
+});
 
 // Traduce los errores de multer (p. ej. archivo demasiado grande) al formato de la API.
 const subirUno: RequestHandler = (req, res, next) => {

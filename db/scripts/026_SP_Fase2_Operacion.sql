@@ -25,7 +25,7 @@
    objetos posteriores: solo de VW_Inventario_Disponible (008), Variante.ImagenURL (025),
    Kardex/TipoMovimientoInventario (001/004), Pedido/EstadoPedido/PedidoDetalle/Direccion/
    ProductoImagen (001) y los parametros STOCK_MINIMO/RESERVA_MINUTOS (004).
-   Idempotente: CREATE OR ALTER. Requiere SQL Server 2022 (DATETRUNC, STRING_SPLIT,
+   Idempotente: CREATE OR ALTER. Compatible con SQL Server 2019+ (STRING_SPLIT,
    STRING_AGG).
    ============================================================ */
 
@@ -71,7 +71,9 @@ BEGIN
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
-    DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
+    -- Escapa los comodines de LIKE (% _ [) con clases [..] para que el texto del usuario sea literal.
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Texto IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
 
     SELECT
@@ -158,7 +160,7 @@ BEGIN
 
     DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
     DECLARE @ReservaMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'RESERVA_MINUTOS') AS INT), 15);
-    DECLARE @HoyInicio DATETIME2(0) = DATETRUNC(DAY, SYSUTCDATETIME());
+    DECLARE @HoyInicio DATETIME2(0) = CAST(SYSUTCDATETIME() AS date);  -- medianoche de hoy (UTC)
 
     SELECT
         COUNT(1)                                                                    AS TotalVariantes,
@@ -300,6 +302,25 @@ END
 GO
 
 /* ------------------------------------------------------------
+   SP_Pedidos_AccionesPermitidas (F2, C2.1)
+   (La funcion dbo.FU_Pedido_AccionesPermitidas se define en 015, junto al grafo.)
+   Acciones permitidas para un pedido y un rol (una fila, columna AccionesPermitidas).
+   Lo usa el servicio para enriquecer GET /pedidos/:id sin tocar SP_Pedidos_Obtener (018).
+   ------------------------------------------------------------ */
+CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_AccionesPermitidas
+    @IDPedido INT,
+    @IDRol    INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT dbo.FU_Pedido_AccionesPermitidas(ep.Codigo, @IDRol) AS AccionesPermitidas
+    FROM dbo.Pedido p
+    INNER JOIN dbo.EstadoPedido ep ON ep.IDEstadoPedido = p.IDEstadoPedido
+    WHERE p.IDPedido = @IDPedido;
+END
+GO
+
+/* ------------------------------------------------------------
    SP_Pedidos_ListarOperacion
    Listado de pedidos para el area interna (Operador/Administrador). A diferencia de
    SP_Pedidos_Listar (018, intacto), acepta el estado como LISTA separada por comas
@@ -318,14 +339,19 @@ GO
 CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_ListarOperacion
     @CodigoEstado NVARCHAR(200) = NULL,
     @Texto        NVARCHAR(100) = NULL,
-    @Desde        DATETIME2(0)  = NULL,
-    @Hasta        DATETIME2(0)  = NULL,
+    -- @Desde/@Hasta son DIAS de CALENDARIO en hora local (@ZonaHoraria), no instantes UTC:
+    -- el rango [@Desde 00:00, @Hasta+1dia 00:00) local se convierte a UTC aqui (misma zona
+    -- que las horas pico de 028). Asi "08/11" significa el 8 de noviembre en Guatemala.
+    @Desde        DATE          = NULL,
+    @Hasta        DATE          = NULL,
     @IDUsuario    INT           = NULL,
     @Pagina       INT           = 1,
     @TamanoPagina INT           = 20,
     @RecienteDias INT           = NULL,
     @Orden        NVARCHAR(40)  = NULL,
-    @Direccion    NVARCHAR(4)   = N'DESC'
+    @Direccion    NVARCHAR(4)   = N'DESC',
+    @IDRol        INT           = NULL,
+    @ZonaHoraria  NVARCHAR(64)  = N'Central America Standard Time'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -341,7 +367,19 @@ BEGIN
     IF @Ord NOT IN (N'numero', N'fecha', N'total', N'estado', N'hace')
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
-    DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
+    IF @ZonaHoraria IS NULL OR NOT EXISTS (SELECT 1 FROM sys.time_zone_info WHERE name = @ZonaHoraria)
+        THROW 50422, 'Zona horaria invalida', 1;
+
+    -- Limites del rango local [@Desde 00:00, @Hasta+1dia 00:00) convertidos a UTC para comparar
+    -- contra p.FechaCreacion (UTC). El +1 dia en @Hasta hace el extremo superior semiabierto.
+    DECLARE @DesdeUtc DATETIME2(0) = CASE WHEN @Desde IS NULL THEN NULL
+        ELSE CAST(CAST(@Desde AS DATETIME2(0)) AT TIME ZONE @ZonaHoraria AT TIME ZONE 'UTC' AS DATETIME2(0)) END;
+    DECLARE @HastaUtc DATETIME2(0) = CASE WHEN @Hasta IS NULL THEN NULL
+        ELSE CAST(CAST(DATEADD(DAY, 1, @Hasta) AS DATETIME2(0)) AT TIME ZONE @ZonaHoraria AT TIME ZONE 'UTC' AS DATETIME2(0)) END;
+
+    -- Escapa los comodines de LIKE (% _ [) con clases [..] para que el texto del usuario sea literal.
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Texto IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
     DECLARE @DesdeReciente DATETIME2(0) =
         CASE WHEN @RecienteDias IS NULL OR @RecienteDias < 1 THEN NULL
              ELSE DATEADD(DAY, -@RecienteDias, SYSUTCDATETIME()) END;
@@ -373,12 +411,13 @@ BEGIN
         WHERE (@IDUsuario IS NULL OR p.IDUsuario = @IDUsuario)
           AND (@CodigoEstado IS NULL
                OR ep.Codigo IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@CodigoEstado, N',')))
-          AND (@Desde  IS NULL OR p.FechaCreacion >= @Desde)
-          AND (@Hasta  IS NULL OR p.FechaCreacion < @Hasta)
+          AND (@DesdeUtc IS NULL OR p.FechaCreacion >= @DesdeUtc)
+          AND (@HastaUtc IS NULL OR p.FechaCreacion < @HastaUtc)
           AND (@DesdeReciente IS NULL OR ISNULL(p.FechaActualizacion, p.FechaCreacion) >= @DesdeReciente)
           AND (@Patron IS NULL OR p.NumeroPedido LIKE @Patron OR u.Nombre LIKE @Patron OR u.Correo LIKE @Patron)
     )
-    SELECT *
+    SELECT *,
+           dbo.FU_Pedido_AccionesPermitidas(EstadoCodigo, @IDRol) AS AccionesPermitidas
     FROM Filtrados
     ORDER BY
         CASE WHEN @Ord = N'numero' AND @Dir = N'ASC'  THEN NumeroPedido END ASC,

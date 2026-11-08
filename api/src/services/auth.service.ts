@@ -68,6 +68,8 @@ interface UsuarioTokenData {
   Nombre: string;
   IDRol: number;
   Rol: string;
+  /** 1 si debe cambiar la contrasena temporal en el primer acceso (solo lo trae el login). */
+  DebeCambiarContrasena?: boolean;
 }
 
 interface UsuarioLogin extends UsuarioTokenData {
@@ -80,7 +82,7 @@ interface UsuarioLogin extends UsuarioTokenData {
 interface SesionResponse {
   accessToken: string;
   refreshToken: string;
-  usuario: { id: number; correo: string; nombre: string; rol: string };
+  usuario: { id: number; correo: string; nombre: string; rol: string; debeCambiarContrasena: boolean };
 }
 
 interface CarritoFusionado {
@@ -119,7 +121,13 @@ function respuestaSesion(
   return {
     accessToken,
     refreshToken,
-    usuario: { id: u.IDUsuario, correo: u.Correo, nombre: u.Nombre, rol: u.Rol },
+    usuario: {
+      id: u.IDUsuario,
+      correo: u.Correo,
+      nombre: u.Nombre,
+      rol: u.Rol,
+      debeCambiarContrasena: Boolean(u.DebeCambiarContrasena),
+    },
   };
 }
 

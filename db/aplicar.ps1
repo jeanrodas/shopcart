@@ -56,6 +56,10 @@ $dir = Join-Path $PSScriptRoot 'scripts'
 # que lo referenciado exista al crearse.
 $orden = @(
     '001_CreateDatabase', '002_SP_Sistema_Ping', '003_Security', '004_Catalogos',
+    # 029 (C2.1): agrega dbo.Usuario.DebeCambiarContrasena (la referencian 005/006/024) y el
+    # trigger de bitacora de Usuario; va ANTES de 005 por esa dependencia de columna. Las tablas
+    # Usuario y Bitacora existen desde 001, por eso puede aplicarse aqui.
+    '029_Migracion_UsuarioFlags',
     '005_SP_Auth', '006_SP_Usuarios', '007_SP_Direcciones', '008_VW_Inventario',
     # 025 (F2) agrega dbo.Variante.ImagenURL; va ANTES de 010/012/016/018/023/024, que
     # referencian la columna (CREATE OR ALTER valida columnas de una tabla existente al

@@ -38,7 +38,11 @@ export default function Login() {
   const [sp] = useSearchParams();
   // Destino tras entrar: el state de RutaProtegida o el ?volver (solo rutas internas).
   const volverRaw = sp.get('volver');
-  const volver = volverRaw && volverRaw.startsWith('/') ? volverRaw : null;
+  // Solo rutas internas: debe empezar con "/" pero NO con "//" ni "/\" (redireccion externa).
+  const volver =
+    volverRaw && volverRaw.startsWith('/') && !volverRaw.startsWith('//') && !volverRaw.startsWith('/\\')
+      ? volverRaw
+      : null;
   // Destino explicito pedido (ruta protegida o ?volver). Si no hay, depende del rol.
   const destinoExplicito = estado.desde ?? volver ?? null;
   const { data: metadatos } = useMetadatos();
@@ -59,6 +63,13 @@ export default function Login() {
       const sesion = await iniciarSesion(correo, contrasena);
       if (sesion.carritoFusionado && sesion.carritoFusionado.lineas > 0) {
         mostrar('Tu carrito se unió a tu cuenta', 'exito');
+      }
+      // Si debe cambiar la contrasena temporal, va directo a Seguridad (y el area interna
+      // queda bloqueada por LayoutInterno hasta que la cambie).
+      if (sesion.usuario.debeCambiarContrasena) {
+        mostrar('Debes cambiar tu contraseña temporal para continuar', 'exito');
+        navigate('/cuenta#seguridad', { replace: true });
+        return;
       }
       // Admin/Operador aterrizan en /admin; Cliente en la ruta que pidio o en /.
       const destino =

@@ -60,7 +60,7 @@ app.get('/', (_req, res) => {
   res.status(200).json({
     nombre: 'ShopCart API',
     version: pkg.version,
-    fase: 'Fase 1 - backend',
+    fase: 'Fase 2 - proyecto completo',
     modoDemo: env.MODO_DEMO,
     enlaces: { health: '/health', apiDocs: '/api-docs', apiBase: '/api/v1' },
   });

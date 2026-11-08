@@ -4,7 +4,7 @@ import {
   useCancelarPedidoOperacion,
   useRegistrarDevolucion,
 } from '../../lib/consultas';
-import { siguientePaso, puedeCancelarOperacion, puedeDevolver } from '../../lib/operacion';
+import { acciones, siguienteAvance } from '../../lib/operacion';
 import { Boton } from '../../componentes/ui/Boton';
 import { Modal } from '../../componentes/ui/Modal';
 import type { PedidoCabecera, PedidoLineaDetalle } from '../../api/tipos';
@@ -17,7 +17,6 @@ interface Props {
 
 /** Transicion + cancelacion + devolucion de un pedido (reutilizado por el panel y el detalle). */
 export function AccionesPedido({ pedido, lineas, onHecho }: Props) {
-  const estado = pedido.EstadoCodigo;
   const id = pedido.IDPedido;
 
   const [comentario, setComentario] = useState('');
@@ -27,9 +26,11 @@ export function AccionesPedido({ pedido, lineas, onHecho }: Props) {
   const cambiar = useCambiarEstadoPedido();
   const cancelar = useCancelarPedidoOperacion();
 
-  const paso = siguientePaso(estado);
-  const puedeCancelar = puedeCancelarOperacion(estado);
-  const puedeDev = puedeDevolver(estado);
+  // Acciones que trae la API (grafo en SQL): no se decide nada por estado aqui.
+  const permitidas = acciones(pedido.AccionesPermitidas);
+  const paso = siguienteAvance(pedido.AccionesPermitidas);
+  const puedeCancelar = permitidas.has('CANCELAR');
+  const puedeDev = permitidas.has('DEVOLVER');
 
   const avanzar = () => {
     if (!paso) return;

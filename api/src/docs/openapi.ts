@@ -531,8 +531,8 @@ export const openapiDocument = {
   openapi: '3.0.3',
   info: {
     title: 'ShopCart API',
-    version: '1.0.0',
-    description: 'API de la plataforma de e-commerce ShopCart.',
+    version: '2.0.0',
+    description: 'API de la plataforma de e-commerce ShopCart (Fase 2, proyecto completo).',
   },
   servers: [{ url: '/', description: 'Servidor actual' }],
   tags: [
@@ -607,8 +607,8 @@ export const openapiDocument = {
                   type: 'object',
                   properties: {
                     nombre: { type: 'string', example: 'ShopCart API' },
-                    version: { type: 'string', example: '1.0.0' },
-                    fase: { type: 'string', example: 'Fase 1 - backend' },
+                    version: { type: 'string', example: '2.0.0' },
+                    fase: { type: 'string', example: 'Fase 2 - proyecto completo' },
                     modoDemo: { type: 'boolean', example: true },
                     enlaces: {
                       type: 'object',

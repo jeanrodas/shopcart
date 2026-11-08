@@ -81,7 +81,11 @@ export default function Registro() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
   const volverRaw = sp.get('volver');
-  const volver = volverRaw && volverRaw.startsWith('/') ? volverRaw : '/';
+  // Solo rutas internas: debe empezar con "/" pero NO con "//" ni "/\" (redireccion externa).
+  const volver =
+    volverRaw && volverRaw.startsWith('/') && !volverRaw.startsWith('//') && !volverRaw.startsWith('/\\')
+      ? volverRaw
+      : '/';
 
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [errorCorreo, setErrorCorreo] = useState<string | null>(null);

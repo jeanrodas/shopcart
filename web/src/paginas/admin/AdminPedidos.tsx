@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { usePedidosOperacion, useResumenOperacion, usePedidoOperacion } from '../../lib/consultas';
 import { useOperacionVivo } from '../../lib/useEventosVivo';
@@ -9,7 +9,7 @@ import { EtiquetaEstadoPedido } from '../../componentes/ui/EtiquetaEstadoPedido'
 import { Precio, formatearQuetzales } from '../../componentes/ui/Precio';
 import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { formatearHace, formatearFechaHora } from '../../lib/formato';
-import { siguientePaso } from '../../lib/operacion';
+import { acciones, siguienteAvance } from '../../lib/operacion';
 import { AccionesPedido } from './AccionesPedido';
 import type { FiltrosPedidosOperacion, PedidoOperacionFila, ResumenOperacion } from '../../api/tipos';
 
@@ -22,16 +22,10 @@ function hace(dias: number): string {
   d.setDate(d.getDate() - dias);
   return iso(d);
 }
-/** Convierte 'YYYY-MM-DD' a limites UTC semiabiertos [desde, hasta+1dia). */
-function limites(desde: string, hasta: string): { desde?: string; hasta?: string } {
-  const r: { desde?: string; hasta?: string } = {};
-  if (desde) r.desde = `${desde}T00:00:00.000Z`;
-  if (hasta) {
-    const h = new Date(`${hasta}T00:00:00.000Z`);
-    h.setUTCDate(h.getUTCDate() + 1);
-    r.hasta = h.toISOString();
-  }
-  return r;
+/** Rango de fechas para la API: dias de calendario (YYYY-MM-DD) en hora local; el SP de
+ *  operacion los convierte a UTC con AT TIME ZONE (zona de Guatemala). */
+function rangoFechas(desde: string, hasta: string): { desde?: string; hasta?: string } {
+  return { desde: desde || undefined, hasta: hasta || undefined };
 }
 
 interface Tarjeta {
@@ -76,13 +70,18 @@ const TARJETAS: Tarjeta[] = [
 const ESTADOS_RECIENTES = new Set(['ENTREGADO', 'CANCELADO,DEVUELTO']);
 
 export default function AdminPedidos() {
-  const [texto, setTexto] = useState('');
-  const [textoDeb, setTextoDeb] = useState('');
-  const [desde, setDesde] = useState(hace(7));
-  const [hasta, setHasta] = useState(iso(new Date()));
+  // Los filtros se persisten en la URL (como el orden) para sobrevivir a recargas/compartir.
+  const [params, setParams] = useSearchParams();
+  const [texto, setTexto] = useState(() => params.get('q') ?? '');
+  const [textoDeb, setTextoDeb] = useState(() => (params.get('q') ?? '').trim());
+  const [desde, setDesde] = useState(() => params.get('desde') ?? hace(7));
+  const [hasta, setHasta] = useState(() => params.get('hasta') ?? iso(new Date()));
   // Por defecto entra seleccionada la cola de trabajo (Pagados): la tabla muestra todos los
-  // PAGADO sin filtro de fecha, y su conteo coincide con la tarjeta.
-  const [tarjeta, setTarjeta] = useState<string | null>('PAGADO'); // estado de la tarjeta activa
+  // PAGADO sin filtro de fecha, y su conteo coincide con la tarjeta. En la URL, card=todos = sin tarjeta.
+  const [tarjeta, setTarjeta] = useState<string | null>(() => {
+    const c = params.get('card');
+    return c === null ? 'PAGADO' : c === 'todos' ? null : c;
+  }); // estado de la tarjeta activa
   const [pagina, setPagina] = useState(1);
   const [tamanoPagina, setTamanoPagina] = useState(20);
   const [seleccion, setSeleccion] = useState<number | null>(null);
@@ -111,6 +110,20 @@ export default function AdminPedidos() {
     setPagina(1);
   }, [textoDeb, desde, hasta, tarjeta, tamanoPagina]);
 
+  // Espeja los filtros en la URL (merge: conserva orden/direccion que maneja useOrdenURL).
+  useEffect(() => {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (textoDeb) next.set('q', textoDeb); else next.delete('q');
+        if (tarjeta) { next.set('card', tarjeta); next.delete('desde'); next.delete('hasta'); }
+        else { next.set('card', 'todos'); next.set('desde', desde); next.set('hasta', hasta); }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [textoDeb, tarjeta, desde, hasta, setParams]);
+
   const { data: resumen } = useResumenOperacion();
 
   const filtros: FiltrosPedidosOperacion = useMemo(() => {
@@ -130,7 +143,7 @@ export default function AdminPedidos() {
     }
     return {
       texto: textoDeb || undefined,
-      ...limites(desde, hasta),
+      ...rangoFechas(desde, hasta),
       pagina,
       tamanoPagina,
       orden: orden.orden,
@@ -287,7 +300,8 @@ export default function AdminPedidos() {
 }
 
 function FilaPedido({ p, seleccionado, onSel }: { p: PedidoOperacionFila; seleccionado: boolean; onSel: () => void }) {
-  const paso = siguientePaso(p.EstadoCodigo);
+  const paso = siguienteAvance(p.AccionesPermitidas);
+  const puedeDevolver = acciones(p.AccionesPermitidas).has('DEVOLVER');
   const viejo = p.EstadoCodigo === 'PAGADO' && p.MinutosEnEstado > 120;
   return (
     <tr
@@ -308,7 +322,7 @@ function FilaPedido({ p, seleccionado, onSel }: { p: PedidoOperacionFila; selecc
           <button type="button" onClick={(e) => { e.stopPropagation(); onSel(); }} className="rounded-pill bg-degradado-acento px-3 py-1.5 text-xs font-bold text-marino-900">
             {paso.texto}
           </button>
-        ) : p.EstadoCodigo === 'ENTREGADO' ? (
+        ) : puedeDevolver ? (
           <button type="button" onClick={(e) => { e.stopPropagation(); onSel(); }} className="rounded-pill bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white">
             Registrar devolución
           </button>

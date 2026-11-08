@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useAuth } from '../../auth/useAuth';
@@ -44,8 +44,8 @@ const GRUPOS: Grupo[] = [
     items: [
       { a: '/admin/productos', texto: 'Productos', Icono: IconoCarrito },
       { a: '/admin/categorias', texto: 'Categorías', Icono: IconoFiltro },
-      // Cupones: tambien visible para Operador (solo lectura); el resto de Catalogo/Control es soloAdmin.
-      { a: '/admin/cupones', texto: 'Cupones', Icono: IconoTarjeta },
+      // Cupones: solo Administrador (RF-01; la API de cupones es Administrador).
+      { a: '/admin/cupones', texto: 'Cupones', Icono: IconoTarjeta, soloAdmin: true },
     ],
   },
   {
@@ -181,9 +181,16 @@ const RUTULOS: Record<string, string> = {
 
 export function LayoutInterno() {
   const { pathname } = useLocation();
+  const { usuario } = useAuth();
   const { data: meta } = useMetadatos();
   const [drawer, setDrawer] = useState(false);
   const titulo = RUTULOS[pathname] ?? 'Administración';
+
+  // Mientras deba cambiar la contrasena temporal, el area interna queda bloqueada: se lleva a
+  // Seguridad en Mi cuenta hasta que la cambie (/auth/cambiar-contrasena pone el flag en 0).
+  if (usuario?.debeCambiarContrasena) {
+    return <Navigate to="/cuenta#seguridad" replace />;
+  }
 
   return (
     <div className="flex min-h-screen bg-fondo">

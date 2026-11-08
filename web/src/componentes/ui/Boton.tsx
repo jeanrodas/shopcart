@@ -56,7 +56,9 @@ export function Boton({
     <button
       type={type}
       className={clsx(clasesBoton(variante, tamano), className)}
-      disabled={disabled ?? cargando}
+      // Cualquiera de los dos deshabilita: un `disabled={false}` explicito no debe permitir
+      // re-enviar mientras `cargando` (evita el doble submit). Antes usaba `??` y lo ignoraba.
+      disabled={(disabled ?? false) || cargando}
       aria-busy={cargando || undefined}
       {...resto}
     >

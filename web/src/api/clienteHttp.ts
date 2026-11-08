@@ -140,7 +140,9 @@ function rutaUsaCarrito(ruta: string): boolean {
 
 async function ejecutar(ruta: string, opc: OpcionesPeticion): Promise<Response> {
   const headers: Record<string, string> = { ...opc.headers };
-  if (opc.body !== undefined) headers['Content-Type'] = 'application/json';
+  const esForm = opc.body instanceof FormData;
+  // Con FormData NO se fija Content-Type: el navegador lo pone con el boundary multipart.
+  if (opc.body !== undefined && !esForm) headers['Content-Type'] = 'application/json';
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
   if (opc.cart ?? rutaUsaCarrito(ruta)) {
     const ct = obtenerCartToken();
@@ -150,7 +152,7 @@ async function ejecutar(ruta: string, opc: OpcionesPeticion): Promise<Response> 
   const res = await fetch(`${BASE}${ruta}`, {
     method: opc.method ?? 'GET',
     headers,
-    body: opc.body !== undefined ? JSON.stringify(opc.body) : undefined,
+    body: opc.body === undefined ? undefined : esForm ? (opc.body as FormData) : JSON.stringify(opc.body),
     signal: opc.signal,
   });
 
@@ -211,7 +213,12 @@ function refrescarUnaVez(): Promise<RespuestaSesion> {
   return refrescando;
 }
 
-export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Promise<T> {
+/**
+ * Ejecuta la peticion con el reintento UNICO tras un 401 `TOKEN_EXPIRED` (renovacion
+ * single-flight + Web Locks); devuelve la Response cruda. Lo comparten las peticiones JSON,
+ * la subida (FormData) y la descarga (blob), para que todas renueven el access igual.
+ */
+async function ejecutarConReintento(ruta: string, opc: OpcionesPeticion): Promise<Response> {
   let res = await ejecutar(ruta, opc);
 
   if (res.status === 401 && !opc.sinRefresh && obtenerRefreshToken()) {
@@ -232,6 +239,11 @@ export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Pro
       res = await ejecutar(ruta, opc); // reintento unico
     }
   }
+  return res;
+}
+
+export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Promise<T> {
+  const res = await ejecutarConReintento(ruta, opc);
 
   if (!res.ok && !opc.estadosOk?.includes(res.status)) throw await construirError(res);
   opc.alResponder?.(res.headers);
@@ -239,4 +251,17 @@ export async function peticion<T>(ruta: string, opc: OpcionesPeticion = {}): Pro
 
   const texto = await res.text();
   return (texto ? (JSON.parse(texto) as T) : (undefined as T));
+}
+
+/**
+ * Descarga binaria (p. ej. un .xlsx). Mismo reintento tras TOKEN_EXPIRED que `peticion`.
+ * Devuelve el blob y las cabeceras (para leer Content-Disposition).
+ */
+export async function peticionBlob(
+  ruta: string,
+  opc: OpcionesPeticion = {},
+): Promise<{ blob: Blob; headers: Headers }> {
+  const res = await ejecutarConReintento(ruta, opc);
+  if (!res.ok) throw await construirError(res);
+  return { blob: await res.blob(), headers: res.headers };
 }

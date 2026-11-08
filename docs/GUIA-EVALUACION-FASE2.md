@@ -93,9 +93,12 @@ completar el pago. **Empiece sin iniciar sesion** (ventana de incognito).
 
 Inicie sesion como **operador@shopcart.local**. Aterriza en `/admin` (Dashboard).
 
-1. **Dashboard en vivo.** En `/admin`, vea los **4 KPIs**, las graficas (ventas por dia con
-   selector **Dia/Semana/Mes** y toggle **Q/Pedidos**, categorias, embudo, horas pico, top
-   productos) y el chip **"En vivo"** (verde). *Demuestra:* RF-08; SSE (extra).
+1. **Dashboard del Operador (RF-01).** En `/admin`, el Operador ve el **saludo**, el panel
+   **"Ahora mismo"**, el **feed en vivo** y **Top productos** — pero **no** los bloques de
+   negocio (Ventas netas, Embudo, Horas pico, Cupones): esos son solo del Administrador y ni
+   siquiera se cargan (no hay `403`). El chip **"En vivo"** aparece en verde. *Demuestra:*
+   RF-01 (acceso por rol al detalle); SSE (extra). El dashboard **completo** (KPIs y graficas)
+   se ve en el Recorrido 3 como Administrador.
 2. **Ver llegar un evento.** Deje el dashboard abierto y, en **otra ventana** (incognito),
    complete una compra como cliente (Recorrido 1, pasos 9-12). *Debe verse:* en el dashboard, el
    contador de eventos sube y el feed **"Ahora mismo"** muestra el pedido **sin recargar**.

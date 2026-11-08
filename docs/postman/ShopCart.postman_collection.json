@@ -16369,14 +16369,14 @@
 					}
 				},
 				{
-					"name": "Operador tambien ve el dashboard (200)",
+					"name": "Operador NO ve el resumen de negocio (403) — RF-01",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));"
+									"pm.test('403 (los bloques de negocio son solo Administrador)', () => pm.expect(pm.response.code).to.eql(403));"
 								]
 							}
 						}
@@ -16390,6 +16390,31 @@
 							}
 						],
 						"url": "{{baseUrl}}/api/v1/dashboard/resumen?desde={{dashDesde}}&hasta={{dashHasta}}"
+					}
+				},
+				{
+					"name": "Operador SI ve Top productos (200) — RF-01",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.expect(pm.response.code).to.eql(200));",
+									"pm.test('array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{fdOpeToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/dashboard/top-productos?desde={{dashDesde}}&hasta={{dashHasta}}&top=5"
 					}
 				},
 				{

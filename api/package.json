@@ -1,6 +1,6 @@
 {
   "name": "shopcart-api",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "ShopCart e-commerce API backend",
   "private": true,
   "type": "module",

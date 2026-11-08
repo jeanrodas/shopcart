@@ -24,7 +24,7 @@
    Convenciones: ver 016/018/019 (NOCOUNT; XACT_ABORT solo en SPs con TRAN -aqui
    todo es solo lectura, sin TRAN-; errores 50400-50499; mensajes sin acentos;
    patron (@P IS NULL OR ...) + OPTION (RECOMPILE)). Sin SQL dinamico. Montos
-   DECIMAL(18,2). Requiere SQL Server 2022 (DATETRUNC).
+   DECIMAL(18,2). Compatible con SQL Server 2019+ (truncacion de periodo sin DATETRUNC).
 
    Orden de ejecucion M9: 020 (despues de 019). Idempotente: CREATE OR ALTER en
    vistas y SPs; los indices se crean solo si faltan.
@@ -88,7 +88,7 @@ GO
 
 /* ------------------------------------------------------------
    SP_Reportes_VentasPorPeriodo
-   Agrupa la venta neta por DIA, SEMANA o MES usando DATETRUNC (SQL Server 2022).
+   Agrupa la venta neta por DIA, SEMANA o MES por truncacion de periodo compatible con SQL Server 2019+.
    Valida @Hasta > @Desde, rango <= 366 dias y agrupacion valida -> 50400.
    La semana usa DATEFIRST 1 (inicia lunes) para un corte determinista.
    ------------------------------------------------------------ */
@@ -111,9 +111,9 @@ BEGIN
     SELECT
         CAST(
             CASE @Agrupacion
-                WHEN N'DIA'    THEN DATETRUNC(DAY,   pn.FechaCreacion)
-                WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
-                ELSE                DATETRUNC(MONTH, pn.FechaCreacion)
+                WHEN N'DIA'    THEN CAST(pn.FechaCreacion AS date)
+                WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, pn.FechaCreacion) % 7), CAST(pn.FechaCreacion AS date))
+                ELSE                DATEFROMPARTS(YEAR(pn.FechaCreacion), MONTH(pn.FechaCreacion), 1)
             END AS DATE)                                      AS Periodo,
         COUNT(1)                                              AS Pedidos,
         CAST(SUM(pn.Total)     AS DECIMAL(18,2))              AS VentaBruta,
@@ -125,9 +125,9 @@ BEGIN
       AND pn.FechaCreacion < @Hasta
     GROUP BY
         CASE @Agrupacion
-            WHEN N'DIA'    THEN DATETRUNC(DAY,   pn.FechaCreacion)
-            WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
-            ELSE                DATETRUNC(MONTH, pn.FechaCreacion)
+            WHEN N'DIA'    THEN CAST(pn.FechaCreacion AS date)
+            WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, pn.FechaCreacion) % 7), CAST(pn.FechaCreacion AS date))
+            ELSE                DATEFROMPARTS(YEAR(pn.FechaCreacion), MONTH(pn.FechaCreacion), 1)
         END
     ORDER BY Periodo
     OPTION (RECOMPILE);

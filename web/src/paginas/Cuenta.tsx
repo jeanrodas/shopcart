@@ -108,6 +108,13 @@ export default function Cuenta() {
         </div>
       </header>
 
+      {usuario?.debeCambiarContrasena && (
+        <div className="mt-4 rounded-16 border border-ambar/40 bg-ambar/10 px-4 py-3 text-sm font-medium text-naranja-700">
+          Debes cambiar tu contraseña temporal para usar el área interna. Hazlo en{' '}
+          <a href="#seguridad" className="font-bold underline">Seguridad</a>.
+        </div>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
         <NavLateral secciones={secciones} />
         <div className="min-w-0">

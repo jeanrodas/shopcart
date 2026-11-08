@@ -110,15 +110,27 @@ test('usuarios: crear operador, iniciar con la clave temporal y cambiar la contr
   // Cerrar sesión del admin e iniciar con la clave temporal del operador nuevo.
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await entrar(page, correo, temporal);
-  await expect(page).toHaveURL(/\/admin$/);
 
-  // Mi cuenta → cambiar contraseña (los usuarios internos solo ven Datos y Seguridad).
+  // Con la clave temporal (DebeCambiarContrasena), el login lleva a Seguridad y el área interna
+  // queda bloqueada: ir a /admin redirige de vuelta a Mi cuenta hasta cambiarla (D13).
+  await expect(page).toHaveURL(/\/cuenta/);
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/cuenta/);
+
+  // Cambiar la contraseña (los usuarios internos solo ven Datos y Seguridad).
   await page.goto('/cuenta');
   await page.getByLabel('Contraseña actual').fill(temporal);
   await page.getByLabel('Contraseña nueva').fill('ClaveNueva123');
   await page.getByLabel('Confirmar contraseña').fill('ClaveNueva123');
   await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
   await expect(page.getByText(/Contraseña actualizada/)).toBeVisible();
+
+  // El cambio cierra la sesión (lleva al inicio); al re-entrar con la clave nueva ya NO está
+  // bloqueado -> /admin. toHaveURL (no waitForURL) para no esperar un "load" que la navegación
+  // SPA con replace no dispara.
+  await expect(page).toHaveURL(/:5173\/$/, { timeout: 15_000 });
+  await entrar(page, correo, 'ClaveNueva123');
+  await expect(page).toHaveURL(/\/admin$/);
 });
 
 test('usuarios: una cuenta bloqueada se desbloquea y el cliente vuelve a iniciar sesión', async ({ page }) => {

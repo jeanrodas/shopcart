@@ -106,9 +106,15 @@ export function App() {
                   <Route path="inventario" element={<AdminInventario />} />
                   <Route path="productos" element={<AdminProductos />} />
                   <Route path="categorias" element={<AdminCategorias />} />
-                  {/* Cupones: Administrador escribe; Operador puede ver (solo lectura). El marco
-                      /admin ya permite ambos roles, por eso no lleva candado adicional. */}
-                  <Route path="cupones" element={<AdminCupones />} />
+                  {/* Cupones: solo Administrador (RF-01; la API de cupones es Administrador). */}
+                  <Route
+                    path="cupones"
+                    element={
+                      <RutaProtegida roles={['Administrador']}>
+                        <AdminCupones />
+                      </RutaProtegida>
+                    }
+                  />
                   <Route
                     path="bitacora"
                     element={

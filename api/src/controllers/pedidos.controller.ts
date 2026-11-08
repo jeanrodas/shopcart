@@ -40,7 +40,7 @@ export const getPedido: RequestHandler = async (req, res) => {
   const { id, rol } = actor(req);
   const { id: idPedido } = req.params as unknown as { id: number };
   const idUsuario = rol === ROLES.Cliente ? id : null;
-  res.status(200).json(await pedidosService.obtener(idPedido, idUsuario));
+  res.status(200).json(await pedidosService.obtener(idPedido, idUsuario, rol));
 };
 
 export const postEstado: RequestHandler = async (req, res) => {

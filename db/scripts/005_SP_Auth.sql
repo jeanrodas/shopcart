@@ -88,7 +88,8 @@ BEGIN
     DECLARE @CorreoNorm NVARCHAR(255) = LOWER(LTRIM(RTRIM(@Correo)));
 
     SELECT u.IDUsuario, u.Correo, u.HashContrasena, u.Nombre, u.Activo,
-           u.IDRol, r.Nombre AS Rol, u.IntentosFallidos, u.BloqueadoHasta
+           u.IDRol, r.Nombre AS Rol, u.IntentosFallidos, u.BloqueadoHasta,
+           u.DebeCambiarContrasena
     FROM dbo.Usuario u
     INNER JOIN dbo.Rol r ON r.IDRol = u.IDRol
     WHERE u.Correo = @CorreoNorm;
@@ -293,7 +294,8 @@ BEGIN
     END CATCH
 
     SELECT @NuevoID AS IDRefreshToken,
-           u.IDUsuario, u.Correo, u.Nombre, u.IDRol, r.Nombre AS Rol
+           u.IDUsuario, u.Correo, u.Nombre, u.IDRol, r.Nombre AS Rol,
+           u.DebeCambiarContrasena
     FROM dbo.Usuario u
     INNER JOIN dbo.Rol r ON r.IDRol = u.IDRol
     WHERE u.IDUsuario = @IDUsuario;

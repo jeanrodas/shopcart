@@ -1,4 +1,4 @@
-import { peticion, obtenerAccessToken, ErrorApi } from './clienteHttp';
+import { peticion, peticionBlob } from './clienteHttp';
 import type {
   CategoriaVenta,
   CeldaHoraPico,
@@ -61,22 +61,14 @@ export function obtenerTicketEventos(): Promise<{ ticket: string }> {
   return peticion<{ ticket: string }>('/api/v1/eventos/ticket', { method: 'POST' });
 }
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-
 /**
- * Descarga un .xlsx de los reportes de M9 (solo Administrador). El token va en la
- * cabecera (no en la URL), por eso se hace fetch + blob en vez de abrir el enlace.
+ * Descarga un .xlsx de los reportes de M9 (solo Administrador). Pasa por `peticionBlob`
+ * (cliente HTTP), asi el token va en la cabecera y hereda la renovacion transparente del
+ * access tras un TOKEN_EXPIRED (igual que cualquier otra peticion).
  */
 export async function descargarExcelReporte(ruta: string): Promise<void> {
-  const token = obtenerAccessToken();
-  const res = await fetch(`${BASE}${ruta}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    throw new ErrorApi({ status: res.status, codigo: `HTTP_${res.status}`, mensaje: 'No se pudo exportar el reporte' });
-  }
-  const blob = await res.blob();
-  const cd = res.headers.get('Content-Disposition') ?? '';
+  const { blob, headers } = await peticionBlob(ruta);
+  const cd = headers.get('Content-Disposition') ?? '';
   const m = /filename="?([^"]+)"?/.exec(cd);
   const nombre = m?.[1] ?? 'reporte.xlsx';
   const url = URL.createObjectURL(blob);

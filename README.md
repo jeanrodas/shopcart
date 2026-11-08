@@ -26,7 +26,7 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Stack
 
-- **SQL Server 2022** (requiere `DATETRUNC`, de 2022).
+- **SQL Server 2019 o superior** (probado en 2022).
 - **Node.js 24 LTS** + **TypeScript** en modo `strict` (sin ORM; acceso solo por SP).
 - **Express 5** (HTTP), **mssql** (driver, `request.execute`), **zod** (validacion).
 - **pino** / **pino-http** (logs), **bcryptjs** (hash de contrasena),
@@ -35,7 +35,7 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Requisitos
 
-- SQL Server 2022 (Developer/Express sirven).
+- SQL Server 2019 o superior (probado en 2022; Developer/Express sirven).
 - `sqlcmd` del cliente **ODBC 18** (o **go-sqlcmd**); el instalador usa `-C` (confia en
   el certificado) y `-b` (aborta al primer error).
 - Node.js **24 LTS** y npm.
@@ -72,7 +72,7 @@ cd shopcart
 
 ### 2. Base de datos
 
-Requiere SQL Server 2022. Desde `db/`, el instalador aplica los scripts en el unico orden
+Requiere SQL Server 2019 o superior (probado en 2022). Desde `db/`, el instalador aplica los scripts en el unico orden
 canonico valido y verifica el resultado (detalle en [`db/README.md`](db/README.md)).
 Elija segun como autentique contra su SQL Server:
 
@@ -189,13 +189,13 @@ puede escribir, los elementos sin acceso se ocultan):
 
 | Pantalla | Ruta | Acceso |
 |----------|------|--------|
-| Dashboard (KPIs, graficas, eventos en vivo) | `/admin` | Operador / Administrador |
+| Dashboard | `/admin` | Administrador (completo); Operador ve solo lo operativo ("Ahora mismo", feed en vivo, Top productos) |
 | Pedidos (cola de operacion) | `/admin/pedidos` | Operador / Administrador |
 | Detalle de pedido (operacion) | `/admin/pedidos/:id` | Operador / Administrador |
 | Inventario (existencias, kardex, movimientos) | `/admin/inventario` | Operador / Administrador |
 | Productos (catalogo de administracion) | `/admin/productos` | Operador (lectura) / Administrador |
 | Categorias | `/admin/categorias` | Operador (lectura) / Administrador |
-| Cupones | `/admin/cupones` | Operador (lectura) / Administrador |
+| Cupones | `/admin/cupones` | Administrador |
 | Bitacora | `/admin/bitacora` | Administrador |
 | Usuarios | `/admin/usuarios` | Administrador |
 
@@ -203,8 +203,9 @@ Un Cliente que entra a `/admin` recibe la pagina `/403`.
 
 ### b. Levantar todo en una maquina limpia
 
-Requisitos: **SQL Server 2022** (los SP del dashboard usan `DATETRUNC`, introducido en 2022;
-no sirve 2019), **Node >= 24** y **npm**. Orden: base de datos -> API -> frontend.
+Requisitos: **SQL Server 2019 o superior** (probado en 2022; la truncacion de periodo del
+dashboard no usa `DATETRUNC`, asi que corre en 2019), **Node >= 24** y **npm**. Orden: base de
+datos -> API -> frontend.
 
 **1 · Base de datos** (desde `db/`):
 
@@ -313,6 +314,7 @@ y [`db/README.md`](db/README.md)):
 | `026_SP_Fase2_Operacion` | `SP_Inventario_ListarAdmin`/`Resumen`/`SimularMovimiento`, `SP_Pedidos_ListarOperacion`/`ResumenOperacion` | Inventario, Pedidos (operacion) |
 | `027_SP_Fase2_Control` | `SP_Cupones_ListarAdmin`/`ResumenAdmin`, `SP_Bitacora_Consultar`/`ListarPorRegistro`, `SP_Usuarios_ListarAdmin`/`Desbloquear` | Cupones, Bitacora, Usuarios |
 | `028_SP_Fase2_Dashboard` | `SP_Dashboard_Resumen`/`VentasPorDia`/`VentasPorCategoria`/`Embudo`/`HorasPico`/`TopProductos`/`Cupones`, `SP_Eventos_EstadoVariante`, `SP_Sistema_Instalacion` | Dashboard, eventos en vivo |
+| `029_Migracion_UsuarioFlags` | `Usuario.DebeCambiarContrasena`; `TR_Usuario_Bitacora` (audita alta/rol/estado/desbloqueo, sin `HashContrasena`). Va **antes de 005** (lo referencian 005/006/024) | Mi cuenta (cambio obligatorio), Usuarios (bitácora) |
 
 **SP/columnas de Fase 1 que recibieron adiciones compatibles** (parametros opcionales con
 valor por defecto o columnas nuevas en el recordset; las firmas y los consumidores de Fase 1
@@ -1193,18 +1195,23 @@ pasa a tarjetas.
 ### Fase 2: dashboard, eventos en vivo y ajustes (F9)
 
 Pantalla **`/admin`** (Dashboard del area interna) sobre los reportes de M9, mas un canal de
-eventos **en vivo** (SSE). Administrador y **Operador** ven el dashboard completo en solo
-lectura. Backend solo aditivo (migracion `028`, SPs `/dashboard` nuevos; el bus reusa el evento
-de invalidacion de M9). Ninguna cifra se calcula en el navegador.
+eventos **en vivo** (SSE). **RF-01 al pie de la letra:** los bloques de **negocio** del
+dashboard (ventas, categorias, embudo, horas pico, cupones y los KPIs del resumen) son **solo
+del Administrador**; el **Operador** ve el saludo, el panel "Ahora mismo", el feed en vivo y
+Top productos (lo operativo). Backend solo aditivo (migracion `028`, SPs `/dashboard` nuevos;
+el bus reusa el evento de invalidacion de M9). Ninguna cifra se calcula en el navegador.
 
-- **Datos (`GET /dashboard/*`, Administrador/Operador).** Pasan por el **mismo cache** de M9
-  (`X-Cache HIT|MISS`), invalidado por los eventos del bus. `028` solo agrega lo que `020` no
-  cubria: `resumen` (4 KPIs con su valor del periodo anterior y `VariacionPct` en SQL),
-  `ventas-dia` (serie diaria con ceros, tabla de numeros por CTE recursiva), `categorias`
-  (+porcentaje del total), `embudo` (carritos→pagos con tasas), `horas-pico` (matriz dia×hora
-  UTC) y `cupones` del periodo. **Top productos reusa** `SP_Reportes_TopProductos` de M9 desde
-  `/dashboard/top-productos` (para habilitarlo tambien al Operador). Export a Excel solo en los
-  bloques cuyo export existe en M9 (ventas, categorias, top), visible solo para Administrador.
+- **Datos del negocio (`GET /dashboard/resumen|ventas-dia|categorias|embudo|horas-pico|cupones`,
+  solo Administrador).** Pasan por el **mismo cache** de M9 (`X-Cache HIT|MISS`), invalidado por
+  los eventos del bus. `028` solo agrega lo que `020` no cubria: `resumen` (4 KPIs con su valor
+  del periodo anterior y `VariacionPct` en SQL), `ventas-dia` (serie diaria/semanal/mensual con
+  ceros, tabla de numeros por CTE recursiva), `categorias` (+porcentaje del total), `embudo`
+  (carritos→pagos con tasas), `horas-pico` (matriz dia×hora en hora de Guatemala) y `cupones` del
+  periodo. En el front, el Operador **no monta** estos bloques (no provocan `403`).
+- **Datos operativos (tambien Operador).** `GET /dashboard/top-productos` reusa
+  `SP_Reportes_TopProductos` de M9; junto con `/pedidos/resumen-operacion`, `/inventario/resumen`
+  y el SSE, forman lo que ve el Operador. Export a Excel solo en los bloques cuyo export existe en
+  M9 (ventas, categorias, top), visible solo para Administrador.
 - **Eventos en vivo (SSE).** `api/src/eventos/bus.ts` es un `EventEmitter` de proceso con los
   tipos `pedido.creado`, `pedido.estado`, `inventario.movimiento`, `inventario.bajoStock` y
   `cupon.usado`; los servicios emiten **despues** de que el SP confirma. **Autenticacion sin JWT

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { usePedido, useCancelarPedido, useComprarDeNuevo } from '../lib/consultas';
 import { ErrorApi } from '../api/clienteHttp';
-import { accionCancelar } from '../lib/pedidos';
+import { acciones } from '../lib/operacion';
 import { formatearFechaHora } from '../lib/formato';
 import { resolverImagen } from '../lib/imagenes';
 import { Boton } from '../componentes/ui/Boton';
@@ -146,7 +146,8 @@ function Contenido({
   const unidades = lineas.reduce((n, l) => n + l.Cantidad, 0);
   const cancelado = estado === 'CANCELADO';
   const info = franja(estado, Boolean(pedido.CuponCodigo));
-  const accion = accionCancelar(estado);
+  // La API decide si se puede cancelar (AccionesPermitidas, grafo en SQL); el front no lo infiere.
+  const puedeCancelar = acciones(pedido.AccionesPermitidas).has('CANCELAR');
   const lineasDireccion = partirDireccion(pedido.DireccionEntrega);
 
   return (
@@ -183,12 +184,10 @@ function Contenido({
           <Boton variante="fantasma" cargando={comprando} onClick={onComprarDeNuevo}>
             Comprar de nuevo
           </Boton>
-          {accion !== 'oculto' && (
-            <span title={accion === 'deshabilitado' ? 'Un pedido despachado ya no se puede cancelar' : undefined}>
-              <Boton variante="peligro" disabled={accion === 'deshabilitado' || cancelando} onClick={onCancelar}>
-                Cancelar pedido
-              </Boton>
-            </span>
+          {puedeCancelar && (
+            <Boton variante="peligro" disabled={cancelando} onClick={onCancelar}>
+              Cancelar pedido
+            </Boton>
           )}
         </div>
       </div>

@@ -8,5 +8,8 @@ const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 export function resolverImagen(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('/uploads/')) return `${BASE}${url}`;
-  return url;
+  // Lista blanca en el cliente: solo rutas del sitio ("/…") o URLs https://. Cualquier otra
+  // cosa (javascript:, data:, http://, texto suelto) se descarta para no inyectarla en <img src>.
+  if (url.startsWith('/') || url.startsWith('https://')) return url;
+  return '';
 }

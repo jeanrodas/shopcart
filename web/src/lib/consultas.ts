@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../auth/useAuth';
 import { claves } from './claves';
 import {
   buscarProductos,
@@ -110,11 +111,16 @@ export function useCuponesVigentes() {
 }
 
 export function useCarrito() {
+  // El carrito es de invitado o Cliente: Operador/Administrador no lo consultan (evita un
+  // fetch innecesario para roles internos que navegan la tienda).
+  const { usuario } = useAuth();
+  const habilitado = !usuario || usuario.rol === 'Cliente';
   // Pasar el signal: asi cancelQueries(['carrito']) (p. ej. al cerrar sesion) aborta de
   // verdad un refetch en vuelo y su respuesta tardia no repuebla la cache.
   return useQuery({
     queryKey: claves.carrito,
     queryFn: ({ signal }) => obtenerCarrito(signal),
+    enabled: habilitado,
     staleTime: 10_000,
   });
 }
@@ -602,42 +608,49 @@ export function useUsuariosAdmin(filtros: FiltrosUsuarios) {
 // El periodo gobierna todos los bloques; keepPreviousData evita el parpadeo al cambiarlo.
 // Cada bloque es una consulta independiente para que un error no tumbe el resto.
 
-export function useDashboardResumen(r: RangoDashboard) {
+// Los bloques de negocio del dashboard son SOLO del Administrador (RF-01). `habilitado`
+// (= esAdmin) evita que el Operador dispare la consulta y reciba un 403.
+export function useDashboardResumen(r: RangoDashboard, habilitado = true) {
   return useQuery({
     queryKey: claves.dashboard.resumen(r),
     queryFn: () => obtenerResumenDashboard(r),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useVentasPorDia(r: RangoDashboard, granularidad: Granularidad = 'DIA') {
+export function useVentasPorDia(r: RangoDashboard, granularidad: Granularidad = 'DIA', habilitado = true) {
   return useQuery({
     queryKey: [...claves.dashboard.ventasDia(r), granularidad] as const,
     queryFn: () => obtenerVentasPorDia(r, granularidad),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useCategoriasDashboard(r: RangoDashboard) {
+export function useCategoriasDashboard(r: RangoDashboard, habilitado = true) {
   return useQuery({
     queryKey: claves.dashboard.categorias(r),
     queryFn: () => obtenerVentasPorCategoria(r),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useEmbudo(r: RangoDashboard) {
+export function useEmbudo(r: RangoDashboard, habilitado = true) {
   return useQuery({
     queryKey: claves.dashboard.embudo(r),
     queryFn: () => obtenerEmbudo(r),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useHorasPico(r: RangoDashboard) {
+export function useHorasPico(r: RangoDashboard, habilitado = true) {
   return useQuery({
     queryKey: claves.dashboard.horas(r),
     queryFn: () => obtenerHorasPico(r),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }
@@ -650,10 +663,11 @@ export function useTopProductosDashboard(r: RangoDashboard, top = 8) {
   });
 }
 
-export function useCuponesDashboard(r: RangoDashboard, top = 8) {
+export function useCuponesDashboard(r: RangoDashboard, top = 8, habilitado = true) {
   return useQuery({
     queryKey: [...claves.dashboard.cupones(r), top] as const,
     queryFn: () => obtenerCuponesDashboard(r, top),
+    enabled: habilitado,
     placeholderData: keepPreviousData,
   });
 }

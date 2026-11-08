@@ -3,6 +3,15 @@ import { textoPlano, textoLargo } from './common.schema.js';
 
 const dosDecimales = (v: number) => Number.isInteger(Math.round(v * 100));
 
+/**
+ * Lista blanca de URL de imagen. Solo se aceptan: una subida propia
+ * (`/uploads/img/<uuid>.(jpg|jpeg|png|webp)`), un asset del sitio (`/img/....(jpg|jpeg|png|webp)`)
+ * o una URL `https://` (http:// se rechaza). Evita rutas arbitrarias y esquemas peligrosos.
+ */
+const RUTA_IMAGEN =
+  /^\/uploads\/img\/[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$|^\/img\/[A-Za-z0-9_./-]+\.(jpg|jpeg|png|webp)$|^https:\/\/[^\s]+$/;
+const MENSAJE_IMAGEN = 'URL de imagen no permitida (/uploads/img/<uuid>.ext, /img/....ext o https://...)';
+
 /** Flag booleano que llega como 'true'/'false' en la query. */
 const boolQuery = (def: 'true' | 'false' = 'false') =>
   z.enum(['true', 'false']).default(def).transform((v) => v === 'true');
@@ -82,25 +91,12 @@ export const varianteSchema = z.object({
   // F2: imagen propia de la variante. Ausente = no se toca (ConservarImagen); null = quitar;
   // ruta "/..." (p. ej. /uploads/img/…) o URL http(s). Acepta lo mismo que imagenSchema.url.
   imagenURL: z
-    .union([
-      z
-        .string()
-        .trim()
-        .max(500)
-        .refine((v) => /^https?:\/\//i.test(v) || /^\/[^/]/.test(v), 'debe ser una URL http/https o una ruta que empiece con /'),
-      z.null(),
-    ])
+    .union([z.string().trim().max(500).refine((v) => RUTA_IMAGEN.test(v), MENSAJE_IMAGEN), z.null()])
     .optional(),
 });
 
 export const imagenSchema = z.object({
-  url: z
-    .string()
-    .trim()
-    .max(500)
-    // Acepta una URL http/https o una ruta relativa a la raiz del sitio (p. ej.
-    // /img/productos/LUB-SIN.jpeg), que es como el frontend sirve sus imagenes.
-    .refine((v) => /^https?:\/\//i.test(v) || /^\/[^/]/.test(v), 'debe ser una URL http/https o una ruta que empiece con /'),
+  url: z.string().trim().max(500).refine((v) => RUTA_IMAGEN.test(v), MENSAJE_IMAGEN),
   orden: z.coerce.number().int().nonnegative().default(0),
   esPrincipal: z.boolean().default(false),
 });

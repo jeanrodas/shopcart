@@ -99,6 +99,8 @@ export async function crear(input: CrearUsuarioInput, actorId: number): Promise<
     { name: 'Nombre', type: sql.NVarChar(150), value: input.nombre },
     { name: 'IDRol', type: sql.Int, value: input.idRol },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+    // Sin contrasena propia (temporal generada) -> debe cambiarla en el primer acceso.
+    { name: 'DebeCambiarContrasena', type: sql.Bit, value: temporal ? 1 : 0 },
   ]);
   const usuario = result.recordset[0] as Record<string, unknown>;
   return temporal ? { ...usuario, contrasenaTemporal: temporal } : usuario;

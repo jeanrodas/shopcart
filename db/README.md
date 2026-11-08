@@ -5,7 +5,7 @@ procedures; el backend solo los ejecuta.
 
 ## Requisitos
 
-- **SQL Server 2022** (se usa `DATETRUNC`, disponible desde 2022).
+- **SQL Server 2019 o superior** (probado en 2022; no se usa `DATETRUNC` ni otras funciones exclusivas de 2022).
 - **`sqlcmd`** del cliente **ODBC 18** o **go-sqlcmd**. El instalador invoca `sqlcmd`
   con `-C` (confiar en el certificado del servidor, requerido por ODBC 18) y `-b`
   (abortar al primer error del script).

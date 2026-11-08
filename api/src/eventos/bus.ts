@@ -46,6 +46,11 @@ export function suscribir(fn: (evento: EventoSSE) => void): () => void {
   return () => emitter.off(CANAL, fn);
 }
 
+/** Numero de suscriptores del bus (listeners del canal). Para pruebas/diagnostico. */
+export function numSuscriptores(): number {
+  return emitter.listenerCount(CANAL);
+}
+
 /**
  * Eventos que cambian cifras de reportes/dashboard y por tanto invalidan su cache.
  * (inventario.bajoStock se deriva de un movimiento que ya emitio inventario.movimiento,

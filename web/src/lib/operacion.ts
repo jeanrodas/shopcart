@@ -1,37 +1,37 @@
-/** Logica de operacion de pedidos (transiciones por estado para el area interna). */
-
-export type EstadoDestino = 'EN_PREPARACION' | 'DESPACHADO' | 'ENTREGADO';
-
-export interface SiguientePaso {
-  estado: EstadoDestino;
-  texto: string;
-}
-
 /**
- * Siguiente avance lineal permitido para Operador/Administrador, segun el grafo de
- * dbo.TransicionEstadoPedido (015). La API expone las transiciones solo como tabla
- * interna (no hay endpoint), por eso aqui se replica el texto fijo. ENTREGADO no avanza
- * por aqui: su unica salida es una devolucion. CANCELADO/DEVUELTO son terminales.
+ * Acciones de operacion de un pedido. La LISTA de acciones permitidas la calcula la API en
+ * SQL desde dbo.TransicionEstadoPedido segun el rol (campo `AccionesPermitidas`, p. ej.
+ * "PREPARAR,CANCELAR"); aqui NO se replica el grafo: solo se interpreta lo que llega y se le
+ * asigna su texto/estado destino para el boton de avance lineal.
  */
-export function siguientePaso(estado: string): SiguientePaso | null {
-  switch (estado) {
-    case 'PAGADO':
-      return { estado: 'EN_PREPARACION', texto: 'Preparar →' };
-    case 'EN_PREPARACION':
-      return { estado: 'DESPACHADO', texto: 'Despachar →' };
-    case 'DESPACHADO':
-      return { estado: 'ENTREGADO', texto: 'Marcar entregado' };
-    default:
-      return null;
+
+export type CodigoAccion = 'PREPARAR' | 'DESPACHAR' | 'ENTREGAR' | 'CANCELAR' | 'DEVOLVER';
+
+export const ACCIONES_AVANCE = {
+  PREPARAR: { estado: 'EN_PREPARACION', texto: 'Preparar →' },
+  DESPACHAR: { estado: 'DESPACHADO', texto: 'Despachar →' },
+  ENTREGAR: { estado: 'ENTREGADO', texto: 'Marcar entregado' },
+} as const;
+
+export type EstadoDestino = (typeof ACCIONES_AVANCE)[keyof typeof ACCIONES_AVANCE]['estado'];
+
+/** Convierte "PREPARAR,CANCELAR" (de la API) en un conjunto de codigos. */
+export function acciones(lista: string | null | undefined): Set<CodigoAccion> {
+  return new Set(
+    (lista ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as CodigoAccion[],
+  );
+}
+
+/** Primer avance lineal disponible (PREPARAR -> DESPACHAR -> ENTREGAR), o null. */
+export function siguienteAvance(
+  lista: string | null | undefined,
+): { codigo: CodigoAccion; estado: EstadoDestino; texto: string } | null {
+  const set = acciones(lista);
+  for (const c of ['PREPARAR', 'DESPACHAR', 'ENTREGAR'] as const) {
+    if (set.has(c)) return { codigo: c, ...ACCIONES_AVANCE[c] };
   }
-}
-
-/** Cancelacion permitida (mismas transiciones a CANCELADO del grafo): PAGADO o EN_PREPARACION. */
-export function puedeCancelarOperacion(estado: string): boolean {
-  return estado === 'PAGADO' || estado === 'EN_PREPARACION';
-}
-
-/** Un pedido ENTREGADO admite registrar devoluciones por linea. */
-export function puedeDevolver(estado: string): boolean {
-  return estado === 'ENTREGADO';
+  return null;
 }

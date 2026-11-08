@@ -71,7 +71,8 @@ BEGIN
     IF @Ord NOT IN (N'codigo', N'vigencia', N'usos')
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
-    DECLARE @Patron NVARCHAR(52) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Texto IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
     DECLARE @Ahora DATETIME2(0) = SYSUTCDATETIME();
 
@@ -250,7 +251,8 @@ BEGIN
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @Offset INT = (@Pagina - 1) * @TamanoPagina;
-    DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Texto IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
 
     SELECT b.IDBitacora, b.Modulo, b.Entidad, b.IDEntidad, b.Accion,
            b.ValorAnterior, b.ValorNuevo,
@@ -350,7 +352,8 @@ BEGIN
     IF @Ord NOT IN (N'nombre', N'correo', N'rol')
         THROW 50422, 'Columna de ordenamiento invalida', 1;
 
-    DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Texto IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Texto, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
     DECLARE @Ahora DATETIME2(0) = SYSUTCDATETIME();
 

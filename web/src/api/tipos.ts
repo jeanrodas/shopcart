@@ -7,6 +7,8 @@ export interface Usuario {
   correo: string;
   nombre: string;
   rol: Rol;
+  /** El usuario interno debe cambiar su contrasena temporal antes de usar el area interna. */
+  debeCambiarContrasena?: boolean;
 }
 
 export interface CarritoFusionado {
@@ -316,6 +318,8 @@ export interface ResultadoPago {
 export interface PedidoCabecera {
   IDPedido: number;
   NumeroPedido: string;
+  /** Acciones permitidas (API, grafo en SQL): "PREPARAR,CANCELAR", etc. Ver lib/operacion.ts. */
+  AccionesPermitidas?: string;
   IDUsuario?: number;
   ClienteNombre?: string;
   ClienteCorreo?: string;
@@ -417,6 +421,8 @@ export interface PedidoListado {
   NumeroPedido: string;
   EstadoCodigo: string;
   EstadoNombre: string;
+  /** Acciones permitidas (API, grafo en SQL); ver lib/operacion.ts. */
+  AccionesPermitidas?: string;
   Subtotal: number;
   Descuento: number;
   CostoEnvio: number;
@@ -747,6 +753,8 @@ export interface ResumenOperacion {
 export interface PedidoOperacionFila {
   IDPedido: number;
   NumeroPedido: string;
+  /** Acciones permitidas (API, grafo en SQL); ver lib/operacion.ts. */
+  AccionesPermitidas?: string;
   IDUsuario: number;
   NombreCliente: string;
   ClienteCorreo: string;

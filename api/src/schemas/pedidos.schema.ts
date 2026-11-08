@@ -54,8 +54,10 @@ export const listarPedidosQuerySchema = z.object({
     )
     .optional(),
   idUsuario: z.coerce.number().int().positive().optional(),
-  desde: z.string().datetime({ offset: true }).optional(),
-  hasta: z.string().datetime({ offset: true }).optional(),
+  // Operacion: dias de calendario en hora local de Guatemala (el SP los convierte a UTC con
+  // AT TIME ZONE). Formato YYYY-MM-DD.
+  desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha YYYY-MM-DD').optional(),
+  hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha YYYY-MM-DD').optional(),
   // recienteDias (Operador/Admin): ventana por ultima actualizacion para estados terminales
   // (ENTREGADO, CANCELADO, DEVUELTO), para que el listado coincida con las tarjetas del resumen.
   recienteDias: z.coerce.number().int().min(1).max(365).optional(),

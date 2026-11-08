@@ -26,7 +26,7 @@
    Reglas de ventas identicas a 020: pedido completado = estado <> CANCELADO,
    devoluciones descontadas, rango SIEMPRE semiabierto [@Desde, @Hasta) en UTC.
    Convenciones: NOCOUNT; sin TRAN (solo lectura); THROW 50400 por rango invalido;
-   mensajes sin acentos; OPTION (RECOMPILE). SQL Server 2022.
+   mensajes sin acentos; OPTION (RECOMPILE). Compatible con SQL Server 2019+.
 
    Orden de ejecucion: 028 DESPUES de 020 y 026 (usa VW_Reportes_* y las tablas base).
    Idempotente: CREATE OR ALTER.
@@ -141,37 +141,37 @@ BEGIN
     ),
     Periodos AS (
         SELECT DISTINCT CAST(CASE @Gran
-                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  Dia)
-                   WHEN N'MES'    THEN DATETRUNC(MONTH, Dia)
-                   ELSE                DATETRUNC(DAY,   Dia) END AS DATE) AS Periodo
+                   WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, Dia) % 7), CAST(Dia AS date))
+                   WHEN N'MES'    THEN DATEFROMPARTS(YEAR(Dia), MONTH(Dia), 1)
+                   ELSE                CAST(Dia AS date) END AS DATE) AS Periodo
         FROM Dias
     ),
     Ventas AS (
         SELECT CAST(CASE @Gran
-                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
-                   WHEN N'MES'    THEN DATETRUNC(MONTH, pn.FechaCreacion)
-                   ELSE                DATETRUNC(DAY,   pn.FechaCreacion) END AS DATE) AS Periodo,
+                   WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, pn.FechaCreacion) % 7), CAST(pn.FechaCreacion AS date))
+                   WHEN N'MES'    THEN DATEFROMPARTS(YEAR(pn.FechaCreacion), MONTH(pn.FechaCreacion), 1)
+                   ELSE                CAST(pn.FechaCreacion AS date) END AS DATE) AS Periodo,
                COUNT(1)                                      AS Pedidos,
                CAST(SUM(pn.VentaNeta) AS DECIMAL(18,2))      AS VentaNeta
         FROM dbo.VW_Reportes_PedidoNeto pn
         WHERE pn.FechaCreacion >= @Desde AND pn.FechaCreacion < @Hasta
         GROUP BY CASE @Gran
-                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
-                   WHEN N'MES'    THEN DATETRUNC(MONTH, pn.FechaCreacion)
-                   ELSE                DATETRUNC(DAY,   pn.FechaCreacion) END
+                   WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, pn.FechaCreacion) % 7), CAST(pn.FechaCreacion AS date))
+                   WHEN N'MES'    THEN DATEFROMPARTS(YEAR(pn.FechaCreacion), MONTH(pn.FechaCreacion), 1)
+                   ELSE                CAST(pn.FechaCreacion AS date) END
     ),
     Unidades AS (
         SELECT CAST(CASE @Gran
-                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  ln.Fecha)
-                   WHEN N'MES'    THEN DATETRUNC(MONTH, ln.Fecha)
-                   ELSE                DATETRUNC(DAY,   ln.Fecha) END AS DATE) AS Periodo,
+                   WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, ln.Fecha) % 7), CAST(ln.Fecha AS date))
+                   WHEN N'MES'    THEN DATEFROMPARTS(YEAR(ln.Fecha), MONTH(ln.Fecha), 1)
+                   ELSE                CAST(ln.Fecha AS date) END AS DATE) AS Periodo,
                SUM(ln.CantidadNeta)                          AS UnidadesNetas
         FROM dbo.VW_Reportes_LineaNeta ln
         WHERE ln.Fecha >= @Desde AND ln.Fecha < @Hasta
         GROUP BY CASE @Gran
-                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  ln.Fecha)
-                   WHEN N'MES'    THEN DATETRUNC(MONTH, ln.Fecha)
-                   ELSE                DATETRUNC(DAY,   ln.Fecha) END
+                   WHEN N'SEMANA' THEN DATEADD(DAY, -(DATEDIFF(DAY, 0, ln.Fecha) % 7), CAST(ln.Fecha AS date))
+                   WHEN N'MES'    THEN DATEFROMPARTS(YEAR(ln.Fecha), MONTH(ln.Fecha), 1)
+                   ELSE                CAST(ln.Fecha AS date) END
     )
     SELECT
         p.Periodo                                      AS Fecha,

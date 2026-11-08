@@ -168,8 +168,47 @@ async function comprarComoCliente() {
   return pago.cuerpo?.pedido?.NumeroPedido ?? '(desconocido)';
 }
 
+/**
+ * Prueba de fuga: abre 10 streams y los aborta de inmediato (durante el await inicial del
+ * handler); comprueba via /eventos/diagnostico (solo NODE_ENV=test) que no quedan conexiones
+ * ni suscriptores huerfanos. Si el diagnostico no esta (API no en modo test), se omite.
+ */
+async function leakTest(adminToken) {
+  const diag0 = await jsonFetch('/eventos/diagnostico');
+  if (diag0.status === 404) {
+    log('diagnostico no disponible (API no esta en NODE_ENV=test): se omite la prueba de fuga');
+    return;
+  }
+  const base = diag0.cuerpo;
+  const abiertos = [];
+  for (let i = 0; i < 10; i++) {
+    const tk = await jsonFetch('/eventos/ticket', { method: 'POST', headers: auth(adminToken) });
+    const ctrl = new AbortController();
+    const p = fetch(`${V1}/eventos?ticket=${tk.cuerpo.ticket}`, {
+      headers: { Accept: 'text/event-stream' },
+      signal: ctrl.signal,
+    }).catch(() => null);
+    abiertos.push({ ctrl, p });
+  }
+  // Recibidos los headers, abortar de inmediato (el handler esta en su await inicial).
+  for (const s of abiertos) {
+    const r = await s.p;
+    try { await r?.body?.cancel?.(); } catch { /* abortado */ }
+    s.ctrl.abort();
+  }
+  await new Promise((r) => setTimeout(r, 1500)); // deja correr los 'close'
+  const diag1 = await jsonFetch('/eventos/diagnostico');
+  log('fuga SSE: antes', JSON.stringify(base), '-> despues', JSON.stringify(diag1.cuerpo));
+  if (diag1.cuerpo.conexiones !== 0) throw new Error(`quedaron ${diag1.cuerpo.conexiones} conexiones SSE`);
+  if (diag1.cuerpo.suscriptores > base.suscriptores) {
+    throw new Error(`fuga de suscriptores: ${base.suscriptores} -> ${diag1.cuerpo.suscriptores}`);
+  }
+  log('OK: sin fuga de listeners/intervals tras 10 abort inmediatos');
+}
+
 async function main() {
   const admin = await login('admin@shopcart.local', 'Admin123!');
+  await leakTest(admin);
   const tk = await jsonFetch('/eventos/ticket', { method: 'POST', headers: auth(admin) });
   if (tk.status !== 201 || !tk.cuerpo?.ticket) throw new Error(`ticket fallo (${tk.status})`);
   log('ticket obtenido');

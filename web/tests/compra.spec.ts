@@ -51,6 +51,27 @@ test('compra: pago aprobado lleva a la confirmacion con numero y total (prueba d
   await expect(page.getByText('Pagado').first()).toBeVisible();
 });
 
+test('compra: doble clic en Pagar crea UN solo pedido y envia UNA sola peticion (A2)', async ({ page }) => {
+  await entrar(page, 'cliente3@shopcart.local', 'Cliente123!');
+  await agregarYhastaCheckout(page);
+
+  // Cuenta las peticiones POST /checkout/pagar que llegan al servidor.
+  const pagos: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().includes('/checkout/pagar')) pagos.push(r.url());
+  });
+
+  // Doble clic rapido sobre Pagar: el boton se deshabilita con `cargando` (fix del `??`->`||`)
+  // y alPagar ignora un segundo disparo mientras hay pago en curso.
+  await page.getByRole('button', { name: /^Pagar/ }).first().dblclick();
+
+  await expect(page).toHaveURL(/\/checkout\/confirmacion\/\d+/, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Pedido confirmado' })).toBeVisible();
+
+  // Una sola peticion de pago y, por tanto, un solo pedido.
+  expect(pagos.length).toBe(1);
+});
+
 test('compra: pago rechazado deja un modal en la misma pagina y el carrito intacto', async ({ page }) => {
   await entrar(page, 'cliente3@shopcart.local', 'Cliente123!');
   await agregarYhastaCheckout(page);

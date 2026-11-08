@@ -18,24 +18,8 @@ export function indicePaso(codigo: string): number {
   return PASOS_PEDIDO.findIndex((p) => p.codigo === codigo);
 }
 
-/** El cliente puede cancelar solo desde PAGADO o EN_PREPARACION (coincide con las
- *  transiciones a CANCELADO de rol NULL en dbo.TransicionEstadoPedido). */
-export function puedeCancelar(codigo: string): boolean {
-  return codigo === 'PAGADO' || codigo === 'EN_PREPARACION';
-}
-
-/**
- * Regla unica del boton "Cancelar pedido", compartida por la lista y el detalle:
- *   - PAGADO / EN_PREPARACION  -> habilitado
- *   - DESPACHADO               -> deshabilitado (ya no se puede cancelar)
- *   - ENTREGADO/CANCELADO/...  -> oculto
- */
-export type AccionCancelar = 'habilitado' | 'deshabilitado' | 'oculto';
-export function accionCancelar(codigo: string): AccionCancelar {
-  if (puedeCancelar(codigo)) return 'habilitado';
-  if (codigo === 'DESPACHADO') return 'deshabilitado';
-  return 'oculto';
-}
+// El boton "Cancelar pedido" ya NO decide con un grafo local: se muestra solo si la API
+// incluye CANCELAR en AccionesPermitidas del pedido (ver lib/operacion.ts `acciones`).
 
 /** "En curso": aun no entregado, cancelado ni devuelto. */
 export function enCurso(codigo: string): boolean {

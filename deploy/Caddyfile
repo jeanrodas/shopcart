@@ -3,8 +3,21 @@
 }
 
 {$DOMINIO} {
-	encode zstd gzip
-	reverse_proxy api:3000
+	# SSE (dashboard en vivo): sin compresion y con flush inmediato (flush_interval -1) para
+	# que los eventos no queden en buffer del reverse proxy.
+	@sse path /api/v1/eventos*
+	handle @sse {
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
+	}
+
+	# Resto del trafico: compresion normal.
+	handle {
+		encode zstd gzip
+		reverse_proxy api:3000
+	}
+
 	log {
 		output stdout
 	}

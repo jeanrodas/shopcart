@@ -295,7 +295,8 @@ export default function Checkout() {
   };
 
   const alPagar = () => {
-    if (!resumen || idDireccionSel == null) return;
+    // Guarda contra doble envio: si ya hay un pago en curso o aprobado, no se dispara otro.
+    if (!resumen || idDireccionSel == null || pagar.isPending || pagoAprobado) return;
     setErrorRechazo(null);
     const clave = obtenerClaveIdem(firma);
     const datos: PagarBody = {
@@ -624,7 +625,7 @@ export default function Checkout() {
               alias={direccionSel?.Alias ?? null}
               onPagar={alPagar}
               pagando={pagar.isPending || exitoPago}
-              puedePagar={facturacionValida && !preparando}
+              puedePagar={facturacionValida && !preparando && !pagar.isPending}
             />
           </aside>
         )}

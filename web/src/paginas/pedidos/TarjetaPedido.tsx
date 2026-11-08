@@ -4,7 +4,8 @@ import { Boton } from '../../componentes/ui/Boton';
 import { EtiquetaEstadoPedido } from '../../componentes/ui/EtiquetaEstadoPedido';
 import { Precio, formatearQuetzales } from '../../componentes/ui/Precio';
 import { formatearFechaCorta } from '../../lib/formato';
-import { PASOS_PEDIDO, accionCancelar, enCurso, indicePaso } from '../../lib/pedidos';
+import { PASOS_PEDIDO, enCurso, indicePaso } from '../../lib/pedidos';
+import { acciones } from '../../lib/operacion';
 import { resolverImagen } from '../../lib/imagenes';
 import type { PedidoListado } from '../../api/tipos';
 
@@ -72,7 +73,8 @@ export function TarjetaPedido({ pedido, cancelando, comprando, onCancelar, onCom
   const esCancelado = pedido.EstadoCodigo === 'CANCELADO';
   const esDevuelto = pedido.EstadoCodigo === 'DEVUELTO';
   const activo = enCurso(pedido.EstadoCodigo);
-  const accion = accionCancelar(pedido.EstadoCodigo);
+  // La API decide si se puede cancelar (AccionesPermitidas, grafo en SQL); el front solo lo lee.
+  const puedeCancelar = acciones(pedido.AccionesPermitidas).has('CANCELAR');
   const detalle = `/mis-pedidos/${pedido.IDPedido}`;
 
   return (
@@ -141,12 +143,11 @@ export function TarjetaPedido({ pedido, cancelando, comprando, onCancelar, onCom
                 Ver detalle
               </Boton>
             </Link>
-            {accion !== 'oculto' && (
+            {puedeCancelar && (
               <button
                 type="button"
                 onClick={() => onCancelar(pedido)}
-                disabled={cancelando || accion === 'deshabilitado'}
-                title={accion === 'deshabilitado' ? 'Un pedido despachado ya no se puede cancelar' : undefined}
+                disabled={cancelando}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-pill bg-error/10 px-5 text-sm font-semibold text-error-texto transition-colors hover:bg-error/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancelar pedido

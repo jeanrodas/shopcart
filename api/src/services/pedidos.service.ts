@@ -5,6 +5,10 @@ import { emitir } from '../eventos/bus.js';
 import { ROLES } from '../config/roles.js';
 import type { DevolucionInput, ListarPedidosQuery } from '../schemas/pedidos.schema.js';
 
+// Rol -> IDRol (dbo.Rol, sembrado por privilegio en 004: Cliente<Operador<Administrador).
+// Lo usan los SP de acciones permitidas, que comparan por privilegio.
+const ID_ROL: Record<string, number> = { Cliente: 1, Operador: 2, Administrador: 3 };
+
 interface DevolucionRow {
   IDDevolucion: number;
 }
@@ -74,6 +78,7 @@ export async function listar(
       { name: 'Pagina', type: sql.Int, value: q.pagina },
       { name: 'Tamano', type: sql.Int, value: tamano },
       { name: 'Orden', type: sql.NVarChar(4), value: q.orden ?? null },
+      { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
     ]);
     const filas = (result.recordsets[0] ?? []) as unknown[];
     const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
@@ -87,14 +92,18 @@ export async function listar(
   const result = await executeSp('SP_Pedidos_ListarOperacion', [
     { name: 'CodigoEstado', type: sql.NVarChar(200), value: q.estado ?? null },
     { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
-    { name: 'Desde', type: sql.DateTime2(0), value: q.desde ? new Date(q.desde) : null },
-    { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
+    // Dias de calendario (hora local); el SP los convierte a UTC con AT TIME ZONE. Se pasan
+    // como cadena YYYY-MM-DD para no introducir desfase horario al serializar un Date.
+    { name: 'Desde', type: sql.Date, value: q.desde ?? null },
+    { name: 'Hasta', type: sql.Date, value: q.hasta ?? null },
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'TamanoPagina', type: sql.Int, value: tamano },
     { name: 'RecienteDias', type: sql.Int, value: q.recienteDias ?? null },
     { name: 'Orden', type: sql.NVarChar(40), value: q.ordenCol ?? null },
     { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
+    // Acciones permitidas por fila se calculan en SQL segun el rol del solicitante.
+    { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];
@@ -119,6 +128,7 @@ export async function resumen(idUsuario: number): Promise<unknown | null> {
 export async function obtener(
   idPedido: number,
   idUsuario: number | null,
+  rol: string,
 ): Promise<Pedido & { pago: unknown | null }> {
   // Obtener primero: valida propiedad y lanza 50404 uniforme si el pedido es ajeno.
   const result = await executeSp('SP_Pedidos_Obtener', [
@@ -126,6 +136,16 @@ export async function obtener(
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
   ]);
   const pedido = ensamblarPedido(result.recordsets as unknown[][]);
+
+  // Acciones permitidas calculadas en SQL desde dbo.TransicionEstadoPedido (el front no
+  // replica el grafo). SP aditivo; no toca SP_Pedidos_Obtener (018).
+  const accRes = await executeSp<{ AccionesPermitidas: string }>('SP_Pedidos_AccionesPermitidas', [
+    { name: 'IDPedido', type: sql.Int, value: idPedido },
+    { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
+  ]);
+  if (pedido.pedido && typeof pedido.pedido === 'object') {
+    (pedido.pedido as Record<string, unknown>).AccionesPermitidas = accRes.recordset[0]?.AccionesPermitidas ?? '';
+  }
 
   // Pago simulado (metodo, estado, referencia) para la pantalla de detalle.
   const pagoRes = await executeSp('SP_Pedidos_PagoCliente', [

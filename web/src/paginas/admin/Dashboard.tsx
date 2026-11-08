@@ -185,15 +185,18 @@ export default function Dashboard() {
     setRango({ desde: `${d}T00:00:00Z`, hasta: `${h}T23:59:59Z` });
   }
 
-  const resumen = useDashboardResumen(rango);
-  const ventas = useVentasPorDia(rango, gran);
-  const categorias = useCategoriasDashboard(rango);
-  const embudo = useEmbudo(rango);
-  const horas = useHorasPico(rango);
-  const top = useTopProductosDashboard(rango, 10); // RF-08: los 10 mas vendidos
-  const cupones = useCuponesDashboard(rango, 8);
-
+  // RF-01: los bloques de negocio son solo del Administrador; el Operador ve el saludo,
+  // "Ahora mismo", el feed en vivo y Top productos. Las consultas de negocio no se habilitan
+  // para el Operador (no se montan ni provocan 403).
   const esAdmin = usuario?.rol === 'Administrador';
+  const resumen = useDashboardResumen(rango, esAdmin);
+  const ventas = useVentasPorDia(rango, gran, esAdmin);
+  const categorias = useCategoriasDashboard(rango, esAdmin);
+  const embudo = useEmbudo(rango, esAdmin);
+  const horas = useHorasPico(rango, esAdmin);
+  const top = useTopProductosDashboard(rango, 10); // RF-08: los 10 mas vendidos (tambien Operador)
+  const cupones = useCuponesDashboard(rango, 8, esAdmin);
+
   const enCache = Boolean(resumen.data?.cache);
 
   const serie = useMemo(() => ventas.data?.datos ?? [], [ventas.data?.datos]);
@@ -290,6 +293,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         {/* Columna principal */}
         <div className="flex min-w-0 flex-col gap-5">
+          {/* Bloques de negocio: solo Administrador (RF-01). El Operador no los monta. */}
+          {esAdmin && (
+          <>
           {/* KPIs */}
           {resumen.isError ? (
             <Bloque titulo="Indicadores" cargando={false} error onReintentar={() => void resumen.refetch()} altoEsqueleto="h-28">
@@ -373,8 +379,10 @@ export default function Dashboard() {
           >
             <MapaCalor celdas={horas.data?.datos ?? []} />
           </Bloque>
+          </>
+          )}
 
-          {/* Top productos + cupones */}
+          {/* Top productos (Operador y Administrador) + cupones (solo Administrador) */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Bloque
               titulo="Top productos"
@@ -386,6 +394,7 @@ export default function Dashboard() {
             >
               <TopProductos filas={top.data?.datos ?? []} />
             </Bloque>
+            {esAdmin && (
             <Bloque
               titulo="Cupones"
               subtitulo="Más usados del periodo"
@@ -396,6 +405,7 @@ export default function Dashboard() {
             >
               <CuponesLista filas={cupones.data?.datos ?? []} />
             </Bloque>
+            )}
           </div>
         </div>
 

@@ -81,7 +81,10 @@ CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_Crear
     @HashContrasena  NVARCHAR(255),
     @Nombre          NVARCHAR(150),
     @IDRol           INT,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    -- 1 cuando el admin crea un usuario interno SIN contrasena (contrasena temporal): obliga
+    -- a cambiarla en el primer acceso. 0 para una creacion con contrasena propia.
+    @DebeCambiarContrasena BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -100,8 +103,8 @@ BEGIN
     BEGIN TRY
         BEGIN TRAN;
 
-        INSERT dbo.Usuario (IDRol, Correo, HashContrasena, Nombre)
-        VALUES (@IDRol, @CorreoNorm, @HashContrasena, @Nombre);
+        INSERT dbo.Usuario (IDRol, Correo, HashContrasena, Nombre, DebeCambiarContrasena)
+        VALUES (@IDRol, @CorreoNorm, @HashContrasena, @Nombre, @DebeCambiarContrasena);
 
         SET @NuevoID = SCOPE_IDENTITY();
 

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { RequestHandler, Response } from 'express';
-import { suscribir, type EventoSSE } from './bus.js';
+import { suscribir, numSuscriptores, type EventoSSE } from './bus.js';
 import * as pedidosService from '../services/pedidos.service.js';
 import * as inventarioService from '../services/inventario.service.js';
 import { executeSp } from '../data/spExecutor.js';
@@ -71,6 +71,13 @@ function quitar(idUsuario: number, res: Response): void {
   if (lista.length === 0) conexiones.delete(idUsuario);
 }
 
+/** Total de conexiones SSE abiertas (todos los usuarios). Para pruebas/diagnostico. */
+export function numConexiones(): number {
+  let n = 0;
+  for (const lista of conexiones.values()) n += lista.length;
+  return n;
+}
+
 /** GET /eventos?ticket=... : valida y consume el ticket, abre el text/event-stream. */
 export const abrirFlujo: RequestHandler = async (req, res) => {
   const t = consumirTicket(req.query.ticket as string | undefined);
@@ -115,22 +122,36 @@ export const abrirFlujo: RequestHandler = async (req, res) => {
     res.end();
   };
 
+  // Se registra ANTES del await inicial: si el cliente aborta durante ese await, 'close'
+  // dispara cerrar() igual (y no quedan listener ni interval, porque aun no se crearon).
+  req.on('close', cerrar);
+
   // Estado inicial ("hola"): contadores de operacion e inventario para pintar el
   // panel "Ahora mismo" sin una llamada extra. Un fallo de BD no tumba el stream.
+  let inicial: { instalacion: string | null; operacion: unknown; inventario: unknown };
   try {
     const [operacion, inventario, inst] = await Promise.all([
       pedidosService.resumenOperacion(),
       inventarioService.resumenInventario(),
       executeSp<{ Instalacion: string }>('SP_Sistema_Instalacion', []),
     ]);
-    const instalacion = inst.recordset[0]?.Instalacion ?? null;
-    enviar('hola', { instalacion, operacion, inventario: inventario.resumen });
+    inicial = { instalacion: inst.recordset[0]?.Instalacion ?? null, operacion, inventario: inventario.resumen };
   } catch (err) {
     logger.warn({ err }, 'SSE: no se pudo construir el estado inicial');
-    enviar('hola', { instalacion: null, operacion: null, inventario: null });
+    inicial = { instalacion: null, operacion: null, inventario: null };
   }
 
+  // Si el cliente se desconecto durante el await, no se suscribe al bus ni se crea el
+  // interval (evita listeners/intervals huerfanos). cerrar() es idempotente.
+  if (estado.cerrado || req.destroyed) {
+    cerrar();
+    return;
+  }
+  enviar('hola', inicial);
+
   estado.desuscribir = suscribir((e: EventoSSE) => {
+    // Datos de cupones solo para Administrador: el Operador no recibe cupon.usado.
+    if (e.tipo === 'cupon.usado' && t.rol !== 'Administrador') return;
     try {
       enviar(e.tipo, e.datos);
     } catch {
@@ -145,6 +166,9 @@ export const abrirFlujo: RequestHandler = async (req, res) => {
       cerrar();
     }
   }, PING_MS);
+};
 
-  req.on('close', cerrar);
+/** Diagnostico (solo pruebas): conexiones SSE abiertas y suscriptores del bus. */
+export const diagnosticoSSE: RequestHandler = (_req, res) => {
+  res.status(200).json({ conexiones: numConexiones(), suscriptores: numSuscriptores() });
 };

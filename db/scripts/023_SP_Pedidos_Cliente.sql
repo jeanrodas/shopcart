@@ -38,7 +38,8 @@ CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_ListarCliente
     @Numero       NVARCHAR(30)  = NULL,
     @Pagina       INT           = 1,
     @Tamano       INT           = 20,
-    @Orden        NVARCHAR(4)   = NULL
+    @Orden        NVARCHAR(4)   = NULL,
+    @IDRol        INT           = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -47,7 +48,9 @@ BEGIN
     IF @Tamano IS NULL OR @Tamano < 1 SET @Tamano = 20;
     IF @Tamano > 100 SET @Tamano = 100;
 
-    DECLARE @Patron NVARCHAR(32) = CASE WHEN @Numero IS NULL THEN NULL ELSE CONCAT(N'%', @Numero, N'%') END;
+    -- Escapa los comodines de LIKE (% _ [) con clases [..] para que el numero buscado sea literal.
+    DECLARE @Patron NVARCHAR(320) = CASE WHEN @Numero IS NULL THEN NULL
+        ELSE CONCAT(N'%', REPLACE(REPLACE(REPLACE(@Numero, N'[', N'[[]'), N'%', N'[%]'), N'_', N'[_]'), N'%') END;
 
     ;WITH Filtrados AS (
         SELECT
@@ -70,7 +73,8 @@ BEGIN
         f.IDCupon, f.CuponCodigo, f.FechaCreacion, f.FechaActualizacion,
         ln.CantidadLineas, ln.CantidadUnidades, ln.UnidadesDevueltas,
         imgs.Img1, imgs.Img2, imgs.Img3,
-        nom.NombresResumen
+        nom.NombresResumen,
+        dbo.FU_Pedido_AccionesPermitidas(f.EstadoCodigo, @IDRol) AS AccionesPermitidas
     FROM Filtrados f
     CROSS APPLY (
         SELECT COUNT(1) AS CantidadLineas,
