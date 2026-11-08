@@ -51,7 +51,9 @@ async function comprar(page: Page, foco: boolean): Promise<void> {
       });
     }
 
-    await page.waitForURL(/\/checkout\/confirmacion\/\d+/, { timeout: 30_000 });
+    // toHaveURL (no waitForURL): solo exige que la URL case, sin esperar un ciclo "load" que
+    // una navegación SPA con replace no dispara (Firefox no lo resolvía con waitForURL).
+    await expect(page).toHaveURL(/\/checkout\/confirmacion\/\d+/, { timeout: 30_000 });
     await expect(page.getByRole('heading', { name: 'Pedido confirmado' })).toBeVisible();
     // Sigue en la confirmación 3 s después (no hubo redirección tardía).
     await page.waitForTimeout(3000);

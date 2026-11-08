@@ -50,10 +50,12 @@ GO
    Devuelve: recordset 1 = pagina (incluye Alcance y DiasParaVencer); recordset 2 = Total.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Cupones_ListarAdmin
-    @Texto  NVARCHAR(50) = NULL,
-    @Filtro NVARCHAR(20) = NULL,
-    @Pagina INT          = 1,
-    @Tamano INT          = 20
+    @Texto     NVARCHAR(50) = NULL,
+    @Filtro    NVARCHAR(20) = NULL,
+    @Pagina    INT          = 1,
+    @Tamano    INT          = 20,
+    @Orden     NVARCHAR(40) = NULL,
+    @Direccion NVARCHAR(4)  = N'DESC'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -62,6 +64,12 @@ BEGIN
     IF @Tamano IS NULL SET @Tamano = 20;
     IF @Tamano < 1 SET @Tamano = 1;
     IF @Tamano > 100 SET @Tamano = 100;
+
+    -- Ordenamiento del lado del servidor por lista blanca (sin SQL dinamico); fuera de lista -> 50422.
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'ASC' THEN N'ASC' ELSE N'DESC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'vigencia'));
+    IF @Ord NOT IN (N'codigo', N'vigencia', N'usos')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @Patron NVARCHAR(52) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
@@ -97,7 +105,14 @@ BEGIN
            OR (@Filtro = N'vencidos'  AND EstadoDerivado = N'Vencido')
            OR (@Filtro = N'agotados'  AND EstadoDerivado = N'Agotado')
            OR (@Filtro = N'inactivos' AND EstadoDerivado = N'Inactivo'))
-    ORDER BY FechaFin DESC, IDCupon DESC
+    ORDER BY
+        CASE WHEN @Ord = N'codigo'   AND @Dir = N'ASC'  THEN Codigo END ASC,
+        CASE WHEN @Ord = N'codigo'   AND @Dir = N'DESC' THEN Codigo END DESC,
+        CASE WHEN @Ord = N'vigencia' AND @Dir = N'ASC'  THEN FechaFin END ASC,
+        CASE WHEN @Ord = N'vigencia' AND @Dir = N'DESC' THEN FechaFin END DESC,
+        CASE WHEN @Ord = N'usos'     AND @Dir = N'ASC'  THEN UsosActuales END ASC,
+        CASE WHEN @Ord = N'usos'     AND @Dir = N'DESC' THEN UsosActuales END DESC,
+        IDCupon DESC
     OFFSET @Offset ROWS FETCH NEXT @Tamano ROWS ONLY
     OPTION (RECOMPILE);
 
@@ -216,7 +231,9 @@ CREATE OR ALTER PROCEDURE dbo.SP_Bitacora_Consultar
     @Hasta        DATETIME2(0)  = NULL,
     @Pagina       INT           = 1,
     @TamanoPagina INT           = 20,
-    @Texto        NVARCHAR(100) = NULL
+    @Texto        NVARCHAR(100) = NULL,
+    @Orden        NVARCHAR(40)  = NULL,
+    @Direccion    NVARCHAR(4)   = N'DESC'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -225,6 +242,12 @@ BEGIN
     IF @TamanoPagina IS NULL SET @TamanoPagina = 20;
     IF @TamanoPagina < 1 SET @TamanoPagina = 1;
     IF @TamanoPagina > 100 SET @TamanoPagina = 100;
+
+    -- Ordenamiento del lado del servidor por lista blanca (solo por fecha); fuera de lista -> 50422.
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'ASC' THEN N'ASC' ELSE N'DESC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'fecha'));
+    IF @Ord NOT IN (N'fecha')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @Offset INT = (@Pagina - 1) * @TamanoPagina;
     DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
@@ -243,7 +266,10 @@ BEGIN
       AND (@Desde     IS NULL OR b.Fecha    >= @Desde)
       AND (@Hasta     IS NULL OR b.Fecha    <= @Hasta)
       AND (@Patron    IS NULL OR b.ValorAnterior LIKE @Patron OR b.ValorNuevo LIKE @Patron)
-    ORDER BY b.Fecha DESC, b.IDBitacora DESC
+    ORDER BY
+        CASE WHEN @Dir = N'ASC'  THEN b.Fecha END ASC,
+        CASE WHEN @Dir = N'DESC' THEN b.Fecha END DESC,
+        b.IDBitacora DESC
     OFFSET @Offset ROWS FETCH NEXT @TamanoPagina ROWS ONLY
     OPTION (RECOMPILE);
 
@@ -302,11 +328,13 @@ GO
    Devuelve: (1) pagina; (2) Total; (3) conteos por rol/estado (sobre toda la tabla).
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Usuarios_ListarAdmin
-    @Texto  NVARCHAR(100) = NULL,
-    @IDRol  INT           = NULL,
-    @Filtro NVARCHAR(20)  = NULL,
-    @Pagina INT           = 1,
-    @Tamano INT           = 20
+    @Texto     NVARCHAR(100) = NULL,
+    @IDRol     INT           = NULL,
+    @Filtro    NVARCHAR(20)  = NULL,
+    @Pagina    INT           = 1,
+    @Tamano    INT           = 20,
+    @Orden     NVARCHAR(40)  = NULL,
+    @Direccion NVARCHAR(4)   = N'ASC'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -315,6 +343,12 @@ BEGIN
     IF @Tamano IS NULL SET @Tamano = 20;
     IF @Tamano < 1 SET @Tamano = 1;
     IF @Tamano > 100 SET @Tamano = 100;
+
+    -- Ordenamiento del lado del servidor por lista blanca (sin SQL dinamico); fuera de lista -> 50422.
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'DESC' THEN N'DESC' ELSE N'ASC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'nombre'));
+    IF @Ord NOT IN (N'nombre', N'correo', N'rol')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @Tamano;
@@ -350,7 +384,14 @@ BEGIN
     SELECT IDUsuario, Nombre, Correo, IDRol, Rol, Activo, IntentosFallidos, BloqueadoHasta,
            MinutosBloqueo, FechaCreacion, CantidadPedidos, TotalComprado
     FROM #UsuariosAdmin
-    ORDER BY Nombre ASC, IDUsuario ASC
+    ORDER BY
+        CASE WHEN @Ord = N'nombre' AND @Dir = N'ASC'  THEN Nombre END ASC,
+        CASE WHEN @Ord = N'nombre' AND @Dir = N'DESC' THEN Nombre END DESC,
+        CASE WHEN @Ord = N'correo' AND @Dir = N'ASC'  THEN Correo END ASC,
+        CASE WHEN @Ord = N'correo' AND @Dir = N'DESC' THEN Correo END DESC,
+        CASE WHEN @Ord = N'rol'    AND @Dir = N'ASC'  THEN Rol END ASC,
+        CASE WHEN @Ord = N'rol'    AND @Dir = N'DESC' THEN Rol END DESC,
+        IDUsuario ASC
     OFFSET @Offset ROWS FETCH NEXT @Tamano ROWS ONLY
     OPTION (RECOMPILE);
 

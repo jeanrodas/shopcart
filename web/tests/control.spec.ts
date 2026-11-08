@@ -64,7 +64,9 @@ test('cupones: crear un cupón general vigente aparece en la cinta de la tienda'
 
 /* ------------------------------------------------------------------ D5 ---- */
 test('bitácora: cambiar el precio de una variante registra un UPDATE de Variante', async ({ page }) => {
-  const precio = '177.77';
+  // Precio único por corrida: garantiza un cambio real (y por tanto un evento MODIFICAR en la
+  // bitácora) aunque la suite se repita sin reinstalar la BD.
+  const precio = (150 + (Date.now() % 5000) / 100).toFixed(2);
   await entrar(page, 'admin@shopcart.local', 'Admin123!');
   await page.goto('/admin/productos');
   await expect(page.getByRole('heading', { name: 'Productos', level: 1 })).toBeVisible();

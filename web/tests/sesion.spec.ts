@@ -53,6 +53,43 @@ test('cerrar sesion limpia el badge y no manda Authorization', async ({ page }) 
   );
 });
 
+/**
+ * F4.3 (pendiente conocido, corregido en C1): tras CERRAR sesión el badge cae a 0 y, al
+ * VOLVER a entrar, debe recuperar el conteo del carrito del usuario. La corrección invalida
+ * ['carrito'] en iniciarSesion (AuthContext) tras la fusión. Idempotente: agrega su propio ítem.
+ */
+test('el badge del carrito vuelve tras un segundo login', async ({ page }) => {
+  const badge = page.locator('header a[aria-label^="Carrito"] > span');
+  const login = async () => {
+    await page.goto('/login');
+    await page.getByPlaceholder('tucorreo@ejemplo.com').fill('cliente@shopcart.local');
+    await page.getByPlaceholder('Tu contraseña').fill('Cliente123!');
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' })).toBeVisible();
+  };
+
+  await login();
+  // Asegurar al menos 1 unidad en el carrito del usuario (producto 8: variante única de alto stock).
+  await page.goto('/producto/8');
+  await page.getByRole('button', { name: 'Agregar al carrito' }).click();
+  await expect(page.getByRole('button', { name: /Agregado/ })).toBeVisible();
+  // Navegar al carrito fuerza una lectura definitiva; de vuelta, el badge ya refleja el total
+  // (evita capturar un conteo intermedio mientras la invalidación de ['carrito'] aún propaga).
+  await page.goto('/carrito');
+  await expect(badge).toHaveText(/[1-9]\d*/);
+  const n = Number(((await badge.textContent()) ?? '').trim());
+  expect(n).toBeGreaterThanOrEqual(1);
+
+  // Cerrar sesión: el badge desaparece (carrito invitado = 0).
+  await page.getByRole('banner').getByRole('button', { name: 'Menú de usuario' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión' }).click();
+  await expect(badge).toHaveCount(0);
+
+  // Segundo login: el badge debe volver al conteo del usuario (la corrección invalida ['carrito']).
+  await login();
+  await expect(badge).toHaveText(String(n), { timeout: 15_000 });
+});
+
 /** F6.1: el menu del usuario en el encabezado abre y "Mi cuenta" navega a /cuenta. */
 test('el menu del usuario abre y lleva a Mi cuenta', async ({ page }) => {
   await page.goto('/login');

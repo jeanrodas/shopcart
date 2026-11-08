@@ -111,51 +111,79 @@ GO
    de 366 dias garantiza MAXRECURSION suficiente.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Dashboard_VentasPorDia
-    @Desde DATETIME2(0),
-    @Hasta DATETIME2(0)
+    @Desde        DATETIME2(0),
+    @Hasta        DATETIME2(0),
+    @Granularidad NVARCHAR(10) = N'DIA'  -- DIA | SEMANA | MES (agrupa con DATETRUNC, como M9)
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET DATEFIRST 1;  -- semana inicia lunes (corte determinista, igual que 020)
 
     IF @Desde IS NULL OR @Hasta IS NULL OR @Hasta <= @Desde
         THROW 50400, 'El rango de fechas es invalido (Hasta debe ser posterior a Desde)', 1;
     IF DATEDIFF(DAY, @Desde, @Hasta) > 366
         THROW 50400, 'El rango de fechas no puede exceder 366 dias', 1;
 
+    DECLARE @Gran NVARCHAR(10) = UPPER(ISNULL(@Granularidad, N'DIA'));
+    IF @Gran NOT IN (N'DIA', N'SEMANA', N'MES')
+        THROW 50422, 'La granularidad debe ser DIA, SEMANA o MES', 1;
+
     DECLARE @Ini DATE = CAST(@Desde AS DATE);
     DECLARE @Fin DATE = CAST(DATEADD(SECOND, -1, @Hasta) AS DATE); -- ultimo dia incluido
 
+    -- Serie de periodos CON ceros: se truncan todos los dias del rango a la granularidad y se
+    -- toman distintos; el inicio de periodo (Fecha) es la fecha truncada. Sin SQL dinamico: el
+    -- datepart de DATETRUNC no admite variable, por eso el CASE por @Gran (patron de 020).
     ;WITH Dias AS (
         SELECT @Ini AS Dia
         UNION ALL
         SELECT DATEADD(DAY, 1, Dia) FROM Dias WHERE Dia < @Fin
     ),
+    Periodos AS (
+        SELECT DISTINCT CAST(CASE @Gran
+                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  Dia)
+                   WHEN N'MES'    THEN DATETRUNC(MONTH, Dia)
+                   ELSE                DATETRUNC(DAY,   Dia) END AS DATE) AS Periodo
+        FROM Dias
+    ),
     Ventas AS (
-        SELECT CAST(pn.FechaCreacion AS DATE)               AS Dia,
+        SELECT CAST(CASE @Gran
+                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
+                   WHEN N'MES'    THEN DATETRUNC(MONTH, pn.FechaCreacion)
+                   ELSE                DATETRUNC(DAY,   pn.FechaCreacion) END AS DATE) AS Periodo,
                COUNT(1)                                      AS Pedidos,
                CAST(SUM(pn.VentaNeta) AS DECIMAL(18,2))      AS VentaNeta
         FROM dbo.VW_Reportes_PedidoNeto pn
         WHERE pn.FechaCreacion >= @Desde AND pn.FechaCreacion < @Hasta
-        GROUP BY CAST(pn.FechaCreacion AS DATE)
+        GROUP BY CASE @Gran
+                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  pn.FechaCreacion)
+                   WHEN N'MES'    THEN DATETRUNC(MONTH, pn.FechaCreacion)
+                   ELSE                DATETRUNC(DAY,   pn.FechaCreacion) END
     ),
     Unidades AS (
-        SELECT CAST(ln.Fecha AS DATE)                        AS Dia,
+        SELECT CAST(CASE @Gran
+                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  ln.Fecha)
+                   WHEN N'MES'    THEN DATETRUNC(MONTH, ln.Fecha)
+                   ELSE                DATETRUNC(DAY,   ln.Fecha) END AS DATE) AS Periodo,
                SUM(ln.CantidadNeta)                          AS UnidadesNetas
         FROM dbo.VW_Reportes_LineaNeta ln
         WHERE ln.Fecha >= @Desde AND ln.Fecha < @Hasta
-        GROUP BY CAST(ln.Fecha AS DATE)
+        GROUP BY CASE @Gran
+                   WHEN N'SEMANA' THEN DATETRUNC(WEEK,  ln.Fecha)
+                   WHEN N'MES'    THEN DATETRUNC(MONTH, ln.Fecha)
+                   ELSE                DATETRUNC(DAY,   ln.Fecha) END
     )
     SELECT
-        d.Dia                                          AS Fecha,
+        p.Periodo                                      AS Fecha,
         ISNULL(v.Pedidos, 0)                           AS Pedidos,
         CAST(ISNULL(v.VentaNeta, 0) AS DECIMAL(18,2))  AS VentaNeta,
         ISNULL(u.UnidadesNetas, 0)                     AS UnidadesNetas,
         CAST(CASE WHEN ISNULL(v.Pedidos, 0) = 0 THEN 0
                   ELSE v.VentaNeta / v.Pedidos END AS DECIMAL(18,2)) AS TicketPromedio
-    FROM Dias d
-    LEFT JOIN Ventas v   ON v.Dia = d.Dia
-    LEFT JOIN Unidades u ON u.Dia = d.Dia
-    ORDER BY d.Dia
+    FROM Periodos p
+    LEFT JOIN Ventas v   ON v.Periodo = p.Periodo
+    LEFT JOIN Unidades u ON u.Periodo = p.Periodo
+    ORDER BY p.Periodo
     OPTION (MAXRECURSION 366);
 END
 GO
@@ -328,6 +356,49 @@ BEGIN
       AND ep.Codigo <> N'CANCELADO'
     GROUP BY c.IDCupon, c.Codigo
     ORDER BY Usos DESC, DescuentoOtorgado DESC, c.Codigo
+    OPTION (RECOMPILE);
+END
+GO
+
+/* ------------------------------------------------------------
+   SP_Dashboard_TopProductos
+   Envoltorio de SP_Reportes_TopProductos (020) que agrega la ImagenPrincipal del producto
+   (ProductoImagen: principal, luego orden). No altera M9; el dashboard usa este para mostrar
+   la miniatura. Misma logica de ranking que 020.
+   ------------------------------------------------------------ */
+CREATE OR ALTER PROCEDURE dbo.SP_Dashboard_TopProductos
+    @Desde DATETIME2(0),
+    @Hasta DATETIME2(0),
+    @Top   INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @Desde IS NULL OR @Hasta IS NULL OR @Hasta <= @Desde
+        THROW 50400, 'El rango de fechas es invalido (Hasta debe ser posterior a Desde)', 1;
+    IF DATEDIFF(DAY, @Desde, @Hasta) > 366
+        THROW 50400, 'El rango de fechas no puede exceder 366 dias', 1;
+
+    IF @Top IS NULL OR @Top < 1 SET @Top = 10;
+    IF @Top > 50 SET @Top = 50;
+
+    SELECT TOP (@Top)
+        ln.IDProducto,
+        pr.Nombre                                  AS Producto,
+        c.Nombre                                   AS Categoria,
+        SUM(ln.CantidadNeta)                       AS UnidadesNetas,
+        CAST(SUM(ln.MontoNeto) AS DECIMAL(18,2))   AS MontoNeto,
+        (SELECT TOP (1) pi.Url
+           FROM dbo.ProductoImagen pi
+          WHERE pi.IDProducto = ln.IDProducto
+          ORDER BY pi.EsPrincipal DESC, pi.Orden ASC, pi.IDProductoImagen ASC) AS ImagenPrincipal
+    FROM dbo.VW_Reportes_LineaNeta ln
+    INNER JOIN dbo.Producto pr  ON pr.IDProducto = ln.IDProducto
+    INNER JOIN dbo.Categoria c  ON c.IDCategoria = ln.IDCategoria
+    WHERE ln.Fecha >= @Desde
+      AND ln.Fecha < @Hasta
+    GROUP BY ln.IDProducto, pr.Nombre, ln.IDCategoria, c.Nombre
+    ORDER BY UnidadesNetas DESC, MontoNeto DESC, ln.IDProducto
     OPTION (RECOMPILE);
 END
 GO

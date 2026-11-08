@@ -1,6 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 import zlib from 'node:zlib';
 
+/**
+ * REQUIERE SEMILLAS FRESCAS (no idempotente): edita precio/atributos/imagenes de productos y
+ * variantes sembrados y deja alguna variante en 0; varias aserciones dependen del estado
+ * inicial de las semillas. Corre bajo `npm run test:e2e` (que reinstala antes).
+ */
+
 /** Genera en memoria un PNG solido NxN (sin binarios externos) para la subida de imagen. */
 function pngSolido(n: number, r: number, g: number, b: number): Buffer {
   const crc32 = (buf: Buffer) => {

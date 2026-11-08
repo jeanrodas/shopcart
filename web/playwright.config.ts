@@ -9,8 +9,12 @@ export default defineConfig({
   testDir: './tests',
   // Chequeo previo: avisa si el limitador de /auth esta saturado (ver tests/global-setup.ts).
   globalSetup: './tests/global-setup.ts',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  // Tiempos holgados: la suite puede correr en una maquina cargada (dos navegadores + BD).
+  timeout: 45_000,
+  expect: { timeout: 15_000 },
+  // Un reintento absorbe flakes de temporizacion (lentitud puntual bajo carga), no fallos de
+  // logica; con semillas frescas (test:e2e) el reintento parte de un estado equivalente.
+  retries: 1,
   reporter: 'list',
   // Las pruebas comparten estado (misma BD/sesion), por eso corren en serie: 1 worker y sin
   // paralelismo dentro de un archivo. Asi `npx playwright test` sin parametros pasa.

@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { usePedidosOperacion, useResumenOperacion, usePedidoOperacion } from '../../lib/consultas';
 import { useOperacionVivo } from '../../lib/useEventosVivo';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { EtiquetaEstadoPedido } from '../../componentes/ui/EtiquetaEstadoPedido';
 import { Precio, formatearQuetzales } from '../../componentes/ui/Precio';
 import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
@@ -85,6 +86,12 @@ export default function AdminPedidos() {
   const [pagina, setPagina] = useState(1);
   const [tamanoPagina, setTamanoPagina] = useState(20);
   const [seleccion, setSeleccion] = useState<number | null>(null);
+  // `fecha` DESC (mas recientes primero) es el orden por defecto del listado; las columnas
+  // visibles ordenables son numero/total/estado/hace.
+  const orden = useOrdenURL(['numero', 'fecha', 'total', 'estado', 'hace'] as const, {
+    orden: 'fecha',
+    direccion: 'DESC',
+  });
 
   useEffect(() => {
     document.title = 'Pedidos · Operación';
@@ -117,6 +124,8 @@ export default function AdminPedidos() {
         recienteDias: ESTADOS_RECIENTES.has(tarjeta) ? 7 : undefined,
         pagina,
         tamanoPagina,
+        orden: orden.orden,
+        direccion: orden.direccion,
       };
     }
     return {
@@ -124,8 +133,10 @@ export default function AdminPedidos() {
       ...limites(desde, hasta),
       pagina,
       tamanoPagina,
+      orden: orden.orden,
+      direccion: orden.direccion,
     };
-  }, [tarjeta, textoDeb, desde, hasta, pagina, tamanoPagina]);
+  }, [tarjeta, textoDeb, desde, hasta, pagina, tamanoPagina, orden.orden, orden.direccion]);
 
   const { data, isPending, isError, refetch, isPlaceholderData } = usePedidosOperacion(filtros);
 
@@ -221,12 +232,12 @@ export default function AdminPedidos() {
                 <table className="w-full min-w-[820px] text-sm">
                   <thead>
                     <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                      <th className="px-4 py-3">Pedido</th>
+                      <ThOrden col="numero" estado={orden} className="px-4 py-3">Pedido</ThOrden>
                       <th className="px-4 py-3">Cliente</th>
                       <th className="px-4 py-3">Productos</th>
-                      <th className="px-4 py-3">Total</th>
-                      <th className="px-4 py-3">Estado</th>
-                      <th className="px-4 py-3">Hace</th>
+                      <ThOrden col="total" estado={orden} className="px-4 py-3">Total</ThOrden>
+                      <ThOrden col="estado" estado={orden} className="px-4 py-3">Estado</ThOrden>
+                      <ThOrden col="hace" estado={orden} className="px-4 py-3">Hace</ThOrden>
                       <th className="px-4 py-3 text-right">Siguiente paso</th>
                     </tr>
                   </thead>

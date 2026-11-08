@@ -49,11 +49,14 @@ async function emitirMovimiento(idVariante: number, mov: MovimientoRow | undefin
 }
 
 export async function registrarEntrada(datos: EntradaInput, actorId: number): Promise<unknown> {
+  // El motivo es opcional en una entrada; el SP de M3 exige >= 3 chars, por eso se pone un
+  // valor por defecto cuando no viene (sin modificar el SP evaluado).
+  const motivo = datos.motivo && datos.motivo.trim().length >= 3 ? datos.motivo : 'Entrada de compra';
   const result = await executeSp<MovimientoRow>('SP_Inventario_RegistrarMovimiento', [
     { name: 'IDVariante', type: sql.Int, value: datos.idVariante },
     { name: 'CodigoTipo', type: sql.NVarChar(30), value: 'ENTRADA_COMPRA' },
     { name: 'Cantidad', type: sql.Int, value: datos.cantidad },
-    { name: 'Motivo', type: sql.NVarChar(300), value: datos.motivo },
+    { name: 'Motivo', type: sql.NVarChar(300), value: motivo },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
   ]);
   // Cambia la existencia: emite el evento (que invalida el cache de reportes).
@@ -136,6 +139,8 @@ export async function listarAdmin(q: InventarioAdminQuery): Promise<{
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'Tamano', type: sql.Int, value: q.tamano },
     { name: 'IDProducto', type: sql.Int, value: q.idProducto ?? null },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
   ]);
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;

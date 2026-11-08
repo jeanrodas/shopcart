@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useCategoriasAdmin, useProductosAdmin } from '../../lib/consultas';
 import { Boton } from '../../componentes/ui/Boton';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { Precio } from '../../componentes/ui/Precio';
 import { resolverImagen } from '../../lib/imagenes';
 import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
@@ -40,6 +41,10 @@ export default function AdminProductos() {
   const [estado, setEstado] = useState<ClaveEstado>('todos');
   const [pagina, setPagina] = useState(1);
   const [tamano, setTamano] = useState(20);
+  const orden = useOrdenURL(['nombre', 'categoria', 'precio', 'disponible', 'estado'] as const, {
+    orden: 'nombre',
+    direccion: 'ASC',
+  });
 
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [idEditar, setIdEditar] = useState<number | null>(null);
@@ -66,8 +71,10 @@ export default function AdminProductos() {
       estado: estado === 'todos' ? undefined : estado,
       pagina,
       tamano,
+      orden: orden.orden,
+      direccion: orden.direccion,
     }),
-    [textoDeb, idCategoria, estado, pagina, tamano],
+    [textoDeb, idCategoria, estado, pagina, tamano, orden.orden, orden.direccion],
   );
 
   const { data, isPending, isError, refetch, isPlaceholderData } = useProductosAdmin(filtros);
@@ -157,12 +164,12 @@ export default function AdminProductos() {
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                    <th className="px-4 py-3">Producto</th>
-                    <th className="px-4 py-3">Categoría</th>
+                    <ThOrden col="nombre" estado={orden} className="px-4 py-3">Producto</ThOrden>
+                    <ThOrden col="categoria" estado={orden} className="px-4 py-3">Categoría</ThOrden>
                     <th className="px-4 py-3">Variantes</th>
-                    <th className="px-4 py-3">Precio desde</th>
-                    <th className="px-4 py-3">Disponible</th>
-                    <th className="px-4 py-3">Estado</th>
+                    <ThOrden col="precio" estado={orden} className="px-4 py-3">Precio desde</ThOrden>
+                    <ThOrden col="disponible" estado={orden} className="px-4 py-3">Disponible</ThOrden>
+                    <ThOrden col="estado" estado={orden} className="px-4 py-3">Estado</ThOrden>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>

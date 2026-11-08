@@ -47,6 +47,9 @@ export const listarAdminSchema = z.object({
   estado: z.enum(['publicado', 'agotado', 'incompleto', 'oculto', 'bajoStock']).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamano: z.coerce.number().int().positive().max(100).default(20),
+  // Ordenamiento del lado del servidor (lista blanca; el SP revalida -> 50422).
+  orden: z.enum(['nombre', 'categoria', 'precio', 'disponible', 'estado']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
 });
 
 export const categoriaSchema = z.object({

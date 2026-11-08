@@ -26,6 +26,23 @@ definido en una sola lista dentro de `aplicar.ps1`/`aplicar.sh`, se detiene en e
 error mostrando el script, y al final imprime conteos de verificacion (26 tablas,
 procedimientos, triggers, vistas y el login `shopcart_app`).
 
+### Reinstalar desde cero (semillas frescas)
+
+`reinstalar.ps1` / `reinstalar.sh` **borran** la base `ShopCart` (si existe) y vuelven a
+aplicar `aplicar`. Piden confirmacion (escribir `si`) salvo que se pase `-Force` / `--force`.
+Sirven para dejar **semillas frescas** antes de la suite de navegador (la usa `web:
+npm run test:e2e`). Mismas opciones de servidor/usuario que `aplicar`.
+
+```powershell
+.\reinstalar.ps1 -Force                       # Windows: borra y reinstala sin preguntar
+.\reinstalar.ps1 -User sa -Password '<pass>'  # pregunta confirmacion
+```
+
+```bash
+./reinstalar.sh --force
+./reinstalar.sh -s host -u sa -p '<pass>'      # pregunta confirmacion
+```
+
 ### Clave del login de aplicacion (produccion)
 
 `003_Security.sql` crea el login `shopcart_app` con una contrasena **fija de desarrollo**

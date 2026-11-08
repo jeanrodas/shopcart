@@ -16,7 +16,9 @@ test('mi cuenta: cambiar el telefono persiste tras recargar', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
 
   const telefono = page.getByLabel('Teléfono');
-  const nuevo = '5555-9090';
+  // Valor único por corrida: garantiza un cambio real y hace la prueba idempotente
+  // (no depende del valor sembrado ni de corridas previas).
+  const nuevo = `5555-${String(Date.now()).slice(-4)}`;
   await telefono.fill(nuevo);
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
 

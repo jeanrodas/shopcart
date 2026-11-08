@@ -139,21 +139,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => registrarAlExpirarSesion(null);
   }, [navigate, limpiarDatosPrivados]);
 
-  const iniciarSesion = useCallback(async (correo: string, contrasena: string) => {
-    const sesion = await apiIniciarSesion(correo, contrasena);
-    setUsuario(sesion.usuario);
-    guardarFusion(sesion.carritoFusionado);
-    return sesion;
-  }, []);
+  const iniciarSesion = useCallback(
+    async (correo: string, contrasena: string) => {
+      const sesion = await apiIniciarSesion(correo, contrasena);
+      setUsuario(sesion.usuario);
+      guardarFusion(sesion.carritoFusionado);
+      // El login fusiona el carrito invitado en el del usuario (servidor). La query ['carrito']
+      // aún tiene el carrito invitado (que se fijó al cerrar sesión) y, por su staleTime, no se
+      // refetchearía al remontar el badge -> se invalida para que refleje el carrito del usuario.
+      await queryClient.invalidateQueries({ queryKey: ['carrito'] });
+      return sesion;
+    },
+    [queryClient],
+  );
 
   const registrar = useCallback(
     async (datos: { nombre: string; correo: string; contrasena: string }) => {
       const sesion = await apiRegistrar(datos);
       setUsuario(sesion.usuario);
       guardarFusion(sesion.carritoFusionado);
+      await queryClient.invalidateQueries({ queryKey: ['carrito'] });
       return sesion;
     },
-    [],
+    [queryClient],
   );
 
   const cerrarSesion = useCallback(async () => {

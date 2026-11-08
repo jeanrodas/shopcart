@@ -53,7 +53,9 @@ CREATE OR ALTER PROCEDURE dbo.SP_Inventario_ListarAdmin
     @Filtro      NVARCHAR(20)  = NULL,
     @Pagina      INT           = 1,
     @Tamano      INT           = 20,
-    @IDProducto  INT           = NULL  -- acota a las variantes de un producto (boton "Inventario" de /admin/productos)
+    @IDProducto  INT           = NULL, -- acota a las variantes de un producto (boton "Inventario" de /admin/productos)
+    @Orden       NVARCHAR(40)  = NULL,
+    @Direccion   NVARCHAR(4)   = N'ASC'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -61,6 +63,12 @@ BEGIN
     IF @Pagina IS NULL OR @Pagina < 1 SET @Pagina = 1;
     IF @Tamano IS NULL OR @Tamano < 1 SET @Tamano = 20;
     IF @Tamano > 100 SET @Tamano = 100;
+
+    -- Ordenamiento del lado del servidor por lista blanca (sin SQL dinamico); fuera de lista -> 50422.
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'DESC' THEN N'DESC' ELSE N'ASC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'sku'));
+    IF @Ord NOT IN (N'sku', N'existencia', N'disponible', N'movimiento')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
     DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
@@ -117,7 +125,16 @@ BEGIN
         UltimoMovimientoFecha, UltimoMovimientoTipo, UltimoMovimientoNombre,
         UltimoMovimientoCantidad, UltimoMovimientoSigno, ImagenURL, ImagenPrincipal
     FROM #Inv
-    ORDER BY Producto ASC, SKU ASC
+    ORDER BY
+        CASE WHEN @Ord = N'sku'        AND @Dir = N'ASC'  THEN SKU END ASC,
+        CASE WHEN @Ord = N'sku'        AND @Dir = N'DESC' THEN SKU END DESC,
+        CASE WHEN @Ord = N'existencia' AND @Dir = N'ASC'  THEN Existencia END ASC,
+        CASE WHEN @Ord = N'existencia' AND @Dir = N'DESC' THEN Existencia END DESC,
+        CASE WHEN @Ord = N'disponible' AND @Dir = N'ASC'  THEN Disponible END ASC,
+        CASE WHEN @Ord = N'disponible' AND @Dir = N'DESC' THEN Disponible END DESC,
+        CASE WHEN @Ord = N'movimiento' AND @Dir = N'ASC'  THEN UltimoMovimientoFecha END ASC,
+        CASE WHEN @Ord = N'movimiento' AND @Dir = N'DESC' THEN UltimoMovimientoFecha END DESC,
+        IDVariante ASC
     OFFSET @Offset ROWS FETCH NEXT @Tamano ROWS ONLY
     OPTION (RECOMPILE);
 
@@ -306,7 +323,9 @@ CREATE OR ALTER PROCEDURE dbo.SP_Pedidos_ListarOperacion
     @IDUsuario    INT           = NULL,
     @Pagina       INT           = 1,
     @TamanoPagina INT           = 20,
-    @RecienteDias INT           = NULL
+    @RecienteDias INT           = NULL,
+    @Orden        NVARCHAR(40)  = NULL,
+    @Direccion    NVARCHAR(4)   = N'DESC'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -314,6 +333,13 @@ BEGIN
     IF @Pagina IS NULL OR @Pagina < 1 SET @Pagina = 1;
     IF @TamanoPagina IS NULL OR @TamanoPagina < 1 SET @TamanoPagina = 20;
     IF @TamanoPagina > 100 SET @TamanoPagina = 100;
+
+    -- Ordenamiento del lado del servidor por lista blanca (sin SQL dinamico); fuera de lista -> 50422.
+    -- Por defecto fecha DESC (los mas recientes primero).
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'ASC' THEN N'ASC' ELSE N'DESC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'fecha'));
+    IF @Ord NOT IN (N'numero', N'fecha', N'total', N'estado', N'hace')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
     DECLARE @DesdeReciente DATETIME2(0) =
@@ -354,7 +380,18 @@ BEGIN
     )
     SELECT *
     FROM Filtrados
-    ORDER BY FechaCreacion DESC, IDPedido DESC
+    ORDER BY
+        CASE WHEN @Ord = N'numero' AND @Dir = N'ASC'  THEN NumeroPedido END ASC,
+        CASE WHEN @Ord = N'numero' AND @Dir = N'DESC' THEN NumeroPedido END DESC,
+        CASE WHEN @Ord = N'fecha'  AND @Dir = N'ASC'  THEN FechaCreacion END ASC,
+        CASE WHEN @Ord = N'fecha'  AND @Dir = N'DESC' THEN FechaCreacion END DESC,
+        CASE WHEN @Ord = N'total'  AND @Dir = N'ASC'  THEN Total END ASC,
+        CASE WHEN @Ord = N'total'  AND @Dir = N'DESC' THEN Total END DESC,
+        CASE WHEN @Ord = N'estado' AND @Dir = N'ASC'  THEN EstadoCodigo END ASC,
+        CASE WHEN @Ord = N'estado' AND @Dir = N'DESC' THEN EstadoCodigo END DESC,
+        CASE WHEN @Ord = N'hace'   AND @Dir = N'ASC'  THEN MinutosEnEstado END ASC,
+        CASE WHEN @Ord = N'hace'   AND @Dir = N'DESC' THEN MinutosEnEstado END DESC,
+        IDPedido DESC
     OFFSET (@Pagina - 1) * @TamanoPagina ROWS
     FETCH NEXT @TamanoPagina ROWS ONLY
     OPTION (RECOMPILE);

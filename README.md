@@ -958,7 +958,7 @@ de invalidacion de M9). Ninguna cifra se calcula en el navegador.
 - **Eventos en vivo (SSE).** `api/src/eventos/bus.ts` es un `EventEmitter` de proceso con los
   tipos `pedido.creado`, `pedido.estado`, `inventario.movimiento`, `inventario.bajoStock` y
   `cupon.usado`; los servicios emiten **despues** de que el SP confirma. **Autenticacion sin JWT
-  en la URL:** `POST /eventos/ticket` (autenticado, Admin/Operador, rate limit 10/min) devuelve un
+  en la URL:** `POST /eventos/ticket` (autenticado, Admin/Operador, rate limit `RATE_LIMIT_EVENTOS_MAX`/min, default 20) devuelve un
   ticket aleatorio (`crypto.randomBytes(32)`) de **un solo uso** que caduca en **60 s**; un token
   en el query quedaria en logs/historial/proxies, por eso se usa el ticket. `GET /eventos?ticket=…`
   lo consume y responde `text/event-stream` (`Cache-Control: no-cache`, `X-Accel-Buffering: no`,

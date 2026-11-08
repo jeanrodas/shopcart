@@ -34,8 +34,9 @@ test('compra: pago aprobado lleva a la confirmacion con numero y total (prueba d
   // Facturacion CF (por defecto) y resultado APROBADO (por defecto en modo demo).
   await page.getByRole('button', { name: /^Pagar/ }).first().click();
 
-  // Debe caer en la confirmacion (NO en /carrito).
-  await page.waitForURL(/\/checkout\/confirmacion\/\d+/, { timeout: 30_000 });
+  // Debe caer en la confirmacion (NO en /carrito). toHaveURL en vez de waitForURL: solo exige
+  // que la URL case, sin esperar un ciclo "load" que la navegación SPA con replace no dispara.
+  await expect(page).toHaveURL(/\/checkout\/confirmacion\/\d+/, { timeout: 30_000 });
   await expect(page.getByRole('heading', { name: 'Pedido confirmado' })).toBeVisible();
   const numero = (await page.getByText(/SC-\d{4,}/).first().innerText()).trim();
   expect(numero).toMatch(/^SC-0{0,}\d+$/);

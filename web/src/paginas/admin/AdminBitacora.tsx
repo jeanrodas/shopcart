@@ -5,6 +5,7 @@ import { listarEventosRegistro } from '../../api/bitacora';
 import { useQuery } from '@tanstack/react-query';
 import { claves } from '../../lib/claves';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { Paginacion, TAMANOS_PAGINA_ADMIN } from '../catalogo/Paginacion';
 import { formatearMomento, formatearFechaHora } from '../../lib/formato';
@@ -79,6 +80,7 @@ export default function AdminBitacora() {
   const [pagina, setPagina] = useState(1);
   const [tamano, setTamano] = useState(20);
   const [sel, setSel] = useState<BitacoraEvento | null>(null);
+  const orden = useOrdenURL(['fecha'] as const, { orden: 'fecha', direccion: 'DESC' });
 
   useEffect(() => {
     document.title = 'Bitácora · Control';
@@ -103,8 +105,10 @@ export default function AdminBitacora() {
       texto: textoDeb || undefined,
       pagina,
       tamano,
+      orden: orden.orden,
+      direccion: orden.direccion,
     }),
-    [entidad, accion, desde, hasta, textoDeb, pagina, tamano],
+    [entidad, accion, desde, hasta, textoDeb, pagina, tamano, orden.orden, orden.direccion],
   );
 
   const { data, isPending, isError, refetch, isPlaceholderData } = useBitacora(filtros);
@@ -152,7 +156,7 @@ export default function AdminBitacora() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                    <th className="px-4 py-3">Cuándo</th>
+                    <ThOrden col="fecha" estado={orden} className="px-4 py-3">Cuándo</ThOrden>
                     <th className="px-4 py-3">Tabla · registro</th>
                     <th className="px-4 py-3">Acción</th>
                     <th className="px-4 py-3">Usuario</th>

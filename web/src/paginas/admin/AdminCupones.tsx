@@ -10,6 +10,7 @@ import { Boton } from '../../componentes/ui/Boton';
 import { Campo } from '../../componentes/ui/Campo';
 import { Modal } from '../../componentes/ui/Modal';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { useToast } from '../../componentes/ui/Toast';
 import { formatearQuetzales } from '../../componentes/ui/Precio';
@@ -56,6 +57,7 @@ export default function AdminCupones() {
   const [chip, setChip] = useState<ClaveChip>('todos');
   const [pagina, setPagina] = useState(1);
   const [tamano, setTamano] = useState(20);
+  const orden = useOrdenURL(['codigo', 'vigencia', 'usos'] as const, { orden: 'vigencia', direccion: 'DESC' });
 
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [editando, setEditando] = useState<CuponAdminFila | null>(null);
@@ -80,8 +82,10 @@ export default function AdminCupones() {
       filtro: chip === 'todos' ? undefined : chip,
       pagina,
       tamano,
+      orden: orden.orden,
+      direccion: orden.direccion,
     }),
-    [textoDeb, chip, pagina, tamano],
+    [textoDeb, chip, pagina, tamano, orden.orden, orden.direccion],
   );
 
   const { data, isPending, isError, refetch, isPlaceholderData } = useCuponesAdmin(filtros);
@@ -219,11 +223,11 @@ export default function AdminCupones() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                    <th className="px-4 py-3">Código</th>
+                    <ThOrden col="codigo" estado={orden} className="px-4 py-3">Código</ThOrden>
                     <th className="px-4 py-3">Beneficio</th>
                     <th className="hidden px-4 py-3 xl:table-cell">Alcance</th>
-                    <th className="px-4 py-3">Vigencia</th>
-                    <th className="px-4 py-3">Usos</th>
+                    <ThOrden col="vigencia" estado={orden} className="px-4 py-3">Vigencia</ThOrden>
+                    <ThOrden col="usos" estado={orden} className="px-4 py-3">Usos</ThOrden>
                     <th className="px-4 py-3">Estado</th>
                     {esAdmin && <th className="px-4 py-3 text-right">Acciones</th>}
                   </tr>

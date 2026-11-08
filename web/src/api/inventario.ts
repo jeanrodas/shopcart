@@ -17,6 +17,8 @@ function query(f: FiltrosInventario): string {
   if (f.idCategoria !== undefined) qs.set('idCategoria', String(f.idCategoria));
   if (f.idProducto !== undefined) qs.set('idProducto', String(f.idProducto));
   if (f.filtro) qs.set('filtro', f.filtro);
+  if (f.orden) qs.set('orden', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamano', String(f.tamano));
   return `?${qs.toString()}`;

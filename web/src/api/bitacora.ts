@@ -11,6 +11,8 @@ function query(f: FiltrosBitacora): string {
   if (f.desde) qs.set('desde', f.desde);
   if (f.hasta) qs.set('hasta', f.hasta);
   if (f.texto) qs.set('texto', f.texto);
+  if (f.orden) qs.set('orden', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamano', String(f.tamano));
   return `?${qs.toString()}`;

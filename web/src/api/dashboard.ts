@@ -5,6 +5,7 @@ import type {
   CuponDashboard,
   DashboardRespuesta,
   EmbudoDashboard,
+  Granularidad,
   PuntoVentaDia,
   RangoDashboard,
   ResumenDashboard,
@@ -31,8 +32,8 @@ export function obtenerResumenDashboard(r: RangoDashboard) {
   return conCache<ResumenDashboard>(`/api/v1/dashboard/resumen?${rango(r)}`);
 }
 
-export function obtenerVentasPorDia(r: RangoDashboard) {
-  return conCache<PuntoVentaDia[]>(`/api/v1/dashboard/ventas-dia?${rango(r)}`);
+export function obtenerVentasPorDia(r: RangoDashboard, granularidad: Granularidad = 'DIA') {
+  return conCache<PuntoVentaDia[]>(`/api/v1/dashboard/ventas-dia?${rango(r)}&granularidad=${granularidad}`);
 }
 
 export function obtenerVentasPorCategoria(r: RangoDashboard) {

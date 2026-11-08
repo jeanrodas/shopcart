@@ -13,6 +13,10 @@ function query(f: FiltrosPedidosOperacion): string {
   if (f.desde) qs.set('desde', f.desde);
   if (f.hasta) qs.set('hasta', f.hasta);
   if (f.recienteDias !== undefined) qs.set('recienteDias', String(f.recienteDias));
+  // El listado de operacion usa `ordenCol` en la API (el `orden` del endpoint es la
+  // direccion simple del listado del cliente; aqui no se usa esa).
+  if (f.orden) qs.set('ordenCol', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamanoPagina', String(f.tamanoPagina));
   return `?${qs.toString()}`;

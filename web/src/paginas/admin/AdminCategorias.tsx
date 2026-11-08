@@ -82,8 +82,12 @@ export default function AdminCategorias() {
       <EstadoVista
         cargando={isPending}
         error={isError}
+        vacio={!isPending && !isError && (data?.length ?? 0) === 0}
         alReintentar={() => void refetch()}
         esqueleto={<div className="esqueleto h-64 w-full rounded-20" />}
+        tituloVacio="Aún no hay categorías"
+        textoVacio="Crea la primera categoría para empezar a organizar el catálogo."
+        accionVacio={esAdmin ? <Boton onClick={abrirNueva}>Nueva categoría</Boton> : undefined}
       >
         {data && (
           <>

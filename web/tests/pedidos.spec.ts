@@ -5,6 +5,8 @@ import { test, expect } from '@playwright/test';
  * Ver detalle muestra la linea de tiempo con el hito actual -> cancelar un pedido cancelable
  * desde la lista (modal -> confirmar) deja la tarjeta en "Cancelado".
  * Asume API en :3000 y Vite en :5173 ya corriendo, y la BD recien instalada (semillas).
+ * REQUIERE SEMILLAS FRESCAS (no idempotente): localiza pedidos sembrados por numero
+ * (SC-000007 ENTREGADO, SC-000004 EN_PREPARACION) y cancela uno; corre bajo `npm run test:e2e`.
  */
 test('mis pedidos: resumen, detalle con linea de tiempo y cancelacion', async ({ page }) => {
   // 1) Login como cliente.

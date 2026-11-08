@@ -73,6 +73,7 @@ import type {
   FiltrosPedidos,
   FiltrosPedidosOperacion,
   FiltrosUsuarios,
+  Granularidad,
   PagarBody,
   PerfilInput,
   RangoDashboard,
@@ -609,10 +610,10 @@ export function useDashboardResumen(r: RangoDashboard) {
   });
 }
 
-export function useVentasPorDia(r: RangoDashboard) {
+export function useVentasPorDia(r: RangoDashboard, granularidad: Granularidad = 'DIA') {
   return useQuery({
-    queryKey: claves.dashboard.ventasDia(r),
-    queryFn: () => obtenerVentasPorDia(r),
+    queryKey: [...claves.dashboard.ventasDia(r), granularidad] as const,
+    queryFn: () => obtenerVentasPorDia(r, granularidad),
     placeholderData: keepPreviousData,
   });
 }

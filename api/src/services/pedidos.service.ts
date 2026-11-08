@@ -93,6 +93,8 @@ export async function listar(
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'TamanoPagina', type: sql.Int, value: tamano },
     { name: 'RecienteDias', type: sql.Int, value: q.recienteDias ?? null },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.ordenCol ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];

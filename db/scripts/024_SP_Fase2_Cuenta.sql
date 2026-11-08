@@ -164,10 +164,19 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ListarAdmin
     @IDCategoria INT           = NULL,
     @Estado      NVARCHAR(20)  = NULL,
     @Pagina      INT           = 1,
-    @Tamano      INT           = 20
+    @Tamano      INT           = 20,
+    @Orden       NVARCHAR(40)  = NULL,
+    @Direccion   NVARCHAR(4)   = N'ASC'
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Ordenamiento del lado del servidor por lista blanca (sin SQL dinamico). Columna fuera
+    -- de la lista -> 50422. @Dir normaliza la direccion a ASC/DESC.
+    DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'DESC' THEN N'DESC' ELSE N'ASC' END;
+    DECLARE @Ord NVARCHAR(40) = LOWER(ISNULL(@Orden, N'nombre'));
+    IF @Ord NOT IN (N'nombre', N'categoria', N'precio', N'disponible', N'estado')
+        THROW 50422, 'Columna de ordenamiento invalida', 1;
 
     DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
     DECLARE @Patron NVARCHAR(102) = N'%' + @Texto + N'%';
@@ -246,7 +255,18 @@ BEGIN
     WHERE (@Estado IS NULL
         OR (@Estado = N'bajoStock' AND EstadoDerivado = N'publicado' AND BajoStock = 1)
         OR (@Estado <> N'bajoStock' AND EstadoDerivado = @Estado))
-    ORDER BY Nombre ASC, IDProducto ASC
+    ORDER BY
+        CASE WHEN @Ord = N'nombre'     AND @Dir = N'ASC'  THEN Nombre END ASC,
+        CASE WHEN @Ord = N'nombre'     AND @Dir = N'DESC' THEN Nombre END DESC,
+        CASE WHEN @Ord = N'categoria'  AND @Dir = N'ASC'  THEN Categoria END ASC,
+        CASE WHEN @Ord = N'categoria'  AND @Dir = N'DESC' THEN Categoria END DESC,
+        CASE WHEN @Ord = N'precio'     AND @Dir = N'ASC'  THEN PrecioMinimo END ASC,
+        CASE WHEN @Ord = N'precio'     AND @Dir = N'DESC' THEN PrecioMinimo END DESC,
+        CASE WHEN @Ord = N'disponible' AND @Dir = N'ASC'  THEN DisponibleTotal END ASC,
+        CASE WHEN @Ord = N'disponible' AND @Dir = N'DESC' THEN DisponibleTotal END DESC,
+        CASE WHEN @Ord = N'estado'     AND @Dir = N'ASC'  THEN EstadoDerivado END ASC,
+        CASE WHEN @Ord = N'estado'     AND @Dir = N'DESC' THEN EstadoDerivado END DESC,
+        IDProducto ASC
     OFFSET @Offset ROWS FETCH NEXT @Tamano ROWS ONLY
     OPTION (RECOMPILE);
 

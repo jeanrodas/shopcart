@@ -18,9 +18,11 @@ import { useToast } from '../../componentes/ui/Toast';
 import { Boton } from '../../componentes/ui/Boton';
 import { formatearQuetzales } from '../../componentes/ui/Precio';
 import { formatearFechaLarga, plural } from '../../lib/formato';
+import { resolverImagen } from '../../lib/imagenes';
 import { GraficaVentas, BarrasCategoria, Embudo, MapaCalor, Sparkline, PALETA } from './dashboard/graficas';
 import { FeedVivo } from './dashboard/FeedVivo';
-import type { RangoDashboard } from '../../api/tipos';
+import { IconoBolsa } from '../../componentes/iconos';
+import type { Granularidad, RangoDashboard, TopProductoDashboard } from '../../api/tipos';
 
 /* ------------------------------ Periodo ----------------------------------- */
 
@@ -75,10 +77,11 @@ function Bloque({
 }) {
   return (
     <section className="rounded-20 border border-borde bg-white p-4 shadow-suave">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-extrabold tracking-apretado text-marino-900">{titulo}</h2>
-          {subtitulo && <p className="text-xs text-apagado">{subtitulo}</p>}
+          {/* Sin truncar: títulos como "Ventas por categoría" se ajustan a dos líneas en anchos medios. */}
+          <h2 className="text-base font-extrabold leading-tight tracking-apretado text-marino-900">{titulo}</h2>
+          {subtitulo && <p className="mt-0.5 text-xs text-apagado">{subtitulo}</p>}
         </div>
         {accion}
       </div>
@@ -163,6 +166,9 @@ export default function Dashboard() {
   const [desde, setDesde] = useState(hoyISO());
   const [hasta, setHasta] = useState(hoyISO());
   const [rango, setRango] = useState<RangoDashboard>(() => rangoDe('30d'));
+  // RF-08: granularidad de la serie de ventas y metrica mostrada (quetzales o pedidos).
+  const [gran, setGran] = useState<Granularidad>('DIA');
+  const [metrica, setMetrica] = useState<'venta' | 'pedidos'>('venta');
 
   useEffect(() => {
     document.title = 'Dashboard · Área interna';
@@ -180,11 +186,11 @@ export default function Dashboard() {
   }
 
   const resumen = useDashboardResumen(rango);
-  const ventas = useVentasPorDia(rango);
+  const ventas = useVentasPorDia(rango, gran);
   const categorias = useCategoriasDashboard(rango);
   const embudo = useEmbudo(rango);
   const horas = useHorasPico(rango);
-  const top = useTopProductosDashboard(rango, 8);
+  const top = useTopProductosDashboard(rango, 10); // RF-08: los 10 mas vendidos
   const cupones = useCuponesDashboard(rango, 8);
 
   const esAdmin = usuario?.rol === 'Administrador';
@@ -308,13 +314,29 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <Bloque
-                titulo="Ventas por día"
-                accion={<BotonExport ruta={`/api/v1/reportes/ventas/export?${q}&agrupacion=DIA`} />}
+                titulo={`Ventas por ${gran === 'DIA' ? 'día' : gran === 'SEMANA' ? 'semana' : 'mes'}`}
+                accion={
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Segmento
+                      etiqueta="Granularidad"
+                      valor={gran}
+                      onCambio={setGran}
+                      opciones={[{ v: 'DIA', t: 'Día' }, { v: 'SEMANA', t: 'Semana' }, { v: 'MES', t: 'Mes' }]}
+                    />
+                    <Segmento
+                      etiqueta="Métrica"
+                      valor={metrica}
+                      onCambio={setMetrica}
+                      opciones={[{ v: 'venta', t: 'Q' }, { v: 'pedidos', t: 'Pedidos' }]}
+                    />
+                    <BotonExport ruta={`/api/v1/reportes/ventas/export?${q}&agrupacion=${gran}`} />
+                  </div>
+                }
                 cargando={ventas.isPending}
                 error={ventas.isError}
                 onReintentar={() => void ventas.refetch()}
               >
-                <GraficaVentas puntos={ventas.data?.datos ?? []} />
+                <GraficaVentas puntos={ventas.data?.datos ?? []} granularidad={gran} metrica={metrica} />
               </Bloque>
             </div>
             <Bloque
@@ -356,7 +378,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Bloque
               titulo="Top productos"
-              accion={<BotonExport ruta={`/api/v1/reportes/top-productos/export?${q}&top=8`} />}
+              accion={<BotonExport ruta={`/api/v1/reportes/top-productos/export?${q}&top=10`} />}
               cargando={top.isPending}
               error={top.isError}
               onReintentar={() => void top.refetch()}
@@ -388,16 +410,57 @@ export default function Dashboard() {
 
 /* ----------------------------- Sub-bloques --------------------------------- */
 
-function TopProductos({ filas }: { filas: { IDProducto: number; Producto: string; UnidadesNetas: number; MontoNeto: number }[] }) {
+/** Control segmentado compacto (granularidad, métrica). aria-pressed por opción. */
+function Segmento<T extends string>({
+  valor,
+  opciones,
+  onCambio,
+  etiqueta,
+}: {
+  valor: T;
+  opciones: { v: T; t: string }[];
+  onCambio: (v: T) => void;
+  etiqueta: string;
+}) {
+  return (
+    <div role="group" aria-label={etiqueta} className="inline-flex overflow-hidden rounded-pill border border-borde">
+      {opciones.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          aria-pressed={valor === o.v}
+          onClick={() => onCambio(o.v)}
+          className={clsx(
+            'px-2.5 py-1 text-xs font-semibold transition-colors',
+            valor === o.v ? 'bg-marino-700 text-white' : 'bg-white text-marino-700 hover:bg-fondo-2',
+          )}
+        >
+          {o.t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TopProductos({ filas }: { filas: TopProductoDashboard[] }) {
   if (filas.length === 0) return <p className="py-8 text-center text-sm text-apagado">Sin ventas en el periodo.</p>;
   const max = Math.max(...filas.map((f) => f.UnidadesNetas), 1);
   return (
-    <ul className="flex flex-col gap-2.5">
+    // Los 10 mas vendidos (RF-08) con scroll interno para no alargar el bloque.
+    <ul className="flex max-h-64 flex-col gap-2.5 overflow-y-auto pr-1">
       {filas.map((f, i) => (
         <li key={f.IDProducto} className="flex items-center gap-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-12 bg-fondo-2 text-xs font-extrabold text-marino-700">
-            {f.Producto.slice(0, 1).toUpperCase()}
-          </span>
+          {f.ImagenPrincipal ? (
+            <img
+              src={resolverImagen(f.ImagenPrincipal)}
+              alt={f.Producto}
+              className="h-8 w-8 shrink-0 rounded-12 object-cover"
+            />
+          ) : (
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-12 bg-fondo-2 text-marino-600">
+              <IconoBolsa className="h-4 w-4" />
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-marino-900">{f.Producto}</span>
             <span className="mt-0.5 block h-1.5 w-full overflow-hidden rounded-pill bg-fondo-2">

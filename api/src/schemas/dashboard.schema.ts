@@ -7,6 +7,14 @@ import { rangoSchema } from './reportes.schema.js';
  */
 export const dashboardRangoSchema = rangoSchema;
 
+/**
+ * GET /dashboard/ventas-dia: rango + granularidad (RF-08). El SP agrupa con DATETRUNC por
+ * DIA|SEMANA|MES; valida el valor (-> 50422). DIA por defecto (compat. con el comportamiento previo).
+ */
+export const dashboardVentasQuerySchema = rangoSchema.extend({
+  granularidad: z.string().trim().toUpperCase().pipe(z.enum(['DIA', 'SEMANA', 'MES'])).default('DIA'),
+});
+
 /** GET /dashboard/cupones: rango + top acotado (cupones mas usados del periodo). */
 export const dashboardCuponesQuerySchema = rangoSchema.extend({
   top: z.coerce.number().int().min(1).max(50).default(8),
@@ -21,5 +29,6 @@ export const dashboardHorasQuerySchema = rangoSchema.extend({
 });
 
 export type DashboardRangoQuery = z.infer<typeof dashboardRangoSchema>;
+export type DashboardVentasQuery = z.infer<typeof dashboardVentasQuerySchema>;
 export type DashboardCuponesQuery = z.infer<typeof dashboardCuponesQuerySchema>;
 export type DashboardHorasQuery = z.infer<typeof dashboardHorasQuerySchema>;

@@ -58,6 +58,9 @@ export const listarCuponesAdminSchema = z.object({
   filtro: z.enum(['vigentes', 'futuros', 'vencidos', 'agotados', 'inactivos']).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamano: z.coerce.number().int().positive().max(100).default(20),
+  // Ordenamiento del lado del servidor (lista blanca; el SP revalida -> 50422).
+  orden: z.enum(['codigo', 'vigencia', 'usos']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
 });
 
 /** Cuerpo de POST /carrito/cupon: aplicar un codigo al carrito del cliente. */

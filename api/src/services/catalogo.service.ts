@@ -82,6 +82,8 @@ export async function listarAdmin(q: {
   estado?: string;
   pagina: number;
   tamano: number;
+  orden?: string;
+  direccion?: string;
 }): Promise<{ filas: unknown[]; total: number; conteos: unknown; pagina: number; tamano: number }> {
   const result = await executeSp('SP_Catalogo_ListarAdmin', [
     { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
@@ -89,6 +91,8 @@ export async function listarAdmin(q: {
     { name: 'Estado', type: sql.NVarChar(20), value: q.estado ?? null },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'Tamano', type: sql.Int, value: q.tamano },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
   ]);
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;

@@ -18,6 +18,8 @@ function queryAdmin(f: FiltrosAdmin): string {
   if (f.texto) qs.set('texto', f.texto);
   if (f.idCategoria !== undefined) qs.set('idCategoria', String(f.idCategoria));
   if (f.estado) qs.set('estado', f.estado);
+  if (f.orden) qs.set('orden', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamano', String(f.tamano));
   return `?${qs.toString()}`;
@@ -101,21 +103,34 @@ export function cambiarEstadoCategoria(id: number, activo: boolean): Promise<unk
 
 /* ----------------------- Badges del area interna -------------------------- */
 
+/** Conteo + desglose para el tooltip de un badge del area interna. */
+export interface DatoBadge {
+  total: number;
+  titulo: string;
+}
+
 /**
  * Pedidos "por preparar" (PAGADO + EN_PREPARACION), fuente unica: el resumen de
- * operacion (SP_Pedidos_ResumenOperacion). Antes se sumaban dos listados; ahora un solo
- * SP da el conteo (y lo comparte con la cabecera de /admin/pedidos).
+ * operacion (SP_Pedidos_ResumenOperacion), que tambien alimenta la cabecera de
+ * /admin/pedidos. El tooltip desglosa "N por preparar (PAGADO) · M por despachar (EN_PREPARACION)".
  */
-export async function contarPedidosOperacion(): Promise<number> {
+export async function badgePedidos(): Promise<DatoBadge> {
   const r = await peticion<ResumenOperacion>('/api/v1/pedidos/resumen-operacion');
-  return r?.PorPreparar ?? 0;
+  const porPreparar = r?.Pagado ?? 0;
+  const porDespachar = r?.EnPreparacion ?? 0;
+  return {
+    total: r?.PorPreparar ?? porPreparar + porDespachar,
+    titulo: `${porPreparar} por preparar · ${porDespachar} por despachar`,
+  };
 }
 
 /**
  * Variantes que requieren atencion en inventario (bajo stock + agotadas), del resumen de
  * inventario (SP_Inventario_Resumen): misma fuente que el tablero de /admin/inventario.
  */
-export async function contarVariantesBajoStock(): Promise<number> {
+export async function badgeInventario(): Promise<DatoBadge> {
   const r = await peticion<RespuestaResumenInventario>('/api/v1/inventario/resumen');
-  return (r?.resumen?.VariantesBajoStock ?? 0) + (r?.resumen?.VariantesAgotadas ?? 0);
+  const bajoStock = r?.resumen?.VariantesBajoStock ?? 0;
+  const agotadas = r?.resumen?.VariantesAgotadas ?? 0;
+  return { total: bajoStock + agotadas, titulo: `${bajoStock} bajo stock · ${agotadas} agotadas` };
 }

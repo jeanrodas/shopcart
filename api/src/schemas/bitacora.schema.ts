@@ -13,6 +13,9 @@ export const listarBitacoraSchema = z.object({
   texto: z.string().trim().min(1).max(100).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamano: z.coerce.number().int().positive().max(100).default(20),
+  // Ordenamiento del lado del servidor (lista blanca; el SP revalida -> 50422).
+  orden: z.enum(['fecha']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
 });
 
 /** Query de GET /bitacora/registro: todos los eventos de un registro (@Tabla, @IDRegistro). */

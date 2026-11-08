@@ -12,7 +12,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ../db/reinstalar.ps1 -Force && playwright test",
+    "test:e2e:solo": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "5.1.0",

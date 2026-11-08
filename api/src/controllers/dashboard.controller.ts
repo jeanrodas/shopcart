@@ -1,8 +1,7 @@
 import type { RequestHandler } from 'express';
 import * as dashboardService from '../services/dashboard.service.js';
-import * as reportesService from '../services/reportes.service.js';
 import type { RangoQuery, TopProductosQuery } from '../schemas/reportes.schema.js';
-import type { DashboardCuponesQuery, DashboardHorasQuery } from '../schemas/dashboard.schema.js';
+import type { DashboardCuponesQuery, DashboardHorasQuery, DashboardVentasQuery } from '../schemas/dashboard.schema.js';
 
 /** Responde JSON y marca X-Cache segun el acierto de cache (igual que M9). */
 function responder(
@@ -18,7 +17,7 @@ export const getResumen: RequestHandler = async (req, res) => {
 };
 
 export const getVentasPorDia: RequestHandler = async (req, res) => {
-  responder(res, await dashboardService.ventasPorDia(req.query as unknown as RangoQuery));
+  responder(res, await dashboardService.ventasPorDia(req.query as unknown as DashboardVentasQuery));
 };
 
 export const getCategorias: RequestHandler = async (req, res) => {
@@ -37,8 +36,8 @@ export const getCupones: RequestHandler = async (req, res) => {
   responder(res, await dashboardService.cupones(req.query as unknown as DashboardCuponesQuery));
 };
 
-// Top productos REUSA el reporte de M9 (SP_Reportes_TopProductos y su entrada de cache);
-// este endpoint solo lo expone tambien al Operador dentro del dashboard.
+// Top productos del dashboard: SP envoltorio de 028 (ranking de M9 + ImagenPrincipal),
+// expuesto tambien al Operador.
 export const getTopProductos: RequestHandler = async (req, res) => {
-  responder(res, await reportesService.topProductos(req.query as unknown as TopProductosQuery));
+  responder(res, await dashboardService.topProductos(req.query as unknown as TopProductosQuery));
 };

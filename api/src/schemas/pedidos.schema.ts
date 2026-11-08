@@ -63,6 +63,11 @@ export const listarPedidosQuerySchema = z.object({
   texto: z.string().trim().min(1).max(100).optional(),
   numero: z.string().trim().min(1).max(30).optional(),
   orden: z.enum(['ASC', 'DESC']).optional(),
+  // Operacion (Operador/Admin): columna + direccion del ordenamiento del lado del servidor.
+  // `orden` (arriba) es la direccion simple del listado del Cliente; aqui se usa un nombre
+  // distinto para no chocar. Lista blanca; el SP revalida -> 50422.
+  ordenCol: z.enum(['numero', 'fecha', 'total', 'estado', 'hace']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamanoPagina: z.coerce.number().int().positive().max(100).default(20),
   // alias del cliente para tamanoPagina; si no viene, se usa tamanoPagina.

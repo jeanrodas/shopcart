@@ -12,6 +12,8 @@ function query(f: FiltrosUsuarios): string {
   if (f.texto) qs.set('texto', f.texto);
   if (f.idRol !== undefined) qs.set('idRol', String(f.idRol));
   if (f.filtro) qs.set('filtro', f.filtro);
+  if (f.orden) qs.set('orden', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamano', String(f.tamano));
   return `?${qs.toString()}`;

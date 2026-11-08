@@ -2,8 +2,8 @@ import sql from 'mssql';
 import { executeSp, type SpParam } from '../data/spExecutor.js';
 import { conCache } from '../utils/reportesCache.js';
 import type { Reporte } from './reportes.service.js';
-import type { RangoQuery } from '../schemas/reportes.schema.js';
-import type { DashboardCuponesQuery, DashboardHorasQuery } from '../schemas/dashboard.schema.js';
+import type { RangoQuery, TopProductosQuery } from '../schemas/reportes.schema.js';
+import type { DashboardCuponesQuery, DashboardHorasQuery, DashboardVentasQuery } from '../schemas/dashboard.schema.js';
 
 /**
  * Datos del dashboard del area interna (F9). Cada lectura pasa por el MISMO cache de
@@ -25,9 +25,13 @@ export function resumen(q: RangoQuery): Promise<Reporte<unknown>> {
   });
 }
 
-export function ventasPorDia(q: RangoQuery): Promise<Reporte<unknown[]>> {
-  return conCache('dashboard-ventas-dia', { desde: q.desde, hasta: q.hasta }, async () => {
-    const result = await executeSp('SP_Dashboard_VentasPorDia', rango(q));
+export function ventasPorDia(q: DashboardVentasQuery): Promise<Reporte<unknown[]>> {
+  // La granularidad entra en la clave de cache; el SP agrupa con DATETRUNC (DIA|SEMANA|MES).
+  return conCache('dashboard-ventas-dia', { desde: q.desde, hasta: q.hasta, granularidad: q.granularidad }, async () => {
+    const result = await executeSp('SP_Dashboard_VentasPorDia', [
+      ...rango(q),
+      { name: 'Granularidad', type: sql.NVarChar(10), value: q.granularidad },
+    ]);
     return (result.recordset ?? []) as unknown[];
   });
 }
@@ -52,6 +56,14 @@ export function horasPico(q: DashboardHorasQuery): Promise<Reporte<unknown[]>> {
     const params = rango(q);
     if (q.zona) params.push({ name: 'ZonaHoraria', type: sql.NVarChar(64), value: q.zona });
     const result = await executeSp('SP_Dashboard_HorasPico', params);
+    return (result.recordset ?? []) as unknown[];
+  });
+}
+
+export function topProductos(q: TopProductosQuery): Promise<Reporte<unknown[]>> {
+  // SP propio del dashboard (028) que agrega ImagenPrincipal; no toca el SP de M9.
+  return conCache('dashboard-top', { desde: q.desde, hasta: q.hasta, top: q.top }, async () => {
+    const result = await executeSp('SP_Dashboard_TopProductos', [...rango(q), { name: 'Top', type: sql.Int, value: q.top }]);
     return (result.recordset ?? []) as unknown[];
   });
 }

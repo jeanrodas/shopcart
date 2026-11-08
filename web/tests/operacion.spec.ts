@@ -3,6 +3,8 @@ import { test, expect, type Page } from '@playwright/test';
 /**
  * F7 - Operacion del area interna (inventario y pedidos). Asume API en :3000, Vite en
  * :5173 y la BD recien instalada. 1 worker (las transiciones mutan estado compartido).
+ * REQUIERE SEMILLAS FRESCAS (no idempotente): transiciona pedidos sembrados por estados y
+ * registra una devolucion; corre bajo `npm run test:e2e`.
  */
 async function entrar(page: Page, correo: string, contrasena: string) {
   await page.goto('/login');

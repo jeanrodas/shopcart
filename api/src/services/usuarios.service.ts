@@ -118,6 +118,8 @@ export async function listarAdmin(q: ListarUsuariosAdminQuery): Promise<{
     { name: 'Filtro', type: sql.NVarChar(20), value: q.filtro ?? null },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'Tamano', type: sql.Int, value: q.tamano },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];

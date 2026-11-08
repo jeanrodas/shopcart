@@ -202,15 +202,25 @@ export function PanelMovimiento({ idVariante, tipoInicial, onCerrar, onSeleccion
     );
   }
 
-  const motivoValido = motivo.trim().length >= 3;
-  const permitido = sim?.Permitido ?? false;
   const esEntrada = tipo === 'ENTRADA_COMPRA';
+  const motivoTrim = motivo.trim();
+  // RF-03: el motivo es OBLIGATORIO (3-300) para un ajuste; en una entrada es OPCIONAL
+  // (si se escribe, min 3). El botón se deshabilita y se muestra el mensaje cuando no es válido.
+  const motivoValido = esEntrada ? motivoTrim.length === 0 || motivoTrim.length >= 3 : motivoTrim.length >= 3;
+  const motivoError =
+    !esEntrada && motivoTrim.length === 0
+      ? 'El motivo es obligatorio para un ajuste'
+      : motivoTrim.length > 0 && motivoTrim.length < 3
+        ? 'El motivo debe tener al menos 3 caracteres'
+        : null;
+  const permitido = sim?.Permitido ?? false;
   const puedeRegistrar = cantValida && motivoValido && permitido && !simulando && !registrar.isPending;
 
   const enviar = () => {
     if (!puedeRegistrar) return;
-    const base = { idVariante, cantidad: cant, motivo: motivo.trim() };
-    const payload = esEntrada ? base : { ...base, tipo: tipo as 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO' };
+    const payload = esEntrada
+      ? { idVariante, cantidad: cant, motivo: motivoTrim || undefined }
+      : { idVariante, cantidad: cant, motivo: motivoTrim, tipo: tipo as 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO' };
     registrar.mutate(payload, {
       onSuccess: () => {
         setCantidad('');
@@ -280,15 +290,24 @@ export function PanelMovimiento({ idVariante, tipoInicial, onCerrar, onSeleccion
           )}
         </div>
 
-        {/* Referencia / motivo (obligatorio: el endpoint exige 3-300 caracteres) */}
-        <label className="mb-1 mt-3 block text-sm font-semibold text-texto">Referencia / motivo</label>
+        {/* Referencia / motivo: obligatorio (3-300) para ajustes; opcional en entradas. */}
+        <label className="mb-1 mt-3 block text-sm font-semibold text-texto">
+          Referencia / motivo{' '}
+          <span className="font-normal text-apagado">{esEntrada ? '(opcional)' : '(obligatorio)'}</span>
+        </label>
         <textarea
           rows={2}
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
-          placeholder={esEntrada ? 'N.º de factura, proveedor…' : 'Motivo del ajuste…'}
+          placeholder={esEntrada ? 'N.º de factura, proveedor… (opcional)' : 'Motivo del ajuste (obligatorio)…'}
+          aria-invalid={motivoError !== null}
           className="w-full rounded-12 border border-[rgba(15,23,42,.14)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-marino-600"
         />
+        {motivoError && (
+          <p data-testid="motivo-error" className="mt-1 text-xs font-semibold text-error-texto">
+            {motivoError}
+          </p>
+        )}
 
         <p className="mt-2 rounded-12 bg-fondo-2 px-3 py-2 text-[11px] text-apagado">
           Un ajuste negativo no puede dejar el disponible por debajo de 0. SALIDA_VENTA, DEVOLUCION y

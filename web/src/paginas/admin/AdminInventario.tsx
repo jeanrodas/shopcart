@@ -10,6 +10,7 @@ import {
 } from '../../lib/consultas';
 import { Boton } from '../../componentes/ui/Boton';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { Modal } from '../../componentes/ui/Modal';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { resolverImagen } from '../../lib/imagenes';
@@ -67,6 +68,10 @@ export default function AdminInventario() {
   const [chip, setChip] = useState<ClaveChip>('todas');
   const [pagina, setPagina] = useState(1);
   const [tamano, setTamano] = useState(20);
+  const orden = useOrdenURL(['sku', 'existencia', 'disponible', 'movimiento'] as const, {
+    orden: 'sku',
+    direccion: 'ASC',
+  });
 
   // Variante seleccionada para el panel (IDVariante); el panel lee su detalle del kardex.
   const [seleccion, setSeleccion] = useState<number | null>(null);
@@ -111,8 +116,10 @@ export default function AdminInventario() {
       filtro: chip === 'todas' ? undefined : chip,
       pagina,
       tamano,
+      orden: orden.orden,
+      direccion: orden.direccion,
     }),
-    [textoDeb, idCategoria, idProducto, chip, pagina, tamano],
+    [textoDeb, idCategoria, idProducto, chip, pagina, tamano, orden.orden, orden.direccion],
   );
 
   const { data, isPending, isError, refetch, isPlaceholderData } = useInventarioAdmin(filtros);
@@ -298,11 +305,11 @@ export default function AdminInventario() {
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                      <th className="px-4 py-3">Variante</th>
-                      <th className="px-4 py-3">Existencia</th>
+                      <ThOrden col="sku" estado={orden} className="px-4 py-3">Variante</ThOrden>
+                      <ThOrden col="existencia" estado={orden} className="px-4 py-3">Existencia</ThOrden>
                       <th className="px-4 py-3">Reservado</th>
-                      <th className="px-4 py-3">Disponible</th>
-                      <th className="px-4 py-3">Último movimiento</th>
+                      <ThOrden col="disponible" estado={orden} className="px-4 py-3">Disponible</ThOrden>
+                      <ThOrden col="movimiento" estado={orden} className="px-4 py-3">Último movimiento</ThOrden>
                       <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
                   </thead>

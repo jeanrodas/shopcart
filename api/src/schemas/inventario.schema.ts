@@ -11,14 +11,17 @@ const boolQuery = (def: 'true' | 'false' = 'false') =>
 export const entradaSchema = z.object({
   idVariante: idVarianteSchema,
   cantidad: cantidadSchema,
-  motivo: motivoSchema,
+  // RF-03: el motivo solo es OBLIGATORIO para ajustes. En una entrada de compra es opcional
+  // (si se envia, 3-300 chars); el servicio pone un motivo por defecto para respetar el
+  // invariante de M3 (Kardex.Motivo NOT NULL y el SP exige >= 3), sin tocar el SP evaluado.
+  motivo: motivoSchema.optional(),
 });
 
 export const ajusteSchema = z.object({
   idVariante: idVarianteSchema,
   tipo: z.enum(['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']),
   cantidad: cantidadSchema,
-  motivo: motivoSchema,
+  motivo: motivoSchema, // obligatorio (RF-03: un ajuste manual exige motivo)
 });
 
 export const existenciasQuerySchema = z.object({
@@ -56,6 +59,9 @@ export const inventarioAdminQuerySchema = z.object({
   filtro: z.enum(['bajoStock', 'agotadas', 'conReservas']).optional(),
   pagina: z.coerce.number().int().positive().default(1),
   tamano: z.coerce.number().int().positive().max(100).default(20),
+  // Ordenamiento del lado del servidor (lista blanca; el SP revalida -> 50422).
+  orden: z.enum(['sku', 'existencia', 'disponible', 'movimiento']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
 });
 
 /**

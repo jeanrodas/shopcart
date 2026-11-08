@@ -22,6 +22,8 @@ export async function consultar(q: ListarBitacoraQuery): Promise<{
     { name: 'Pagina', type: sql.Int, value: q.pagina },
     { name: 'TamanoPagina', type: sql.Int, value: q.tamano },
     { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];

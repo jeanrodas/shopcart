@@ -18,6 +18,8 @@ function query(f: FiltrosCupones): string {
   const qs = new URLSearchParams();
   if (f.texto) qs.set('texto', f.texto);
   if (f.filtro) qs.set('filtro', f.filtro);
+  if (f.orden) qs.set('orden', f.orden);
+  if (f.direccion) qs.set('direccion', f.direccion);
   qs.set('pagina', String(f.pagina));
   qs.set('tamano', String(f.tamano));
   return `?${qs.toString()}`;

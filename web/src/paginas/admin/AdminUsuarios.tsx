@@ -15,6 +15,7 @@ import { Boton } from '../../componentes/ui/Boton';
 import { Campo } from '../../componentes/ui/Campo';
 import { Modal } from '../../componentes/ui/Modal';
 import { EstadoVista } from '../../componentes/ui/EstadoVista';
+import { useOrdenURL, ThOrden } from '../../componentes/ui/Orden';
 import { PanelLateral } from '../../componentes/ui/PanelLateral';
 import { useToast } from '../../componentes/ui/Toast';
 import { formatearQuetzales } from '../../componentes/ui/Precio';
@@ -60,6 +61,9 @@ export default function AdminUsuarios() {
   const [chip, setChip] = useState<ClaveChip>('todos');
   const [pagina, setPagina] = useState(1);
   const [tamano, setTamano] = useState(20);
+  // El SP acepta tambien `correo` (lista blanca); el correo se muestra bajo el nombre en la
+  // misma columna, por eso las cabeceras visibles ordenan por nombre y rol.
+  const orden = useOrdenURL(['nombre', 'correo', 'rol'] as const, { orden: 'nombre', direccion: 'ASC' });
 
   const [editar, setEditar] = useState<UsuarioAdminFila | null>(null);
   const [nuevo, setNuevo] = useState(false);
@@ -79,14 +83,20 @@ export default function AdminUsuarios() {
   }, [textoDeb, chip, tamano]);
 
   const filtros: FiltrosUsuarios = useMemo(() => {
-    const base: FiltrosUsuarios = { texto: textoDeb || undefined, pagina, tamano };
+    const base: FiltrosUsuarios = {
+      texto: textoDeb || undefined,
+      pagina,
+      tamano,
+      orden: orden.orden,
+      direccion: orden.direccion,
+    };
     if (chip === 'admin') base.idRol = 3;
     else if (chip === 'operador') base.idRol = 2;
     else if (chip === 'cliente') base.idRol = 1;
     else if (chip === 'bloqueados') base.filtro = 'bloqueados';
     else if (chip === 'desactivados') base.filtro = 'desactivados';
     return base;
-  }, [textoDeb, chip, pagina, tamano]);
+  }, [textoDeb, chip, pagina, tamano, orden.orden, orden.direccion]);
 
   const { data, isPending, isError, refetch, isPlaceholderData } = useUsuariosAdmin(filtros);
   const c = data?.conteos ?? null;
@@ -162,8 +172,8 @@ export default function AdminUsuarios() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-borde text-left text-xs font-bold uppercase tracking-ancho text-apagado">
-                    <th className="px-4 py-3">Usuario</th>
-                    <th className="px-4 py-3">Rol</th>
+                    <ThOrden col="nombre" estado={orden} className="px-4 py-3">Usuario</ThOrden>
+                    <ThOrden col="rol" estado={orden} className="px-4 py-3">Rol</ThOrden>
                     <th className="hidden px-4 py-3 xl:table-cell">Pedidos</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3 text-right">Acciones</th>

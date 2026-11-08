@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { formatearQuetzales } from '../../../componentes/ui/Precio';
-import type { CategoriaVenta, CeldaHoraPico, EmbudoDashboard, PuntoVentaDia } from '../../../api/tipos';
+import type { CategoriaVenta, CeldaHoraPico, EmbudoDashboard, Granularidad, PuntoVentaDia } from '../../../api/tipos';
 
 /** Paleta del dashboard (marino, naranja, ambar, azul, gris, cian). Nunca mas de 6 series. */
 export const PALETA = ['#0B1F3A', '#F97316', '#F6A21E', '#1E3A8A', '#64748B', '#0E7490'];
@@ -8,6 +8,26 @@ export const PALETA = ['#0B1F3A', '#F97316', '#F6A21E', '#1E3A8A', '#64748B', '#
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DIAS_LARGO = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 const fmtDiaMes = new Intl.DateTimeFormat('es-GT', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtMes = new Intl.DateTimeFormat('es-GT', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Numero de semana ISO (lunes como primer dia), para rotular "sem. 45". */
+function semanaISO(d: Date): number {
+  const f = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dia = (f.getUTCDay() + 6) % 7; // lunes = 0
+  f.setUTCDate(f.getUTCDate() - dia + 3); // jueves de esa semana
+  const jueves = f.getTime();
+  f.setUTCMonth(0, 1);
+  if (f.getUTCDay() !== 4) f.setUTCMonth(0, 1 + ((4 - f.getUTCDay() + 7) % 7));
+  return 1 + Math.ceil((jueves - f.getTime()) / (7 * 864e5));
+}
+
+/** Etiqueta del periodo segun la granularidad: dia ("mié 5 nov"), semana ("sem. 45"), mes ("nov 2026"). */
+function etiquetaPeriodo(fecha: string, g: Granularidad): string {
+  const d = new Date(fecha);
+  if (g === 'MES') return fmtMes.format(d).replace('.', '');
+  if (g === 'SEMANA') return `sem. ${semanaISO(d)}`;
+  return fmtDiaMes.format(d).replace('.', '');
+}
 
 /* --------------------------------- Sparkline -------------------------------- */
 
@@ -37,7 +57,15 @@ const W = 720;
 const H = 240;
 const PAD = 28;
 
-export function GraficaVentas({ puntos }: { puntos: PuntoVentaDia[] }) {
+export function GraficaVentas({
+  puntos,
+  granularidad = 'DIA',
+  metrica = 'venta',
+}: {
+  puntos: PuntoVentaDia[];
+  granularidad?: Granularidad;
+  metrica?: 'venta' | 'pedidos';
+}) {
   const gid = useId();
   const [hover, setHover] = useState<number | null>(null);
 
@@ -45,33 +73,41 @@ export function GraficaVentas({ puntos }: { puntos: PuntoVentaDia[] }) {
     return <p className="py-12 text-center text-sm text-apagado">Sin ventas en el periodo.</p>;
   }
 
-  const max = Math.max(...puntos.map((p) => p.VentaNeta), 1);
+  // La serie activa (quetzales o pedidos). Los montos los calcula la BD; aqui solo se dibujan.
+  const valor = (p: PuntoVentaDia) => (metrica === 'venta' ? p.VentaNeta : p.Pedidos);
+  const fmtValor = (v: number) => (metrica === 'venta' ? formatearQuetzales(v) : `${v} ${v === 1 ? 'pedido' : 'pedidos'}`);
+  const color = metrica === 'venta' ? '#F97316' : '#1E3A8A';
+  const colorArea = metrica === 'venta' ? '#F6A21E' : '#1E3A8A';
+  const etq = (p: PuntoVentaDia) => etiquetaPeriodo(p.Fecha, granularidad);
+
+  const max = Math.max(...puntos.map(valor), 1);
   const n = puntos.length;
   const x = (i: number) => (n === 1 ? W / 2 : PAD + (i * (W - 2 * PAD)) / (n - 1));
   const y = (v: number) => H - PAD - (v / max) * (H - 2 * PAD);
 
-  const linea = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.VentaNeta).toFixed(1)}`).join(' ');
+  const linea = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(valor(p)).toFixed(1)}`).join(' ');
   const area = `${linea} L${x(n - 1).toFixed(1)},${H - PAD} L${x(0).toFixed(1)},${H - PAD} Z`;
 
   // Etiquetas del eje X: hasta ~7 repartidas.
   const paso = Math.max(1, Math.ceil(n / 7));
   const sel = hover !== null ? (puntos[hover] ?? null) : null;
+  const etiquetaEje = granularidad === 'MES' ? 'por mes' : granularidad === 'SEMANA' ? 'por semana' : 'por día';
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-56 w-full" role="img" aria-label="Ventas por día">
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-56 w-full" role="img" aria-label={`Ventas ${etiquetaEje}`}>
         <defs>
           <linearGradient id={`area-${gid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#F6A21E" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#F6A21E" stopOpacity="0" />
+            <stop offset="0%" stopColor={colorArea} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={colorArea} stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={area} fill={`url(#area-${gid})`} />
-        <path d={linea} fill="none" stroke="#F97316" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={linea} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         {hover !== null && sel && (
           <>
             <line x1={x(hover)} y1={PAD - 6} x2={x(hover)} y2={H - PAD} stroke="#64748B" strokeOpacity="0.4" strokeDasharray="3 3" />
-            <circle cx={x(hover)} cy={y(sel.VentaNeta)} r={4.5} fill="#F97316" stroke="#fff" strokeWidth={2} />
+            <circle cx={x(hover)} cy={y(valor(sel))} r={4.5} fill={color} stroke="#fff" strokeWidth={2} />
           </>
         )}
         {puntos.map((_, i) => (
@@ -89,7 +125,7 @@ export function GraficaVentas({ puntos }: { puntos: PuntoVentaDia[] }) {
         {puntos.map((p, i) =>
           i % paso === 0 ? (
             <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="fill-apagado" fontSize={11}>
-              {fmtDiaMes.format(new Date(p.Fecha)).replace('.', '')}
+              {etq(p)}
             </text>
           ) : null,
         )}
@@ -99,8 +135,8 @@ export function GraficaVentas({ puntos }: { puntos: PuntoVentaDia[] }) {
           className="pointer-events-none absolute -translate-x-1/2 rounded-12 bg-marino-900 px-3 py-1.5 text-xs font-semibold text-white shadow-marino"
           style={{ left: `${(x(hover) / W) * 100}%`, top: 0 }}
         >
-          {fmtDiaMes.format(new Date(sel.Fecha)).replace('.', '')} · {formatearQuetzales(sel.VentaNeta)} ·{' '}
-          {sel.Pedidos} {sel.Pedidos === 1 ? 'pedido' : 'pedidos'}
+          {etq(sel)} · {fmtValor(valor(sel))}
+          {metrica === 'venta' && <> · {sel.Pedidos} {sel.Pedidos === 1 ? 'pedido' : 'pedidos'}</>}
         </div>
       )}
     </div>

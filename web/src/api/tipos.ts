@@ -538,12 +538,15 @@ export interface PaginaAdmin {
   tamano: number;
 }
 
+export type OrdenProductosAdmin = 'nombre' | 'categoria' | 'precio' | 'disponible' | 'estado';
 export interface FiltrosAdmin {
   texto?: string;
   idCategoria?: number;
   estado?: EstadoDerivado | 'bajoStock';
   pagina: number;
   tamano: number;
+  orden?: OrdenProductosAdmin;
+  direccion?: 'ASC' | 'DESC';
 }
 
 /** Categoria con el total que agrega la Fase 2 (visibles / totales). */
@@ -608,6 +611,7 @@ export interface PaginaInventario {
 
 export type FiltroInventario = 'bajoStock' | 'agotadas' | 'conReservas';
 
+export type OrdenInventarioAdmin = 'sku' | 'existencia' | 'disponible' | 'movimiento';
 export interface FiltrosInventario {
   texto?: string;
   idCategoria?: number;
@@ -615,6 +619,8 @@ export interface FiltrosInventario {
   filtro?: FiltroInventario;
   pagina: number;
   tamano: number;
+  orden?: OrdenInventarioAdmin;
+  direccion?: 'ASC' | 'DESC';
 }
 
 /** KPIs del tablero de inventario (SP_Inventario_Resumen, recordset 1). */
@@ -716,7 +722,7 @@ export interface ResultadoConsistencia {
 export interface EntradaBody {
   idVariante: number;
   cantidad: number;
-  motivo: string;
+  motivo?: string; // opcional en entradas (RF-03: el motivo solo es obligatorio en ajustes)
 }
 export interface AjusteBody {
   idVariante: number;
@@ -764,6 +770,7 @@ export interface PaginaPedidosOperacion {
   tamanoPagina: number;
 }
 
+export type OrdenPedidosOperacion = 'numero' | 'fecha' | 'total' | 'estado' | 'hace';
 export interface FiltrosPedidosOperacion {
   estado?: string;
   texto?: string;
@@ -773,6 +780,8 @@ export interface FiltrosPedidosOperacion {
   recienteDias?: number;
   pagina: number;
   tamanoPagina: number;
+  orden?: OrdenPedidosOperacion;
+  direccion?: 'ASC' | 'DESC';
 }
 export interface ImagenBody {
   url: string;
@@ -810,11 +819,14 @@ export interface PaginaCupones {
   tamano: number;
 }
 
+export type OrdenCuponesAdmin = 'codigo' | 'vigencia' | 'usos';
 export interface FiltrosCupones {
   texto?: string;
   filtro?: 'vigentes' | 'futuros' | 'vencidos' | 'agotados' | 'inactivos';
   pagina: number;
   tamano: number;
+  orden?: OrdenCuponesAdmin;
+  direccion?: 'ASC' | 'DESC';
 }
 
 /** KPIs del panel de cupones (SP_Cupones_ResumenAdmin). */
@@ -885,6 +897,8 @@ export interface FiltrosBitacora {
   texto?: string;
   pagina: number;
   tamano: number;
+  orden?: 'fecha';
+  direccion?: 'ASC' | 'DESC';
 }
 
 /** Fila del listado de administracion de usuarios (SP_Usuarios_ListarAdmin). */
@@ -920,12 +934,15 @@ export interface PaginaUsuarios {
   tamano: number;
 }
 
+export type OrdenUsuariosAdmin = 'nombre' | 'correo' | 'rol';
 export interface FiltrosUsuarios {
   texto?: string;
   idRol?: number;
   filtro?: 'bloqueados' | 'desactivados';
   pagina: number;
   tamano: number;
+  orden?: OrdenUsuariosAdmin;
+  direccion?: 'ASC' | 'DESC';
 }
 
 /** Cuerpo de creacion de un usuario interno (sin contrasena: la genera el servidor). */
@@ -955,6 +972,9 @@ export interface RangoDashboard {
   desde: string; // ISO UTC
   hasta: string; // ISO UTC
 }
+
+/** Granularidad de la serie de ventas (RF-08): por día, semana o mes. */
+export type Granularidad = 'DIA' | 'SEMANA' | 'MES';
 
 /** Respuesta de un bloque del dashboard + si vino del cache (cabecera X-Cache). */
 export interface DashboardRespuesta<T> {
@@ -1018,6 +1038,7 @@ export interface TopProductoDashboard {
   Categoria: string;
   UnidadesNetas: number;
   MontoNeto: number;
+  ImagenPrincipal: string | null;
 }
 
 export interface CuponDashboard {
