@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '../errors/index.js';
+import { AppError, codeForStatus } from '../errors/index.js';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 
@@ -43,6 +43,20 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       logger.warn({ code: err.code, requestId, status: err.statusCode }, 'request rechazado');
     }
     res.status(err.statusCode).json(body);
+    return;
+  }
+
+  // Errores estilo http-errors (p. ej. serve-static ante path traversal o archivo
+  // inexistente) traen un status 4xx propio: se respeta, sin exponer detalles.
+  const statusAjeno = (err as { status?: number; statusCode?: number })?.status ??
+    (err as { statusCode?: number })?.statusCode;
+  if (typeof statusAjeno === 'number' && statusAjeno >= 400 && statusAjeno < 500) {
+    logger.warn({ requestId, status: statusAjeno }, 'request rechazado (middleware)');
+    res.status(statusAjeno).json({
+      code: codeForStatus(statusAjeno),
+      message: statusAjeno === 404 ? 'Recurso no encontrado' : 'Acceso denegado',
+      requestId,
+    });
     return;
   }
 

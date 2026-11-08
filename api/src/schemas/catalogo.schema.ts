@@ -3,6 +3,15 @@ import { textoPlano, textoLargo } from './common.schema.js';
 
 const dosDecimales = (v: number) => Number.isInteger(Math.round(v * 100));
 
+/**
+ * Lista blanca de URL de imagen. Solo se aceptan: una subida propia
+ * (`/uploads/img/<uuid>.(jpg|jpeg|png|webp)`), un asset del sitio (`/img/....(jpg|jpeg|png|webp)`)
+ * o una URL `https://` (http:// se rechaza). Evita rutas arbitrarias y esquemas peligrosos.
+ */
+const RUTA_IMAGEN =
+  /^\/uploads\/img\/[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$|^\/img\/[A-Za-z0-9_./-]+\.(jpg|jpeg|png|webp)$|^https:\/\/[^\s]+$/;
+const MENSAJE_IMAGEN = 'URL de imagen no permitida (/uploads/img/<uuid>.ext, /img/....ext o https://...)';
+
 /** Flag booleano que llega como 'true'/'false' en la query. */
 const boolQuery = (def: 'true' | 'false' = 'false') =>
   z.enum(['true', 'false']).default(def).transform((v) => v === 'true');
@@ -40,6 +49,18 @@ export const listarCategoriasSchema = z.object({ incluirInactivas: boolQuery() }
 /** Query de obtencion de un producto para administracion. */
 export const obtenerProductoAdminSchema = z.object({ incluirInactivos: boolQuery() });
 
+/** Listado de administracion del catalogo con estado derivado (SP_Catalogo_ListarAdmin). */
+export const listarAdminSchema = z.object({
+  texto: z.string().trim().min(1).max(100).optional(),
+  idCategoria: z.coerce.number().int().positive().optional(),
+  estado: z.enum(['publicado', 'agotado', 'incompleto', 'oculto', 'bajoStock']).optional(),
+  pagina: z.coerce.number().int().positive().default(1),
+  tamano: z.coerce.number().int().positive().max(100).default(20),
+  // Ordenamiento del lado del servidor (lista blanca; el SP revalida -> 50422).
+  orden: z.enum(['nombre', 'categoria', 'precio', 'disponible', 'estado']).optional(),
+  direccion: z.string().trim().toUpperCase().pipe(z.enum(['ASC', 'DESC'])).optional(),
+});
+
 export const categoriaSchema = z.object({
   nombre: textoPlano(100),
   descripcion: textoLargo(300).optional(),
@@ -67,14 +88,15 @@ export const varianteSchema = z.object({
       (arr) => new Set(arr.map((a) => a.nombre.toLowerCase())).size === arr.length,
       'los nombres de atributo deben ser unicos',
     ),
+  // F2: imagen propia de la variante. Ausente = no se toca (ConservarImagen); null = quitar;
+  // ruta "/..." (p. ej. /uploads/img/…) o URL http(s). Acepta lo mismo que imagenSchema.url.
+  imagenURL: z
+    .union([z.string().trim().max(500).refine((v) => RUTA_IMAGEN.test(v), MENSAJE_IMAGEN), z.null()])
+    .optional(),
 });
 
 export const imagenSchema = z.object({
-  url: z
-    .string()
-    .trim()
-    .max(500)
-    .refine((v) => /^https?:\/\//i.test(v), 'debe ser una URL http/https'),
+  url: z.string().trim().max(500).refine((v) => RUTA_IMAGEN.test(v), MENSAJE_IMAGEN),
   orden: z.coerce.number().int().nonnegative().default(0),
   esPrincipal: z.boolean().default(false),
 });
@@ -83,14 +105,21 @@ export const estadoSchema = z.object({
   activo: z.boolean(),
 });
 
+/** Query de productos destacados (publico): cuantos por seccion (1-24, default 8). */
+export const destacadosSchema = z.object({
+  limite: z.coerce.number().int().min(1).max(24).default(8),
+});
+
 /** Params de rutas de imagen: :id (producto) y :idImagen. */
 export const imagenParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
   idImagen: z.coerce.number().int().positive(),
 });
 
+export type DestacadosQuery = z.infer<typeof destacadosSchema>;
 export type BusquedaQuery = z.infer<typeof busquedaSchema>;
 export type BusquedaAdminQuery = z.infer<typeof busquedaAdminSchema>;
+export type ListarAdminQuery = z.infer<typeof listarAdminSchema>;
 export type CategoriaInput = z.infer<typeof categoriaSchema>;
 export type ProductoInput = z.infer<typeof productoSchema>;
 export type VarianteInput = z.infer<typeof varianteSchema>;

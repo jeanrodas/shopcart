@@ -24,6 +24,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 # Artefactos compilados.
 COPY --from=build /app/dist ./dist
 
+# Carpeta de subidas (en produccion es un volumen). Se crea y se cede a 'node' ANTES de
+# bajar privilegios, para que la API pueda escribir imagenes sin EACCES aunque el volumen
+# se monte vacio. UPLOADS_DIR apunta aqui (ver docker-compose.yml / .env).
+RUN mkdir -p /app/uploads/img && chown -R node:node /app/uploads
+
 # Ejecuta como usuario no root (el usuario 'node' ya existe en la imagen oficial).
 USER node
 

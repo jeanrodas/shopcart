@@ -72,6 +72,34 @@ export async function buscarProductos(
   return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
 }
 
+/**
+ * Listado de administracion con estado derivado y conteos (SP_Catalogo_ListarAdmin).
+ * Devuelve la pagina, el total del filtro y los conteos por estado (para chips/subtitulo).
+ */
+export async function listarAdmin(q: {
+  texto?: string;
+  idCategoria?: number;
+  estado?: string;
+  pagina: number;
+  tamano: number;
+  orden?: string;
+  direccion?: string;
+}): Promise<{ filas: unknown[]; total: number; conteos: unknown; pagina: number; tamano: number }> {
+  const result = await executeSp('SP_Catalogo_ListarAdmin', [
+    { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    { name: 'IDCategoria', type: sql.Int, value: q.idCategoria ?? null },
+    { name: 'Estado', type: sql.NVarChar(20), value: q.estado ?? null },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'Tamano', type: sql.Int, value: q.tamano },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
+  ]);
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  const conteos = (result.recordsets[2]?.[0] ?? null) as unknown;
+  return { filas, total, conteos, pagina: q.pagina, tamano: q.tamano };
+}
+
 export async function obtenerProducto(
   idProducto: number,
   incluirInactivos: boolean,
@@ -100,6 +128,18 @@ export async function obtenerProducto(
       atributos: atributosPorVariante.get(v.IDVariante) ?? [],
     })),
     imagenes,
+  };
+}
+
+export async function destacados(
+  limite: number,
+): Promise<{ masVendidos: unknown[]; ofertas: unknown[] }> {
+  const result = await executeSp('SP_Catalogo_Destacados', [
+    { name: 'Limite', type: sql.Int, value: limite },
+  ]);
+  return {
+    masVendidos: (result.recordsets[0] ?? []) as unknown[],
+    ofertas: (result.recordsets[1] ?? []) as unknown[],
   };
 }
 
@@ -196,6 +236,7 @@ export async function crearVariante(
     { name: 'Precio', type: sql.Decimal(18, 2), value: datos.precio },
     { name: 'Atributos', value: tvpAtributos(datos.atributos) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+    { name: 'ImagenURL', type: sql.NVarChar(500), value: datos.imagenURL ?? null },
   ]);
   return { variante: result.recordsets[0]?.[0] ?? null, atributos: result.recordsets[1] ?? [] };
 }
@@ -211,6 +252,9 @@ export async function actualizarVariante(
     { name: 'Precio', type: sql.Decimal(18, 2), value: datos.precio },
     { name: 'Atributos', value: tvpAtributos(datos.atributos) },
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: actorId },
+    // Si el body no trae imagenURL (consumidores de M2), ConservarImagen=1 no toca la columna.
+    { name: 'ConservarImagen', type: sql.Bit, value: datos.imagenURL === undefined },
+    { name: 'ImagenURL', type: sql.NVarChar(500), value: datos.imagenURL ?? null },
   ]);
   // El precio/atributos de la variante pueden afectar reportes: invalida el cache.
   invalidarTodo();

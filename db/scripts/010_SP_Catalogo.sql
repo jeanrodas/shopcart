@@ -37,7 +37,9 @@ GO
      @IncluirInactivos 0 = solo visibles en tienda; 1 = todo (admin/operador).
      @Orden (Nombre|Precio|FechaCreacion) + @Direccion (ASC|DESC) por lista blanca.
      @Pagina, @TamanoPagina (acotado 1-100).
-   Devuelve: recordset 1 = productos de la pagina; recordset 2 = Total.
+   Devuelve: recordset 1 = productos de la pagina (incluye DisponibleTotal INT = suma
+             del disponible de las variantes activas, y BajoStock BIT = 1 cuando
+             DisponibleTotal esta entre 1 y STOCK_MINIMO); recordset 2 = Total.
    ------------------------------------------------------------ */
 CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_BuscarProductos
     @Texto            NVARCHAR(100)  = NULL,
@@ -62,12 +64,14 @@ BEGIN
     DECLARE @Patron NVARCHAR(102) = CASE WHEN @Texto IS NULL THEN NULL ELSE CONCAT(N'%', @Texto, N'%') END;
     DECLARE @Offset INT = (@Pagina - 1) * @TamanoPagina;
     DECLARE @Dir NVARCHAR(4) = CASE WHEN UPPER(@Direccion) = N'DESC' THEN N'DESC' ELSE N'ASC' END;
+    DECLARE @StockMin INT = ISNULL(TRY_CAST((SELECT Valor FROM dbo.Parametro WHERE Clave = N'STOCK_MINIMO') AS INT), 5);
 
     SELECT p.IDProducto, p.Nombre, p.Descripcion, p.IDCategoria, c.Nombre AS Categoria,
            p.Activo, p.FechaCreacion,
            va.PrecioMinimo, va.PrecioMaximo,
            ISNULL(va.VariantesActivas, 0)                              AS VariantesActivas,
-           CAST(CASE WHEN disp.HayDisponible = 1 THEN 1 ELSE 0 END AS BIT) AS HayDisponible
+           CAST(CASE WHEN disp.HayDisponible = 1 THEN 1 ELSE 0 END AS BIT) AS HayDisponible,
+           CAST(ISNULL(dt.DisponibleTotal, 0) AS INT)                  AS DisponibleTotal
     INTO #Resultado
     FROM dbo.Producto p
     INNER JOIN dbo.Categoria c ON c.IDCategoria = p.IDCategoria
@@ -84,6 +88,12 @@ BEGIN
                    WHERE v.IDProducto = p.IDProducto AND v.Activo = 1 AND inv.Disponible > 0
                ) THEN 1 ELSE 0 END AS HayDisponible
     ) disp
+    OUTER APPLY (
+        SELECT SUM(inv.Disponible) AS DisponibleTotal
+        FROM dbo.Variante v
+        INNER JOIN dbo.VW_Inventario_Disponible inv ON inv.IDVariante = v.IDVariante
+        WHERE v.IDProducto = p.IDProducto AND v.Activo = 1
+    ) dt
     WHERE (@IDCategoria IS NULL OR p.IDCategoria = @IDCategoria)
       AND (@Patron IS NULL
            OR p.Nombre LIKE @Patron
@@ -100,6 +110,8 @@ BEGIN
     SELECT r.IDProducto, r.Nombre, r.Descripcion, r.IDCategoria, r.Categoria,
            r.Activo, r.FechaCreacion, r.PrecioMinimo, r.PrecioMaximo,
            r.VariantesActivas, r.HayDisponible,
+           r.DisponibleTotal,
+           CAST(CASE WHEN r.DisponibleTotal > 0 AND r.DisponibleTotal <= @StockMin THEN 1 ELSE 0 END AS BIT) AS BajoStock,
            img.Url AS ImagenPrincipal
     FROM #Resultado r
     OUTER APPLY (
@@ -152,7 +164,7 @@ BEGIN
     INNER JOIN dbo.Categoria c ON c.IDCategoria = p.IDCategoria
     WHERE p.IDProducto = @IDProducto;
 
-    SELECT v.IDVariante, v.SKU, v.Precio, v.Activo,
+    SELECT v.IDVariante, v.SKU, v.Precio, v.Activo, v.ImagenURL,
            inv.Existencia, inv.Reservado, inv.Disponible
     FROM dbo.Variante v
     INNER JOIN dbo.VW_Inventario_Disponible inv ON inv.IDVariante = v.IDVariante
@@ -329,7 +341,8 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_CrearVariante
     @SKU              NVARCHAR(50),
     @Precio           DECIMAL(18,2),
     @Atributos        dbo.TVP_VarianteAtributo READONLY,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    @ImagenURL        NVARCHAR(500) = NULL  -- F2: imagen propia de la variante (NULL = usa la del producto)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -354,8 +367,8 @@ BEGIN
     BEGIN TRY
         BEGIN TRAN;
 
-        INSERT dbo.Variante (IDProducto, SKU, Precio)
-        VALUES (@IDProducto, @SkuNorm, @Precio);
+        INSERT dbo.Variante (IDProducto, SKU, Precio, ImagenURL)
+        VALUES (@IDProducto, @SkuNorm, @Precio, NULLIF(LTRIM(RTRIM(@ImagenURL)), N''));
 
         SET @NuevoID = SCOPE_IDENTITY();
 
@@ -370,7 +383,7 @@ BEGIN
         THROW;
     END CATCH
 
-    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, FechaCreacion
+    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, ImagenURL, FechaCreacion
     FROM dbo.Variante
     WHERE IDVariante = @NuevoID;
 
@@ -395,7 +408,12 @@ CREATE OR ALTER PROCEDURE dbo.SP_Catalogo_ActualizarVariante
     @SKU              NVARCHAR(50),
     @Precio           DECIMAL(18,2),
     @Atributos        dbo.TVP_VarianteAtributo READONLY,
-    @IDUsuarioEjecuta INT
+    @IDUsuarioEjecuta INT,
+    -- F2 (aditivo): @ConservarImagen = 1 (default) NO toca ImagenURL, para que los
+    -- consumidores existentes de M2 que no envian imagen no borren nada. El editor de
+    -- variantes envia @ConservarImagen = 0 y, con @ImagenURL NULL, "quita" la imagen.
+    @ConservarImagen  BIT           = 1,
+    @ImagenURL        NVARCHAR(500) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -417,6 +435,8 @@ BEGIN
         UPDATE dbo.Variante
            SET SKU = @SkuNorm,
                Precio = @Precio,
+               ImagenURL = CASE WHEN @ConservarImagen = 1 THEN ImagenURL
+                                ELSE NULLIF(LTRIM(RTRIM(@ImagenURL)), N'') END,
                FechaActualizacion = SYSUTCDATETIME()
          WHERE IDVariante = @IDVariante;
 
@@ -433,7 +453,7 @@ BEGIN
         THROW;
     END CATCH
 
-    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, FechaCreacion, FechaActualizacion
+    SELECT IDVariante, IDProducto, SKU, Precio, Existencia, Activo, ImagenURL, FechaCreacion, FechaActualizacion
     FROM dbo.Variante
     WHERE IDVariante = @IDVariante;
 

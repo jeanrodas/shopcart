@@ -26,7 +26,7 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Stack
 
-- **SQL Server 2022** (requiere `DATETRUNC`, de 2022).
+- **SQL Server 2019 o superior** (probado en 2022).
 - **Node.js 24 LTS** + **TypeScript** en modo `strict` (sin ORM; acceso solo por SP).
 - **Express 5** (HTTP), **mssql** (driver, `request.execute`), **zod** (validacion).
 - **pino** / **pino-http** (logs), **bcryptjs** (hash de contrasena),
@@ -35,7 +35,7 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 ## Requisitos
 
-- SQL Server 2022 (Developer/Express sirven).
+- SQL Server 2019 o superior (probado en 2022; Developer/Express sirven).
 - `sqlcmd` del cliente **ODBC 18** (o **go-sqlcmd**); el instalador usa `-C` (confia en
   el certificado) y `-b` (aborta al primer error).
 - Node.js **24 LTS** y npm.
@@ -45,7 +45,8 @@ Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
 
 > **Evaluadores: empiece por aqui** -> [`docs/GUIA-EVALUACION.md`](docs/GUIA-EVALUACION.md):
 > recorrido guiado de 10 minutos, mapa RF -> evidencia, pruebas automatizadas y punteros
-> de codigo para la defensa.
+> de codigo para la defensa. Para el **frontend** (Fase 2), siga el recorrido en el navegador
+> de [`docs/GUIA-EVALUACION-FASE2.md`](docs/GUIA-EVALUACION-FASE2.md).
 
 ### 0. Probar sin instalar (ambiente desplegado)
 
@@ -71,7 +72,7 @@ cd shopcart
 
 ### 2. Base de datos
 
-Requiere SQL Server 2022. Desde `db/`, el instalador aplica los scripts en el unico orden
+Requiere SQL Server 2019 o superior (probado en 2022). Desde `db/`, el instalador aplica los scripts en el unico orden
 canonico valido y verifica el resultado (detalle en [`db/README.md`](db/README.md)).
 Elija segun como autentique contra su SQL Server:
 
@@ -87,6 +88,10 @@ cd db
 
 Al terminar imprime los conteos de verificacion: **26 tablas**, procedimientos, triggers,
 vistas y el login `shopcart_app`. Si ves "Instalacion completada", esta lista.
+
+> El instalador asume que no existe una base de datos ShopCart en la instancia. Si ya
+> existe (p. ej. de una instalacion previa), ejecuta `db\reinstalar.ps1 -Force` (o
+> `db/reinstalar.sh --force`), que la elimina y la vuelve a crear con semillas.
 
 > **Avisos esperados (no son errores).** Al aplicar `014`, SQL Server emite "The module '…'
 > depends on the missing object 'dbo.SP_Carrito_Obtener'… will still be created": es normal
@@ -157,6 +162,257 @@ propios delante de la API; secretos JWT y contrasena de BD fuertes y **rotados**
 control de versiones; y los `RATE_LIMIT_*_MAX` en sus valores reales (no 100). El archivo de
 semillas `099` no se aplica en produccion. Ver [Despliegue](#despliegue) y `deploy/README.md`.
 
+## Fase 2 — Frontend y proyecto completo
+
+La Fase 2 agrega el **frontend web** (tienda para cliente/invitado y area interna para
+Operador/Administrador) sobre la API de Fase 1, con cambios de backend **solo aditivos**.
+Para evaluarla paso a paso, vea la **[Guia de evaluacion Fase 2](docs/GUIA-EVALUACION-FASE2.md)**
+(recorridos de Cliente, Operador y Administrador) y la carpeta Postman
+`00 Recorrido guiado Fase 2`.
+
+### a. Que se entrega
+
+**Tienda** (React 18 + Vite + TS strict en `web/`), con `LayoutTienda`/`LayoutCheckout`:
+
+| Pantalla | Ruta | Acceso |
+|----------|------|--------|
+| Inicio (hero, categorias, mas vendidos, ofertas) | `/` | Publico |
+| Catalogo (busqueda, filtros, orden, paginacion) | `/catalogo` | Publico |
+| Detalle de producto (variantes, imagen por variante) | `/producto/:id` | Publico |
+| Carrito | `/carrito` | Publico (cliente o invitado) |
+| Checkout (una sola pagina) | `/checkout` | Cliente |
+| Confirmacion del pedido | `/checkout/confirmacion/:idPedido` | Cliente |
+| Mis pedidos | `/mis-pedidos` | Cliente |
+| Detalle de pedido (linea de tiempo) | `/mis-pedidos/:id` | Cliente |
+| Mi cuenta (datos, direcciones, seguridad, facturacion) | `/cuenta` | Cliente / Operador / Administrador |
+| Iniciar sesion | `/login` | Publico |
+| Crear cuenta | `/registro` | Publico |
+
+**Area interna** (`/admin`, `LayoutInterno`; el Operador ve en **solo lectura** lo que no
+puede escribir, los elementos sin acceso se ocultan):
+
+| Pantalla | Ruta | Acceso |
+|----------|------|--------|
+| Dashboard | `/admin` | Administrador (completo); Operador ve solo lo operativo ("Ahora mismo", feed en vivo, Top productos) |
+| Pedidos (cola de operacion) | `/admin/pedidos` | Operador / Administrador |
+| Detalle de pedido (operacion) | `/admin/pedidos/:id` | Operador / Administrador |
+| Inventario (existencias, kardex, movimientos) | `/admin/inventario` | Operador / Administrador |
+| Productos (catalogo de administracion) | `/admin/productos` | Operador (lectura) / Administrador |
+| Categorias | `/admin/categorias` | Operador (lectura) / Administrador |
+| Cupones | `/admin/cupones` | Administrador |
+| Bitacora | `/admin/bitacora` | Administrador |
+| Usuarios | `/admin/usuarios` | Administrador |
+
+Un Cliente que entra a `/admin` recibe la pagina `/403`.
+
+### b. Levantar todo en una maquina limpia
+
+Requisitos: **SQL Server 2019 o superior** (probado en 2022; la truncacion de periodo del
+dashboard no usa `DATETRUNC`, asi que corre en 2019), **Node >= 24** y **npm**. Orden: base de
+datos -> API -> frontend.
+
+**1 · Base de datos** (desde `db/`):
+
+```powershell
+# Windows (PowerShell)
+cd db
+.\aplicar.ps1                                  # autenticacion de Windows
+.\aplicar.ps1 -User sa -Password '<pass>'      # autenticacion SQL
+```
+
+```bash
+# Linux / macOS
+cd db
+./aplicar.sh                                   # -u sa -p '<pass>' para autenticacion SQL
+```
+
+Deja las 26 tablas, los SP, las semillas (`099`) y el login `shopcart_app` (detalle en
+[`db/README.md`](db/README.md)).
+
+**2 · API** (desde `api/`, queda en `http://localhost:3000`):
+
+```bash
+cd api
+npm ci
+cp .env.example .env     # Windows PowerShell: Copy-Item .env.example .env
+npm run dev
+```
+
+`api/.env.example` trae valores listos para evaluacion local (clave de `shopcart_app`,
+secretos JWT validos, `PAGO_SIMULADO=true`, `RATE_LIMIT_*_MAX=100`). Verifique
+`GET http://localhost:3000/health` -> `db: "ok"`.
+
+**3 · Frontend** (desde `web/`, queda en `http://localhost:5173`):
+
+```bash
+cd web
+npm ci
+cp .env.example .env     # VITE_API_URL=http://localhost:3000 (sin barra final; el front agrega /api/v1). Windows: Copy-Item .env.example .env
+npm run dev
+```
+
+Abra `http://localhost:5173` (tienda). El CORS de la API ya permite ese origen
+(`api/.env.example`, `CORS_ORIGIN`).
+
+**Variante de produccion.** `cd web && npm run build` genera `web/dist` (estaticos); se
+sirven detras del **mismo origen** que la API (un reverse proxy enruta `/api` y `/uploads`
+a la API y el resto a `web/dist`), de modo que no hace falta CORS ni `VITE_API_URL`
+apuntando a otro host. El ejemplo real con Docker Compose + Caddy esta en
+[`deploy/`](deploy/) (ver [Despliegue](#despliegue)).
+
+### c. Credenciales de prueba
+
+Las crea `db/scripts/099_Semillas.sql` (no se aplican en produccion; ver
+[Credenciales de prueba](#credenciales-de-prueba) para la nota de seguridad). `cliente2` y
+`cliente3` son clientes demo que agrega la Fase 2 para poblar pedidos y el dashboard.
+
+| Correo | Contrasena | Rol | Que puede hacer |
+|--------|-----------|-----|-----------------|
+| `admin@shopcart.local` | `Admin123!` | Administrador | Todo: catalogo, inventario, pedidos, cupones, usuarios, bitacora, dashboard |
+| `operador@shopcart.local` | `Operador123!` | Operador | Operacion: pedidos (avanzar/cancelar/devolver), inventario (movimientos), dashboard; el resto en solo lectura; sin bitacora ni usuarios |
+| `cliente@shopcart.local` | `Cliente123!` | Cliente | Comprar: catalogo, carrito, checkout, mis pedidos, mi cuenta |
+| `cliente2@shopcart.local` | `Cliente123!` | Cliente | Igual que el cliente (datos demo) |
+| `cliente3@shopcart.local` | `Cliente123!` | Cliente | Igual que el cliente (datos demo) |
+
+### d. Arquitectura del frontend
+
+Carpetas en `web/src`: **`api/`** (cliente HTTP y llamadas por modulo), **`lib/`**
+(TanStack Query: claves, hooks `useXxx`; utilidades), **`auth/`** (`AuthContext`, `useAuth`,
+`RutaProtegida`), **`componentes/`** (`ui/`, `layout/`, `direcciones/`) y **`paginas/`**
+(una por ruta, con `admin/` y `catalogo/`). Puntos clave:
+
+- **Estado de servidor con TanStack Query** (claves por modulo en `lib/claves.ts`,
+  `keepPreviousData`, `staleTime`); **sesion con Context** (`useAuth`); **formularios con
+  react-hook-form + zod** usando **las mismas reglas que la API** (p. ej. contrasena min 8
+  con letra y numero).
+- **Rutas protegidas por rol** (`RutaProtegida` + pagina `/403`); el area interna vive bajo
+  `/admin` con guard de Administrador/Operador y candados extra en bitacora/usuarios.
+- **Renovacion transparente del token:** access token **en memoria**, refresh token en
+  `localStorage` con **rotacion**; ante un `401 TOKEN_EXPIRED` se renueva con **single-flight**
+  (una sola llamada a `/auth/refresh`) y se reintenta la peticion; el refresh se **serializa con
+  Web Locks** entre pestanas para no presentar el mismo refresh dos veces (la deteccion de
+  reutilizacion del backend revocaria la cadena).
+- **Ninguna cifra se calcula en el navegador:** precios, totales, IVA, descuentos,
+  existencias resultantes y KPIs vienen de la API/SQL; el front solo cuenta, compara y
+  formatea en quetzales.
+- **Estados de carga/vacio/error** unificados (`EstadoVista`: esqueleto, mensaje de vacio y
+  error con "Reintentar"); **responsive** (las tablas del area interna pasan a tarjetas en
+  < 1024 px, sin scroll horizontal); **accesibilidad basica** (roles/aria, foco atrapado en
+  paneles y modales, `aria-sort` en las cabeceras ordenables, `prefers-reduced-motion`).
+
+Detalle pantalla por pantalla en [Frontend (web/)](#frontend-web) y en las secciones de
+decisiones F6-F9 mas abajo.
+
+### e. Cambios de backend (solo aditivos)
+
+Scripts nuevos de Fase 2 (orden canonico e idempotencia en [`db/aplicar.ps1`](db/aplicar.ps1)
+y [`db/README.md`](db/README.md)):
+
+| Script | Objetos | Pantalla(s) que lo usan |
+|--------|---------|-------------------------|
+| `021_SP_Catalogo_Publico` | `SP_Catalogo_Destacados`, `SP_Cupones_Vigentes` (excluyen `DisponibleTotal = 0`) | Inicio (mas vendidos / ofertas) |
+| `022_Migracion_PedidoFacturacion` | `Pedido.NombreFactura`, `Pedido.NITFactura` | Checkout, Confirmacion, Detalle de pedido |
+| `023_SP_Pedidos_Cliente` | `SP_Pedidos_ListarCliente`, `SP_Pedidos_ResumenCliente`, `SP_Pedidos_PagoCliente` | Mis pedidos, Detalle de pedido |
+| `024_SP_Fase2_Cuenta` | `Usuario.Telefono`; `SP_Usuarios_ObtenerPerfil`/`ActualizarPerfil`, `SP_Auth_ObtenerHashPorID`/`CambiarContrasena`, `SP_Catalogo_ListarAdmin` | Mi cuenta, Productos (admin) |
+| `025_Migracion_VarianteImagen` | `Variante.ImagenURL` | Detalle, Carrito, Checkout, Pedidos (imagen por variante), Productos (admin) |
+| `026_SP_Fase2_Operacion` | `SP_Inventario_ListarAdmin`/`Resumen`/`SimularMovimiento`, `SP_Pedidos_ListarOperacion`/`ResumenOperacion` | Inventario, Pedidos (operacion) |
+| `027_SP_Fase2_Control` | `SP_Cupones_ListarAdmin`/`ResumenAdmin`, `SP_Bitacora_Consultar`/`ListarPorRegistro`, `SP_Usuarios_ListarAdmin`/`Desbloquear` | Cupones, Bitacora, Usuarios |
+| `028_SP_Fase2_Dashboard` | `SP_Dashboard_Resumen`/`VentasPorDia`/`VentasPorCategoria`/`Embudo`/`HorasPico`/`TopProductos`/`Cupones`, `SP_Eventos_EstadoVariante`, `SP_Sistema_Instalacion` | Dashboard, eventos en vivo |
+| `029_Migracion_UsuarioFlags` | `Usuario.DebeCambiarContrasena`; `TR_Usuario_Bitacora` (audita alta/rol/estado/desbloqueo, sin `HashContrasena`). Va **antes de 005** (lo referencian 005/006/024) | Mi cuenta (cambio obligatorio), Usuarios (bitácora) |
+
+**SP/columnas de Fase 1 que recibieron adiciones compatibles** (parametros opcionales con
+valor por defecto o columnas nuevas en el recordset; las firmas y los consumidores de Fase 1
+no cambian):
+
+| Script (Fase 1) | Adicion aditiva |
+|-----------------|-----------------|
+| `009_SP_Categorias` | Columna `CantidadProductosTotal` ("visibles / totales" en Categorias admin) |
+| `010_SP_Catalogo` | `SP_Catalogo_ActualizarVariante` acepta `@ConservarImagen` (default `1`: no toca `ImagenURL` si el cuerpo no trae imagen) |
+| `012_SP_Carrito` | Las lineas devuelven `COALESCE(imagen de la variante, imagen del producto)` (resuelto en SQL) |
+| `018_SP_Pedidos` | El recordset de detalle agrega `Categoria`, `IDProducto`, `ProductoActivo`, `ImagenPrincipal` por linea |
+| `021_SP_Catalogo_Publico` | Destacados/ofertas excluyen productos con `DisponibleTotal = 0` |
+
+> **Compatibilidad verificada:** las carpetas de Fase 1 de la coleccion Postman (M1-M9)
+> siguen pasando en verde con estos cambios (newman, `exit 0`).
+
+**Orden canonico del instalador** (una sola lista en `aplicar.ps1`/`aplicar.sh`):
+`001…008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]`.
+Reglas de **dependencia de compilacion** (`CREATE OR ALTER` valida las columnas al compilar):
+**`025` va antes de `010`** (y de `012/016/018/023/024`) porque agrega `Variante.ImagenURL` que
+esos SP referencian; **`022` va antes de `016`/`018`** porque agrega `Pedido.NombreFactura`/
+`NITFactura`; y `012` va tras `013`/`014`. Convencion: los scripts con caracteres **no ASCII**
+se guardan en **UTF-8 con BOM** (si no, `sqlcmd` los lee como Windows-1252; fue la causa del
+`Â·` que `026` mostraba antes de llevar BOM).
+
+### f. Decisiones de la Fase 2 (propias)
+
+Una linea de justificacion cada una (detalle en F6-F9 y en [Frontend (web/)](#frontend-web)):
+
+- **Checkout en una sola pagina** — menos pasos y abandono; entrega, facturacion, metodo de
+  pago y reserva conviven con la cuenta regresiva en vivo.
+- **Facturacion (NIT/CF) como snapshot en el pedido** — el pedido guarda `NombreFactura`/
+  `NITFactura` tal como se eligieron; validacion de formato del NIT, **sin consulta a la SAT**.
+- **Checkout solo con cuenta (fusion del carrito de invitado)** — el pago crea un pedido con
+  dueno, direccion y auditoria; al entrar, el carrito de invitado (`X-Cart-Token`) se fusiona
+  con el del cliente, asi que no se pierde nada y no hace falta un checkout de invitado.
+- **Imagen por variante y subida de archivos** — `Variante.ImagenURL`; la subida valida por
+  **firma de bytes** (no por extension), guarda con **nombre aleatorio** (`randomUUID`) y limita
+  a 2 MB / 1 archivo (SVG y otros -> `415`; mayor a 2 MB -> `413`).
+- **Estado derivado de productos** (Publicado / Agotado / Incompleto / Oculto) calculado en SQL;
+  **"borrador" = inactivo** (oculto). Un panel refleja el estado sin un campo de estado extra.
+- **"Agotado" visible en la tienda** — un producto activo sin disponible se muestra agotado (no
+  se oculta), para no romper enlaces ni perder SEO/interes.
+- **SSE con ticket de un solo uso** — `POST /eventos/ticket` (60 s, un uso) evita poner el JWT en
+  la URL del `EventSource` (quedaria en logs/historial/proxies).
+- **Cache de reportes invalidado por eventos** — el dashboard usa el mismo cache de M9; cada
+  mutacion de ventas/inventario emite al bus y dispara `invalidarTodo()`.
+- **Hora local de Guatemala en "horas pico"** — la matriz dia x hora se interpreta en la zona del
+  negocio, no en UTC, para que "las 7 pm" sea la hora real.
+- **Paleta y tipografia** — Tailwind con tokens propios (marino/ambar/naranja, radios, sombras,
+  degradados) y fuente Plus Jakarta Sans, para una identidad consistente de "Gasolineras Don Arturo".
+
+### g. Extras implementados
+
+Los cuatro extras (detalle y como verlos en [Extras implementados](#extras-implementados) y en
+la coleccion Postman):
+
+- **Rate limiting** (`/auth`, checkout, cupones; `429` con error estandar) — carpeta
+  `Manual (rate limit)` ("Login x11 -> 429").
+- **Cache de reportes con invalidacion correcta** (`X-Cache: HIT|MISS`) — `F2 Dashboard` y
+  `M9 Reportes` (MISS -> HIT y reinicio por evento).
+- **Exportacion a Excel** (ventas/categorias/top en `.xlsx`) — boton "Exportar Excel" del
+  dashboard (solo Administrador) y `M9 Reportes`.
+- **SSE / eventos en vivo** — el chip "En vivo" y el feed "Ahora mismo" del dashboard; abra el
+  dashboard y, en otra ventana, compre como cliente para ver llegar el evento.
+
+### h. Pruebas
+
+- **Postman / newman:** carpetas `F2 *` (y `00 Recorrido guiado Fase 2`, los 15 requests que
+  respaldan los recorridos). Ver [`docs/postman/README.md`](docs/postman/README.md) y la
+  seccion [Postman / newman](#postman--newman).
+- **`api/tests` (Node puro):** `test:concurrencia` (10 clientes por 1 unidad), `sse.mjs` (flujo
+  del stream) y `test:rendimiento` (p50/p95 de reportes). Ver
+  [Pruebas de carga](#pruebas-de-carga-node-puro-solo-http).
+- **Playwright (`web/`):** `npm run test:e2e` reinstala la BD (semillas frescas) y corre la
+  suite (compra de punta a punta, area interna, dashboard en vivo, ordenamiento, RF-03). Requiere
+  API (`:3000`) y Vite (`:5173`) arriba y **`RATE_LIMIT_AUTH_MAX=400`** en `api/.env` mientras
+  corre la suite (hace ~25 logins). Ver [`web/README.md`](web/README.md).
+
+### i. Limitaciones conocidas y mejoras futuras
+
+- **Checkout de invitado** con usuario sombra: hoy el pago exige cuenta (el carrito de invitado
+  se fusiona al entrar).
+- **Exportacion a Excel de pedidos e inventario**: hoy el `.xlsx` cubre ventas, categorias y top
+  productos (M9), no pedidos ni inventario.
+- **Filtro "sistema" en la bitacora**: hoy no se distingue en la UI el autor `NULL` (acciones del
+  sistema) de los usuarios.
+- **Cambio de contrasena obligatorio en el primer acceso** del usuario interno: hoy la contrasena
+  temporal funciona hasta que el usuario decide cambiarla en Mi cuenta (no se fuerza).
+- **Ratings/resenas** de productos y **notificaciones por correo** (pedido confirmado, cambio de
+  estado): no implementados.
+- Otras notas de alcance de las pruebas de navegador estan en
+  [`web/README.md`](web/README.md#limitaciones-conocidas).
+
 ## Variables de entorno
 
 Se definen en `api/.env` (plantilla en `api/.env.example`). La aplicacion valida
@@ -201,7 +457,19 @@ Esta tabla refleja 1:1 las claves que valida `api/src/config/env.ts` (y `api/.en
 
 Se aplican con `db/aplicar.ps1` (o `aplicar.sh`) en el **orden canonico unico** definido
 en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
-[`db/README.md`](db/README.md). Resumen:
+[`db/README.md`](db/README.md). El orden de ejecucion actual es:
+
+```
+001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 [099]
+```
+
+`012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
+y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
+`NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
+`023`, `024`, `026` y `027` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
+`026` (operacion del area interna) y `027` (control: cupones, bitacora y usuarios) cierran la
+lista: solo leen/extienden objetos ya creados. La
+tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
 |--------|-------------|
@@ -225,7 +493,15 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
-| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9). Se aplica al final. |
+| `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
+| `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: columnas `NombreFactura` y `NITFactura` (snapshot) en `dbo.Pedido` y `CHECK CK_Pedido_NITFactura` (NULL, `CF` o inicia con digito). Idempotente. |
+| `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido del cliente con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, hasta 3 imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos por estado, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. |
+| `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna `Usuario.Telefono`; perfil del cliente (`SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil`); cambio de contrasena (`SP_Auth_ObtenerHashPorID` + `SP_Auth_CambiarContrasena`, que revoca toda la cadena de refresh); y `SP_Catalogo_ListarAdmin` (listado de administracion con estado derivado por `CASE`, SKUs via `STRING_AGG`, filtros y conteos). Ademas `009` suma `CantidadProductosTotal` y `021` excluye de destacados los productos sin existencia disponible. |
+| `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna `dbo.Variante.ImagenURL` (imagen propia por variante; `NULL` = usa la del producto). Reordenada **antes** de `010/012/016/018/023/024`, que la referencian. Los SPs de crear/actualizar variante reciben `@ImagenURL` y `@ConservarImagen` (1 por defecto: no toca la imagen, para no romper M2); `ObtenerProducto` devuelve `ImagenURL`; `ListarAdmin` suma `VariantesConImagen`; carrito/pedido/resumen usan `COALESCE(v.ImagenURL, <imagen del producto>)`. |
+| `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion, existencia/reservado/disponible, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`); `SP_Inventario_Resumen` (KPIs + movimientos de hoy por tipo + inconsistencias + `UmbralBajoStock`/`ReservaMinutos`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura**: `Permitido`/`Motivo`); `SP_Pedidos_ResumenOperacion` (conteos del flujo y antiguedad del PAGADO mas viejo); `SP_Pedidos_ListarOperacion` (estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango y columnas de operacion). Solo lectura/simulacion: el registro real y los cambios de estado siguen en `011`/`018`. Va al final. |
+| `027_SP_Fase2_Control.sql` | Fase 2 (aditivo, F8): control del area interna. Cupones (`SP_Cupones_ListarAdmin` con estado derivado/alcance/dias-para-vencer y filtros; `SP_Cupones_ResumenAdmin` con KPIs de 30 dias y conteos por estado), bitacora (`SP_Bitacora_Consultar` +`@Texto` LIKE sobre los JSON; `SP_Bitacora_ListarPorRegistro`) y usuarios (`SP_Usuarios_ListarAdmin` con pedidos/bloqueo/conteos; `SP_Usuarios_Desbloquear`). No altera los SP de M1/M5/M8. Va al final. |
+| `028_SP_Fase2_Dashboard.sql` | Fase 2 (aditivo, F9): datos del dashboard. Solo lo que `020` no cubre: `SP_Dashboard_Resumen` (4 KPIs con comparativo y `VariacionPct` en SQL), `SP_Dashboard_VentasPorDia` (serie diaria con ceros via CTE recursiva + unidades y ticket por dia), `SP_Dashboard_VentasPorCategoria` (+`Porcentaje`), `SP_Dashboard_Embudo` (carritos/checkouts/pagos con tasas), `SP_Dashboard_HorasPico` (matriz dia×hora en hora local; `@ZonaHoraria` validada contra `sys.time_zone_info`, Guatemala por defecto), `SP_Dashboard_Cupones` (mas usados del periodo) y `SP_Eventos_EstadoVariante` (para el evento SSE de inventario). Top productos se reusa de `020`. Usa `VW_Reportes_*`; va al final. |
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9); asigna la imagen propia (`/img/productos/<SKU>.jpeg`) a las tres presentaciones del Refrigerante. Se aplica al final. |
 
 ## Decisiones tecnicas
 
@@ -756,13 +1032,16 @@ anterior es 0). Ademas devuelve `CarritosAbandonados` y `VariantesBajoStock`.
 cache en memoria con TTL (`REPORTES_CACHE_TTL_SEGUNDOS`, default 60; `0` lo desactiva). La
 **clave** es el nombre del reporte mas sus parametros ordenados de forma estable; no guarda
 nada por usuario (todas las rutas son de Administrador). Responde el header **`X-Cache:
-HIT|MISS`**. Limite de 200 entradas con desalojo LRU simple. Nunca cachea respuestas de
-error. **Invalidacion por evento:** los servicios que cambian ventas o inventario
-(`checkout.service` al aprobar un pedido, `pedidos.service` al cambiar estado/cancelar/
-devolver, `inventario.service` en cada movimiento) llaman `invalidarTodo()` tras el SP
-exitoso, de modo que el proximo reporte recomputa. Con varias instancias de API el cache
-seria por-proceso; el equivalente compartido es Redis con la misma clave y el mismo evento
-de invalidacion.
+HIT|MISS`** (tambien en los endpoints de `/dashboard`, que comparten este cache). Limite de
+200 entradas con desalojo LRU simple. Nunca cachea respuestas de error. **Invalidacion por
+evento (F9):** las mutaciones que cambian ventas o inventario emiten un evento al bus
+(`api/src/eventos/bus.ts`) despues de que el SP confirma —`pedido.creado` (checkout al
+aprobar), `pedido.estado` (cambio de estado/cancelacion), `inventario.movimiento` (cada
+movimiento) y `cupon.usado`— y un listener del bus llama `invalidarTodo()`, de modo que el
+proximo reporte/dashboard recomputa. Los caminos sin evento propio (reserva del checkout,
+liberacion de reservas vencidas y escrituras de catalogo) siguen llamando `invalidarTodo()`
+directo. Con varias instancias de API el cache seria por-proceso; el equivalente compartido
+es Redis con la misma clave y el mismo evento de invalidacion.
 
 **Export a Excel.** `GET /reportes/{ventas,categorias,top-productos}/export` generan un
 `.xlsx` en memoria con `exceljs` (sin dependencias nativas): una hoja con titulo, rango de
@@ -801,6 +1080,183 @@ RNF: `p95 < 1000 ms`. Todos los reportes lo cumplen con amplio margen (p95 maxim
 `IX_Devolucion_Pedido_Monto` (`IDPedido` INCLUDE `MontoReintegrado`) para cubrir la suma de
 devoluciones por pedido sin leer la fila base.
 
+### Fase 2 (frontend web): Mi cuenta y area interna (F6)
+
+Adiciones **solo aditivas**; no cambian el comportamiento ni las firmas de los endpoints
+y SPs evaluados en Fase 1.
+
+- **Perfil del cliente.** `GET /usuarios/me` y `PUT /usuarios/me` (nombre y telefono; nunca
+  correo ni rol), registrados **antes** del candado de Administrador del router de usuarios
+  para que cualquier usuario autenticado acceda al suyo. Respaldados por
+  `SP_Usuarios_ObtenerPerfil`/`SP_Usuarios_ActualizarPerfil` y la columna nullable
+  `Usuario.Telefono` (`024`). No se expone "ultimo acceso" porque la tabla no lo guarda.
+- **Cambio de contrasena.** `POST /auth/cambiar-contrasena` (autenticado, mismo rate limit
+  que el resto de `/auth`): compara la actual con bcrypt en Node y, via
+  `SP_Auth_CambiarContrasena`, guarda el hash nuevo y **revoca toda la cadena de refresh**
+  del usuario (misma revocacion por `IDUsuario` que ya usaba la rotacion de M1). Responde
+  `204`; el access vigente caduca por si solo (15 min) y el front hace logout voluntario.
+  No se agrego "cerrar sesion en todos los dispositivos" como enlace aparte: `/auth/logout`
+  solo revoca el refresh presentado, asi que el cambio de contrasena es la via de revocacion
+  total y el enlace se omite.
+- **Listado de administracion del catalogo.** `GET /productos-admin` (Administrador u
+  Operador) con `SP_Catalogo_ListarAdmin`: no toca `SP_Catalogo_BuscarProductos` (M2). Agrega
+  conteo total de variantes, SKUs (hasta 3 + total, `STRING_AGG`), estado de la categoria y el
+  **estado derivado** calculado en SQL por `CASE` (oculto = inactivo o categoria inactiva;
+  incompleto = activo sin variante activa; agotado = activo completo con `DisponibleTotal = 0`;
+  publicado = resto; `bajoStock` = publicado con `BajoStock = 1`), con filtros de servidor
+  (texto, categoria, estado), `OFFSET/FETCH` y un recordset de conteos para subtitulo y chips.
+  Ruta propia (`/productos-admin`) para no colisionar con `/productos/:id`.
+- **Destacados y categorias.** `021` excluye de "mas vendidos" y "ofertas" los productos con
+  `DisponibleTotal = 0` (Fase 2, no evaluado). `009` agrega la columna aditiva
+  `CantidadProductosTotal` para mostrar "visibles / totales" en la administracion de categorias.
+- **Dinero.** Ninguna cifra se calcula en el navegador: el precio desde (`PrecioMinimo`), los
+  totales y el precio de cada variante vienen de la API; el panel de edicion solo **envia** el
+  precio que el administrador escribe.
+- **Frontend.** `/cuenta` (solo Cliente) con datos personales, direcciones (reutilizando los
+  componentes de direccion del checkout, movidos a `componentes/direcciones/`), seguridad y
+  facturacion por defecto en `localStorage`. Area interna bajo `/admin` (Administrador y
+  Operador) con `LayoutInterno`: Administrador ve todo y el Operador ve Dashboard, Pedidos,
+  Inventario, Productos y Categorias en **solo lectura** (los elementos sin acceso se ocultan,
+  no se deshabilitan). Al entrar, Administrador y Operador aterrizan en `/admin`; el Cliente,
+  en la ruta que pidio o en `/`; un Cliente que entra a `/admin` recibe la pagina `/403`.
+
+### Fase 2: imagen por variante y subida de imagenes (F6.3)
+
+- **Imagen propia por variante.** `dbo.Variante.ImagenURL` (migracion `025`, aditiva). En la tienda, al elegir una variante con imagen propia la imagen principal cambia a esa (y aparece como primera miniatura marcada "Variante"); sin imagen propia se usa la del producto. En carrito, checkout y pedidos la linea muestra `COALESCE(imagen de la variante, imagen principal del producto)`, resuelto **en SQL** (el front no calcula nada). `SP_Catalogo_ActualizarVariante` recibe `@ConservarImagen = 1` por defecto para no tocar la columna cuando el cuerpo no trae imagen (compatibilidad con M2); el editor del panel envia `@ConservarImagen = 0`.
+- **Subida de imagenes** (`POST /archivos/imagenes`, solo Administrador, rate limit 20/15 min por usuario). multer en memoria, maximo 2 MB y 1 archivo; el tipo se valida por **firma de bytes** (JPEG `FF D8 FF`, PNG `89 50 4E 47`, WebP `RIFF…WEBP`), nunca por extension ni `Content-Type` (SVG y cualquier otro -> `415`; mayor a 2 MB -> `413`). El archivo se guarda con nombre `randomUUID()` + extension segun la firma en `api/uploads/img/` (creada al arrancar; `api/uploads/` en `.gitignore` con `.gitkeep`); el nombre original nunca se usa. Respuesta `201 { url, bytes, tipo }`.
+- **Servir estaticos** `/uploads` de solo lectura: `Cross-Origin-Resource-Policy: cross-origin` (para que el front en otro origen muestre las imagenes), `Content-Security-Policy: default-src 'none'`, `X-Content-Type-Options: nosniff`, sin listado ni dotfiles y `fallthrough:false` (archivo inexistente -> `404`, intento de salir de la carpeta -> `403`). El front resuelve las URLs con `resolverImagen`: `/uploads/…` se antepone con el origen de la API (`VITE_API_URL`), y `/img/…` o absolutas se dejan igual.
+- **Semillas.** Las tres presentaciones del Refrigerante (`ADI-REF-{VERDE,ROJO,AZUL}-1GAL`) ya traen imagen propia: `099` asigna `ImagenURL = /img/productos/<SKU>.jpeg` y los archivos viven en `web/public/img/productos/` (las subio el admin y se copiaron desde `api/uploads/` al repo; ruta relativa del sitio, no `/uploads/`). El resto de variantes queda con `ImagenURL = NULL` (usa la del producto).
+
+### Fase 2: operacion de inventario y pedidos (F7)
+
+Area interna **`/admin/inventario`** y **`/admin/pedidos`** para Administrador y Operador.
+Ninguna cifra (dinero ni existencias resultantes) se calcula en el navegador: toda viene de
+la API. Backend solo aditivo (migracion `026`, SPs nuevos); el registro real de movimientos
+sigue en `011` y los cambios de estado/devoluciones en `018`, sin cambios de firma.
+
+- **Inventario** (`GET /inventario/admin`, `GET /inventario/resumen`, `POST /inventario/simular`;
+  Operador o Administrador). La tabla lista cada variante (existencia, reservado, disponible,
+  ultimo movimiento, imagen) con chips `bajoStock`/`agotadas`/`conReservas`; los KPIs y los
+  umbrales (`STOCK_MINIMO`, `RESERVA_MINUTOS`) vienen del resumen. El panel "Registrar
+  movimiento" muestra la **vista previa** del resultado ("42 → 66") con `POST /inventario/simular`
+  (solo lectura, misma regla que el registro: un ajuste negativo no puede dejar el disponible
+  < 0 -> `Permitido = false` + `Motivo`); el registro real reutiliza `POST /inventario/entradas`
+  y `/ajustes` de M3. "Verificar consistencia" (solo Administrador; `GET /inventario/consistencia`)
+  audita el invariante `Existencia = Σ kardex`. La tabla ocupa todo el ancho y "Registrar
+  movimiento + Kardex" se abre en un panel deslizante compartido (`PanelLateral`: overlay, Escape,
+  foco atrapado; pantalla completa en movil) al pulsar Entrada/Ajuste/Kardex, "+ Registrar
+  movimiento" (con buscador de variante) o con el deep link `/admin/inventario?variante=<id>`.
+  El boton "Inventario" del catalogo pasa `/admin/inventario?producto=<id>` y la pagina lo usa
+  como filtro con un chip removible "Producto: <nombre>".
+- **Pedidos** (`GET /pedidos` con filtros de operacion, `GET /pedidos/resumen-operacion`;
+  Operador o Administrador). Cinco tarjetas de flujo (Pagados/En preparacion/Despachados/
+  Entregados/Cancelados-Devueltos) filtran la tabla; "Pagados" entra seleccionada por defecto.
+  Con una tarjeta activa la tabla muestra **todo** ese estado sin filtro de fecha (y en los
+  estados terminales —Entregados, Cancelados/Devueltos— se acota a los ultimos 7 dias por ultima
+  actualizacion, el mismo criterio que el conteo de la tarjeta, de modo que numero y tabla
+  coinciden); el chip "Todos" quita la tarjeta y aplica el rango de fechas. El panel avanza el
+  estado (`POST /pedidos/:id/estado`), cancela (`/cancelar`) y registra devoluciones por linea via
+  TVP (`/devoluciones`) -todos de M7, sin cambios-. Un `409` (otro operador movio el pedido)
+  muestra el mensaje exacto de la API y refresca. El detalle completo reutiliza una vista de operacion en
+  `/admin/pedidos/:id`. Los badges del menu lateral ("Pedidos" = Pagado + En preparacion;
+  "Inventario" = bajo stock + agotadas) se unifican a estos resumenes.
+- **Exportar Excel** se **omitio** en Pedidos: la exportacion `.xlsx` de M9 solo cubre ventas,
+  categorias y top-productos, no pedidos (ver "Diferencias" del reporte de F7).
+
+### Fase 2: control del area interna (F8)
+
+Pantallas **`/admin/cupones`**, **`/admin/bitacora`** y **`/admin/usuarios`**. Backend solo
+aditivo (migracion `027`); los SP de M1/M5/M8 no cambian de firma. Ninguna cifra se calcula en
+el navegador. Las tablas ocupan todo el ancho, sin scroll horizontal a ningun ancho; el detalle
+y la edicion se abren en `PanelLateral` (560 px; pantalla completa en <1024) y en <1024 la tabla
+pasa a tarjetas.
+
+- **Cupones** (`GET /cupones/admin`, `GET /cupones/resumen`; Administrador escribe, **Operador
+  solo lectura**). KPIs del resumen (descuento otorgado 30 d, cupon mas usado, por vencer ≤ 7 d,
+  tasa de uso), chips por estado derivado (Vigente/Programado/Vencido/Agotado/Inactivo) con
+  conteos, y tabla con beneficio, alcance, vigencia, barra de usos y estado. El alta/edicion
+  (reutiliza `POST`/`PUT /cupones`, `PATCH /cupones/:id/estado` de M5) deshabilita codigo/tipo/
+  valor/alcance si el cupon ya tiene usos (el SP lo rechaza con **409**, no 422); crear/editar/
+  desactivar invalida `GET /cupones/vigentes`, por lo que el nuevo cupon aparece en la cinta de la
+  tienda y en la tarjeta de cupones del catalogo.
+- **Bitacora** (`GET /bitacora` +`texto`, `GET /bitacora/registro`; Administrador, Operador -> 403).
+  Filtros por tabla (entidades auditadas de `019`), accion, rango de fechas (7 dias por defecto) y
+  texto/ID. Cada fila resume el cambio comparando los dos JSON **en el navegador** (presentacion,
+  no negocio): UPDATE muestra `Campo: antes -> despues`. El detalle abre dos columnas Antes/Despues
+  resaltando las claves que cambiaron y enlaza "Ver todos los eventos de \<Tabla\> #id"
+  (`SP_Bitacora_ListarPorRegistro`). Es inmutable: sin exportar (M9 no lo cubre) ni editar.
+- **Usuarios** (`GET /usuarios/admin`, `POST /usuarios/:id/desbloquear`; Administrador, Operador
+  -> 403). Chips por rol/estado con conteos, pedidos por cliente, y estado Activo/Bloqueado
+  (con minutos restantes)/Desactivado. "Editar" cambia rol y estado (confirma al promover a
+  Administrador o al desactivar) y "Desbloquear" limpia el bloqueo; sobre la propia cuenta no hay
+  acciones (el backend ya impide auto-cambiar rol/estado con **409**). "Nuevo usuario interno"
+  (`POST /usuarios` **sin** contrasena) genera una **contrasena temporal** en el servidor
+  (`crypto`, 14 caracteres) devuelta **una sola vez** en la respuesta y nunca registrada en logs
+  ni en la bitacora (`dbo.Usuario` no se audita); el usuario la cambia en **Mi cuenta**
+  (`/cuenta`, habilitada tambien para roles internos: solo Datos y Seguridad). Los clientes se
+  registran desde la tienda.
+
+### Fase 2: dashboard, eventos en vivo y ajustes (F9)
+
+Pantalla **`/admin`** (Dashboard del area interna) sobre los reportes de M9, mas un canal de
+eventos **en vivo** (SSE). **RF-01 al pie de la letra:** los bloques de **negocio** del
+dashboard (ventas, categorias, embudo, horas pico, cupones y los KPIs del resumen) son **solo
+del Administrador**; el **Operador** ve el saludo, el panel "Ahora mismo", el feed en vivo y
+Top productos (lo operativo). Backend solo aditivo (migracion `028`, SPs `/dashboard` nuevos;
+el bus reusa el evento de invalidacion de M9). Ninguna cifra se calcula en el navegador.
+
+- **Datos del negocio (`GET /dashboard/resumen|ventas-dia|categorias|embudo|horas-pico|cupones`,
+  solo Administrador).** Pasan por el **mismo cache** de M9 (`X-Cache HIT|MISS`), invalidado por
+  los eventos del bus. `028` solo agrega lo que `020` no cubria: `resumen` (4 KPIs con su valor
+  del periodo anterior y `VariacionPct` en SQL), `ventas-dia` (serie diaria/semanal/mensual con
+  ceros, tabla de numeros por CTE recursiva), `categorias` (+porcentaje del total), `embudo`
+  (carritos→pagos con tasas), `horas-pico` (matriz dia×hora en hora de Guatemala) y `cupones` del
+  periodo. En el front, el Operador **no monta** estos bloques (no provocan `403`).
+- **Datos operativos (tambien Operador).** `GET /dashboard/top-productos` reusa
+  `SP_Reportes_TopProductos` de M9; junto con `/pedidos/resumen-operacion`, `/inventario/resumen`
+  y el SSE, forman lo que ve el Operador. Export a Excel solo en los bloques cuyo export existe en
+  M9 (ventas, categorias, top), visible solo para Administrador.
+- **Eventos en vivo (SSE).** `api/src/eventos/bus.ts` es un `EventEmitter` de proceso con los
+  tipos `pedido.creado`, `pedido.estado`, `inventario.movimiento`, `inventario.bajoStock` y
+  `cupon.usado`; los servicios emiten **despues** de que el SP confirma. **Autenticacion sin JWT
+  en la URL:** `POST /eventos/ticket` (autenticado, Admin/Operador, rate limit `RATE_LIMIT_EVENTOS_MAX`/min, default 20) devuelve un
+  ticket aleatorio (`crypto.randomBytes(32)`) de **un solo uso** que caduca en **60 s**; un token
+  en el query quedaria en logs/historial/proxies, por eso se usa el ticket. `GET /eventos?ticket=…`
+  lo consume y responde `text/event-stream` (`Cache-Control: no-cache`, `X-Accel-Buffering: no`,
+  `Connection: keep-alive`): envia un evento `hola` con el estado inicial, un comentario `: ping`
+  cada 25 s y los eventos del bus con `id` incremental y `retry: 5000`; limpia el listener al
+  cerrar y limita a **5 conexiones por usuario** (la 6.ª cierra la mas antigua). El cliente
+  (`web/src/lib/useEventosVivo.ts`) **reconecta con un ticket nuevo** ante un corte (el reintento
+  nativo de `EventSource` reusaria el ticket ya consumido). Prueba de flujo HTTP: `node
+  api/tests/sse.mjs` (abre el stream, completa una compra y verifica que `pedido.creado` llega en
+  < 2 s).
+- **Tablero (`/admin`).** Cabecera "Hola, \<nombre\>" + fecha larga, selector de periodo
+  (Hoy/7/30/Mes/Personalizado) que gobierna todos los bloques, chip **"En vivo"** (verde con punto
+  pulsante / gris "Reconectando…") y contador de eventos. Cuatro KPI (el primero en degradado
+  marino) con variacion y **sparkline SVG**; "Ventas por dia" (area con degradado ambar, tooltip),
+  "Ventas por categoria" (barras horizontales con %), "Embudo de compra", "Horas pico" (mapa de
+  calor 7×24, unico scroll horizontal permitido —interno de la matriz), "Top productos" y
+  "Cupones". Columna **"Ahora mismo"**: contadores (de `SP_Pedidos_ResumenOperacion` e inventario)
+  que se actualizan **sin recargar** cuando llegan eventos, y un feed de los ultimos 30 eventos.
+  Graficas con **SVG propio** (sin libreria). Skeleton y error con "Reintentar" **por bloque**;
+  indicador discreto "en caché" cuando la respuesta trae `X-Cache: HIT`. Si un evento del feed
+  enlaza a un pedido que ya no existe (404) se avisa ("Ese pedido ya no existe") y se quita del
+  feed; y si al reconectar el "hola" trae otra `instalacion` de BD (`SP_Sistema_Instalacion`
+  lee `sys.databases.create_date`) el feed se vacia, porque lo creado antes dejo de existir.
+- **Operación en vivo.** `/admin/pedidos` también se suscribe al bus (`useOperacionVivo`): ante
+  `pedido.creado`/`pedido.estado` —o al volver el foco— invalida `claves.operacion.todo`, de
+  modo que **la tarjeta (resumen) y la tabla (listado) se refrescan juntas** y un pedido recién
+  creado aparece sin recargar. (El resumen cuenta por estado actual y el listado filtra por ese
+  mismo estado: coinciden; el desfase anterior era por no refrescar ambas con el mismo evento.)
+- **Ajustes menores.** (1) La presentacion del inventario mostraba `Â·`: el literal `N' · '` ya
+  era correcto; la causa era que `026` (unico `.sql` de Fase 2 con byte no-ASCII) no tenia **BOM
+  UTF-8** y `sqlcmd` lo leia como Windows-1252 —se le agrego el BOM, como ya lo tenia `001`. (2)
+  Barra lateral del area interna con scrollbar fina del color del fondo que solo aparece al pasar
+  el cursor (`.scroll-fino`). (3) Helper `plural()` en `lib/formato.ts` (corrige "1 pedidos"/"1
+  usos"). (4) Tablas del area interna: tamano por pagina **20** por defecto con opciones
+  **20/50/100** (antes el selector mostraba 12/24/48 y no cuadraba con el pie). (5) La prueba E6 de
+  bloqueo ejecuta `db/scripts/pruebas/bloquear_usuario.sql` con `sqlcmd -i` (sin SQL en TypeScript).
+
 ## Logs
 
 La API usa [pino](https://getpino.io) (`api/src/config/logger.ts`). El `logger` emite JSON
@@ -831,9 +1287,10 @@ en todos los entornos; solo con `NODE_ENV=development` la salida es legible
 - **Exportacion a Excel.** Reportes de ventas, categorias y top productos como `.xlsx`
   (`exceljs`, en memoria), con formato de dinero/fecha y proteccion contra inyeccion de
   formulas (ver M9).
-- **SSE (planificado, Fase 2).** Un canal `Server-Sent Events` para refrescar el dashboard en
-  vivo colgaria del **mismo evento de invalidacion** (`invalidarTodo()`): cada mutacion que
-  invalida el cache emitiria tambien un evento al stream. No esta implementado en esta fase.
+- **SSE (implementado en F9).** El canal `Server-Sent Events` del dashboard cuelga del **mismo
+  evento de invalidacion**: cada mutacion emite al bus (`api/src/eventos/bus.ts`) y un listener
+  llama `invalidarTodo()`, de modo que el stream en vivo y la invalidacion del cache comparten los
+  mismos eventos. Ver "Fase 2: dashboard, eventos en vivo y ajustes (F9)".
 
 ## Pruebas
 
@@ -886,6 +1343,32 @@ Contenido por carpeta (en el orden sugerido):
 | `M9 Reportes` | 3 pedidos (A compra, B cancela, C devuelve); ventas/categorias/top/resumen/abandonados; `X-Cache` MISS->HIT; export `.xlsx`; rechazos `403`/`401`/`400` | Si (sufijo) |
 | `Manual (rate limit)` | "Login x11" -> `429`. **Fuera del flujo principal**: correr aparte con `RATE_LIMIT_AUTH_MAX` por defecto | Si |
 
+### Pruebas de navegador (Playwright)
+
+Flujos completos en un navegador real (`web/tests/*.spec.ts`): compra de punta a punta
+(`compra.spec.ts`, la prueba de humo de la tienda), área interna (`control.spec.ts`,
+`operacion.spec.ts`) y dashboard en vivo (`dashboard.spec.ts`).
+
+**Requisitos:**
+
+- La **API** (`:3000`) y **Vite** (`:5173`) ya corriendo (la config **no** levanta servidores).
+- La **BD con semillas** (`db/aplicar.ps1`, incluye `099`); varias pruebas compran/mutan datos.
+- **`RATE_LIMIT_AUTH_MAX=400` en `api/.env` solo mientras corren las pruebas**: la suite hace
+  **~25 inicios de sesión** y cada `page.goto` renueva el access con `/auth/refresh`, que
+  comparte ese limitador; con el default (10) saltaría `429` en las últimas pruebas. `api/.env`
+  es local (ignorado por git); déjalo en 400 únicamente para la suite. El `globalSetup` de
+  Playwright hace un login de prueba y avisa por consola ("Sube RATE_LIMIT_AUTH_MAX a 400 en
+  api/.env para correr la suite") si recibe `429`.
+
+```bash
+cd web
+npx playwright test
+```
+
+Las pruebas corren **en serie** (`workers: 1`) porque **comparten datos** (misma BD y sesión);
+por eso `npx playwright test` sin parámetros pasa de forma estable. Ver también
+[`web/README.md`](web/README.md).
+
 ### Pruebas de carga (Node puro, solo HTTP)
 
 Scripts de `api/`: **con la API ya arriba** (en otra terminal) y `BASE_URL` apuntando a
@@ -916,6 +1399,157 @@ ella (`RATE_LIMIT_*` altos como arriba), desde `cd api`:
   | carritos-abandonados | 28.6 | 35.6 |
 
   RNF `p95 < 1000 ms`: se cumple con amplio margen.
+
+## Frontend (web/)
+
+La tienda (React 18 + Vite + TypeScript strict) vive en [`web/`](web/) y consume la API.
+
+Instalacion:
+
+```bash
+cd web
+npm install
+cp .env.example .env      # VITE_API_URL=http://localhost:3000 (el front agrega /api/v1)
+npm run dev               # http://localhost:5173
+```
+
+`web/.env` se crea desde `web/.env.example`. **Sin ese archivo el front no alcanza la API**
+(usa `VITE_API_URL` para construir las URLs; el valor por defecto es `http://localhost:3000`).
+
+El CORS de la API ya permite `http://localhost:5173` (ver `api/.env.example`, `CORS_ORIGIN`).
+Detalle y scripts en [`web/README.md`](web/README.md).
+
+Decisiones de esta entrega (F0: base + pagina de Inicio):
+
+- **Vite + React 18 + TypeScript strict** (`noUncheckedIndexedAccess`), sin `any`.
+- **React Router 6** con carga diferida (lazy) por pagina.
+- **TanStack Query** para el estado de servidor (catalogo, categorias, cupones), con claves
+  por modulo y `staleTime` de 30 s.
+- **Context** para la sesion (`useAuth`), con `RutaProtegida` por rol y pagina 403 propia.
+- **react-hook-form + zod** para formularios (login).
+- **Tailwind** con tokens de diseno propios (colores marino/ambar/naranja, radios, sombras,
+  degradados y animaciones), fuente Plus Jakarta Sans.
+- **Sesion:** access token en memoria y refresh token en `localStorage`; ante un `401`
+  `TOKEN_EXPIRED` se renueva con **single-flight** (una sola llamada a `/auth/refresh` aunque
+  fallen varias peticiones) y se reintenta la original una vez; si el refresh falla, se cierra
+  la sesion y se redirige a `/login`.
+- **"Mas vendidos"** se calcula por unidades netas de los ultimos 30 dias; si no hay ventas,
+  por fecha de creacion.
+- **"Ofertas"** se derivan de los cupones de categoria vigentes **de tipo PORCENTAJE** (no hay
+  un precio de oferta por producto en el modelo): `PrecioConCupon = ROUND(PrecioMinimo * (1 -
+  Valor/100), 2)`. Los cupones de **monto fijo** no entran en la cuadricula de ofertas —
+  aplican una vez por carrito y pueden exigir un monto minimo, asi que un "precio con cupon"
+  por unidad seria falso; se muestran como una **franja informativa** con su codigo y
+  condiciones. En las semillas el cupon de ofertas es `ADIT15` (15 % sobre *Aditivos y
+  Fluidos*) y la franja de monto fijo muestra `LUB50` (Q50 sobre *Lubricantes*, desde Q300).
+- **Imagenes** servidas por el frontend desde `web/public/img` y referenciadas con rutas
+  relativas (`/img/productos/...`) desde la BD (semillas `099`).
+
+Decisiones de esta entrega (Pantalla 2: Catalogo y Detalle):
+
+- **Filtros, orden y paginacion 100 % del lado del servidor** (`SP_Catalogo_BuscarProductos`)
+  y **reflejados en la URL** (`useSearchParams`): la vista es compartible y recargable, y
+  cambiar cualquier filtro reinicia la pagina a 1. El total y las filas vienen del SP (no se
+  filtra ni ordena en el navegador).
+- **Una categoria a la vez**: el SP acepta un unico `@IDCategoria`, asi que la categoria es de
+  seleccion unica (lista de opciones, no casillas multiples).
+- **El front nunca calcula precios con cupon**: en el catalogo solo muestra una **insignia**
+  (`-15 % con ADIT15`) para cupones de categoria PORCENTAJE, y en el detalle una linea de texto
+  ("con el cupon ADIT15 ahorras 15 %"); el **descuento real lo calcula la BD en el carrito**.
+  Las cifras de cupones de monto se muestran tal cual las devuelve `/cupones/vigentes`.
+- **Agregar al carrito disponible como invitado**: el `X-Cart-Token` lo **acuna el servidor**
+  en el primer `POST /carrito/items` y el cliente HTTP lo guarda (localStorage) y lo reenvia;
+  el contador del encabezado usa `CantidadUnidades` de `GET /carrito` (`staleTime` 10 s) y la
+  pastilla hace una animacion al subir.
+
+Decisiones de esta entrega (Pantalla 3: Carrito y Crear cuenta):
+
+- **Carrito resuelto por identidad, no por ID en la URL**: invitado con el `X-Cart-Token`
+  acunado por el servidor, cliente por su JWT (`cartIdentity`). El front nunca pasa un
+  `IDCarrito`.
+- **Totales 100 % de la base de datos** (`FU_Carrito_CalcularTotales` via los SP del carrito):
+  Subtotal, Descuento, IVA, Total y `TotalLinea` se **muestran tal cual** llegan en
+  `carrito.totales` y `lineas[]`; el navegador solo cuenta, compara y formatea.
+- **Cantidad con debounce de 400 ms y sin estado optimista de totales**: varios clics en
+  `+/-` cambian solo el numero local y envian un unico `PUT`; mientras hay una mutacion en
+  vuelo para esa linea sus botones se bloquean, y los totales se actualizan al invalidar
+  `['carrito']` con la respuesta de la API (nunca se recalculan en el cliente).
+- **Cupones solo con sesion de Cliente** (la API responde 401 al invitado) y
+  **re-validados por la BD en cada lectura**: la caja del cupon muestra la causa exacta
+  (`descuento.causa`) sin interpretarla, y el ahorro es el que calcula la BD
+  (`descuento.descuento`).
+- **Advertencias de linea provenientes del SP** (`Advertencia`, `VarianteActiva`,
+  `Disponible`): bloquean el paso a pagar y, cuando la variante esta inactiva, atenuan la
+  linea y dejan solo "Quitar".
+- **Fusion de carrito al entrar**: login y registro envian el `X-Cart-Token`; si el
+  `carritoFusionado` trae lineas o advertencias, se deja una pista en
+  `sessionStorage["shopcart.fusion"]` y el carrito muestra el aviso una sola vez.
+
+Decisiones de esta entrega (Pantalla 4: Checkout de una sola pagina):
+
+- **Todas las cifras vienen del backend** (`/checkout/iniciar` y `/checkout/resumen`:
+  Subtotal, Descuento, CostoEnvio, IVA, Total, TotalConEnvio); el front solo formatea.
+  La **cuenta regresiva** se deriva de `ExpiraEn` (fecha) contra la hora local con un
+  margen de 2 s, y el texto usa `Minutos` de la respuesta (no un 15 fijo).
+- **Idempotencia que demuestra RF-06 ("no genera dos pedidos")**: al entrar al
+  checkout se genera una clave con `crypto.randomUUID()` y se guarda en
+  `sessionStorage["shopcart.idem"]` junto con una firma del carrito (IDCarrito +
+  variantes/cantidades de la reserva). **La misma clave se reutiliza** en todos los
+  reintentos del mismo intento (doble clic, falla de red, boton "Reintentar"): el
+  servidor responde el mismo pedido con `replay = true`. Se genera una **clave nueva**
+  solo cuando cambia la firma del carrito o tras un pago **APROBADO**; y tras un pago
+  **RECHAZADO** (que ya consumio esa clave en `dbo.Pago`) para que el siguiente intento
+  sea un pago nuevo.
+- **Datos de facturacion (NIT o CF) como snapshot en el pedido**: validacion de
+  formato del NIT (mismo regex en front y API), **sin consulta a la SAT** (supuesto
+  documentado); el pedido guarda `NombreFactura`/`NITFactura` tal como se eligieron.
+- **Entrega estimada "manana antes de las 18:00"**: texto fijo (no hay motor de
+  logistica); decision documentada.
+- **Pago rechazado como modal**: al recibir `Aprobado = false` se abre un modal centrado
+  (no una franja) con el `MensajeResultado` exacto de la API y la **misma cuenta regresiva
+  en vivo**; "Cambiar metodo de pago" lleva el foco al bloque 3 y "Reintentar" vuelve a
+  pagar con la clave de idempotencia nueva. Si la reserva vence con el modal abierto, la
+  pantalla pasa al estado "Tu reserva vencio".
+- **Sesion sincronizada entre pestanas**: el refresh token se guarda en `localStorage`, se
+  relee siempre justo antes de enviarlo y el refresh se **serializa con el Web Locks API**
+  para que dos pestanas nunca presenten el mismo refresh token (la deteccion de reutilizacion
+  del backend revocaria la cadena). Si una pestana cierra sesion, las demas lo detectan por el
+  evento `storage` y van al login; si una escribe un refresh nuevo, una pestana sin sesion la
+  restaura. El access token sigue solo en memoria, por pestana.
+
+Decisiones de esta entrega (Pantalla 5: Mis pedidos y Detalle del pedido):
+
+- **Listado enriquecido por el backend** (`SP_Pedidos_ListarCliente`, `023`): la tarjeta de
+  cada pedido trae `CantidadLineas`/`CantidadUnidades`, hasta 3 imagenes (`Img1`/`Img2`/`Img3`)
+  y un `NombresResumen` (`'A, B y N mas'`) construido en SQL con `STRING_AGG`; el filtro por
+  estado viaja como **lista separada por comas** (el chip "En curso" envia
+  `PAGADO,EN_PREPARACION,DESPACHADO`) y se parsea con `STRING_SPLIT`. `GET /pedidos` detecta al
+  Cliente y usa este SP; Operador/Admin conservan `SP_Pedidos_Listar` sin cambios.
+- **Resumen** (`GET /pedidos/resumen`, `SP_Pedidos_ResumenCliente`): conteos por estado,
+  `TotalComprado` (suma de pedidos no cancelados) y el pedido despachado mas reciente con su
+  fecha estimada; alimenta las 4 tarjetas y los contadores de los chips. La ruta se declara
+  **antes** de `/pedidos/:id` para que el parametro no la capture.
+- **Todas las cifras vienen de la API** (Subtotal, Descuento, CostoEnvio, IVA, Total y los
+  montos de linea/reintegro); el front solo formatea en quetzales.
+- **Linea de tiempo real**: los 4 hitos (Pagado -> En preparacion -> Despachado -> Entregado)
+  toman fecha, hora y autor del **historial** del pedido; "por ti" / "por operacion" se deriva
+  comparando el autor con el dueno del pedido. Variantes para **Cancelado** (ultimo hito gris)
+  y **Devuelto** (hito morado extra). La animacion del hito actual respeta
+  `prefers-reduced-motion` (`motion-safe`).
+- **Cancelar desde la lista o el detalle**: modal de confirmacion con motivo **opcional** (la
+  API exige un texto, por eso se envia uno por defecto si se deja vacio); al exito invalida
+  `['pedidos']` (lista, resumen y detalle) y la tarjeta pasa a Cancelado; `409/422` muestran el
+  **mensaje exacto** de la API y refrescan (otro actor pudo cambiar el estado).
+- **Comprar de nuevo**: agrega cada linea del pedido al carrito en secuencia; una linea que
+  falle (`409` existencia, `404/422` variante inactiva) no detiene a las demas y el toast
+  resume cuantas se agregaron.
+- **Detalle (`GET /pedidos/:id`)**: el recordset de detalle de `018` se enriquecio de forma
+  **aditiva** (Categoria, IDProducto, ProductoActivo, ImagenPrincipal por linea) y la respuesta
+  agrega `pago` (metodo, estado y referencia simulados via `SP_Pedidos_PagoCliente`); los
+  consumidores previos no cambian. El enlace al producto solo aparece si sigue activo; un `404`
+  uniforme (pedido inexistente o ajeno) lleva a la pagina de No encontrado.
+- **"Mis pedidos" visible solo para el Cliente** en el encabezado y la barra inferior movil
+  (la ruta ya estaba protegida por rol).
 
 ## Diagrama ER
 
@@ -976,6 +1610,7 @@ erDiagram
         int IDRol FK
         nvarchar Correo
         nvarchar Nombre
+        nvarchar Telefono
         bit Activo
         int IntentosFallidos
         datetime2 BloqueadoHasta
@@ -992,6 +1627,7 @@ erDiagram
         nvarchar SKU
         decimal Precio
         int Existencia
+        nvarchar ImagenURL
         bit Activo
     }
     Carrito {
@@ -1008,6 +1644,8 @@ erDiagram
         int IDEstadoPedido FK
         int IDDireccion FK
         int IDCupon FK
+        nvarchar NombreFactura
+        nvarchar NITFactura
         decimal Subtotal
         decimal Descuento
         decimal Total
@@ -1120,8 +1758,10 @@ Decisiones de alcance tomadas en Fase 1, consolidadas de M1 a M9:
   `BaseImponible` e `IVA` a partir del total (`PorcentajeIVA` del parametro de IVA en
   `dbo.Parametro`). El **envio tambien grava IVA**: el desglose se calcula sobre el total
   con envio.
-- **`COSTO_ENVIO = 0` por defecto** (parametro en `dbo.Parametro`). La logica soporta un
-  costo de envio > 0, pero la demo usa 0.
+- **`COSTO_ENVIO = 25.00` por defecto** (parametro en `dbo.Parametro`, upsert idempotente en
+  `004`). El envio grava IVA (ver arriba): `SP_Checkout_Iniciar`/`_Resumen` recalculan la base
+  y el IVA sobre el total **con** envio. La logica soporta cualquier valor; cambiarlo en
+  `dbo.Parametro` no requiere redesplegar.
 - **Reembolso simulado.** Cancelaciones y devoluciones reponen inventario y documentan el
   monto, pero no hay pasarela ni tabla de reembolsos (el pago es simulado).
 - **Fusion de carrito.** Al autenticarse con un `X-Cart-Token`, el carrito de invitado se

@@ -55,11 +55,31 @@ DIR="$(cd "$(dirname "$0")/scripts" && pwd)"
 # funciones de cupon).
 ORDEN=(
   001_CreateDatabase 002_SP_Sistema_Ping 003_Security 004_Catalogos
+  # 029 (C2.1): agrega dbo.Usuario.DebeCambiarContrasena (la referencian 005/006/024) y el
+  # trigger de bitacora de Usuario; va ANTES de 005 por esa dependencia de columna.
+  029_Migracion_UsuarioFlags
   005_SP_Auth 006_SP_Usuarios 007_SP_Direcciones 008_VW_Inventario
+  # 025 (F2) agrega dbo.Variante.ImagenURL; va ANTES de 010/012/016/018/023/024, que
+  # referencian la columna (CREATE OR ALTER valida columnas al compilar).
+  025_Migracion_VarianteImagen
   009_SP_Categorias 010_SP_Catalogo 011_SP_Inventario
   013_Migracion_CarritoCupon 014_SP_Cupones 012_SP_Carrito
-  015_Catalogo_EstadosPedido 016_SP_Checkout 017_Migracion_CarritoTokenUnico
-  018_SP_Pedidos 019_Bitacora 020_Reportes
+  015_Catalogo_EstadosPedido 017_Migracion_CarritoTokenUnico
+  019_Bitacora 020_Reportes 021_SP_Catalogo_Publico
+  # 022 agrega NombreFactura/NITFactura a dbo.Pedido; 016 y 018 referencian esas
+  # columnas, por eso se aplican DESPUES de 022 (como 012 va despues de 013).
+  022_Migracion_PedidoFacturacion 016_SP_Checkout 018_SP_Pedidos
+  # 023 (F2): SPs de solo lectura para "Mis pedidos" del cliente. Despues de 018.
+  023_SP_Pedidos_Cliente
+  # 024 (F2): perfil/cambio de contrasena y listado admin del catalogo. Despues de 023.
+  024_SP_Fase2_Cuenta
+  # 026 (F2): operacion de inventario y pedidos del area interna. Al final; solo lee
+  # objetos ya creados (VW_Inventario_Disponible, Variante.ImagenURL, Kardex, Pedido).
+  026_SP_Fase2_Operacion
+  # 027 (F8): control del area interna (cupones, bitacora, usuarios). Aditivo; despues de 026.
+  027_SP_Fase2_Control
+  # 028 (F9): datos del dashboard del area interna. Aditivo; despues de 020/026 (usa VW_Reportes_*).
+  028_SP_Fase2_Dashboard
 )
 [[ $SEMILLAS -eq 1 ]] && ORDEN+=(099_Semillas)
 

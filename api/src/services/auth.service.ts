@@ -68,6 +68,8 @@ interface UsuarioTokenData {
   Nombre: string;
   IDRol: number;
   Rol: string;
+  /** 1 si debe cambiar la contrasena temporal en el primer acceso (solo lo trae el login). */
+  DebeCambiarContrasena?: boolean;
 }
 
 interface UsuarioLogin extends UsuarioTokenData {
@@ -80,7 +82,7 @@ interface UsuarioLogin extends UsuarioTokenData {
 interface SesionResponse {
   accessToken: string;
   refreshToken: string;
-  usuario: { id: number; correo: string; nombre: string; rol: string };
+  usuario: { id: number; correo: string; nombre: string; rol: string; debeCambiarContrasena: boolean };
 }
 
 interface CarritoFusionado {
@@ -119,7 +121,13 @@ function respuestaSesion(
   return {
     accessToken,
     refreshToken,
-    usuario: { id: u.IDUsuario, correo: u.Correo, nombre: u.Nombre, rol: u.Rol },
+    usuario: {
+      id: u.IDUsuario,
+      correo: u.Correo,
+      nombre: u.Nombre,
+      rol: u.Rol,
+      debeCambiarContrasena: Boolean(u.DebeCambiarContrasena),
+    },
   };
 }
 
@@ -269,6 +277,36 @@ export async function logout(refreshToken: string): Promise<void> {
   const tokenHash = sha256Hex(refreshToken);
   await executeSp('SP_Auth_RevocarRefreshToken', [
     { name: 'TokenHash', type: sql.Char(64), value: tokenHash },
+  ]);
+}
+
+/**
+ * Cambia la contrasena del usuario autenticado: compara la actual con bcrypt (igual
+ * que el login), guarda el hash nuevo y revoca toda la cadena de refresh del usuario.
+ * El par (correo inexistente) no aplica: el usuario ya esta autenticado por su access.
+ */
+export async function cambiarContrasena(
+  idUsuario: number,
+  contrasenaActual: string,
+  contrasenaNueva: string,
+): Promise<void> {
+  const actual = await executeSp<{ HashContrasena: string; Activo: boolean }>(
+    'SP_Auth_ObtenerHashPorID',
+    [{ name: 'IDUsuario', type: sql.Int, value: idUsuario }],
+  );
+  const fila = actual.recordset[0];
+  if (!fila || !fila.Activo) {
+    throw new UnauthorizedError();
+  }
+  const ok = await bcrypt.compare(contrasenaActual, fila.HashContrasena);
+  if (!ok) {
+    throw new UnauthorizedError('La contrasena actual no es correcta');
+  }
+
+  const hashNuevo = await bcrypt.hash(contrasenaNueva, BCRYPT_COST);
+  await executeSp('SP_Auth_CambiarContrasena', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+    { name: 'HashNuevo', type: sql.NVarChar(255), value: hashNuevo },
   ]);
 }
 

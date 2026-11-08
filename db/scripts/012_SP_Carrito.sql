@@ -154,7 +154,7 @@ BEGIN
         p.IDProducto,
         p.Nombre   AS Producto,
         cat.Nombre AS Categoria,
-        img.Url    AS ImagenPrincipal,
+        COALESCE(v.ImagenURL, img.Url) AS ImagenPrincipal,
         cd.Cantidad,
         v.Precio   AS PrecioUnitario,
         ROUND(v.Precio * cd.Cantidad, 2) AS TotalLinea,

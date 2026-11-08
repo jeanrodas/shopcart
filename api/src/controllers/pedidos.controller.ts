@@ -22,14 +22,25 @@ export const getPedidos: RequestHandler = async (req, res) => {
   const q = req.query as unknown as ListarPedidosQuery;
   // El cliente solo ve SUS pedidos (se ignora cualquier filtro de cliente del query).
   const idUsuario = rol === ROLES.Cliente ? id : (q.idUsuario ?? null);
-  res.status(200).json(await pedidosService.listar(idUsuario, q));
+  res.status(200).json(await pedidosService.listar(idUsuario, q, rol));
+};
+
+/** Resumen del cliente para "Mis pedidos" (solo Cliente; filtra por su JWT). */
+export const getResumen: RequestHandler = async (req, res) => {
+  const { id } = actor(req);
+  res.status(200).json(await pedidosService.resumen(id));
+};
+
+/** Resumen de operacion (Operador/Admin): conteos del flujo para el area interna. */
+export const getResumenOperacion: RequestHandler = async (_req, res) => {
+  res.status(200).json(await pedidosService.resumenOperacion());
 };
 
 export const getPedido: RequestHandler = async (req, res) => {
   const { id, rol } = actor(req);
   const { id: idPedido } = req.params as unknown as { id: number };
   const idUsuario = rol === ROLES.Cliente ? id : null;
-  res.status(200).json(await pedidosService.obtener(idPedido, idUsuario));
+  res.status(200).json(await pedidosService.obtener(idPedido, idUsuario, rol));
 };
 
 export const postEstado: RequestHandler = async (req, res) => {

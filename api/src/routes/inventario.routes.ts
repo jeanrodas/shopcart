@@ -9,6 +9,8 @@ import {
   ajusteSchema,
   existenciasQuerySchema,
   kardexQuerySchema,
+  inventarioAdminQuerySchema,
+  simularSchema,
 } from '../schemas/inventario.schema.js';
 import {
   postEntrada,
@@ -16,6 +18,9 @@ import {
   getExistencias,
   getKardex,
   getConsistencia,
+  getAdmin,
+  getResumen,
+  postSimular,
 } from '../controllers/inventario.controller.js';
 
 const router = Router();
@@ -28,6 +33,12 @@ const gestion: RequestHandler[] = [authorize(ROLES.Operador, ROLES.Administrador
 router.post('/entradas', ...gestion, validate({ body: entradaSchema }), postEntrada);
 router.post('/ajustes', ...gestion, validate({ body: ajusteSchema }), postAjuste);
 router.get('/existencias', ...gestion, validate({ query: existenciasQuerySchema }), getExistencias);
+
+// F2 operacion (Operador o Administrador): tablero de inventario.
+router.get('/admin', ...gestion, validate({ query: inventarioAdminQuerySchema }), getAdmin);
+router.get('/resumen', ...gestion, getResumen);
+// Vista previa de un movimiento (solo lectura; no registra nada).
+router.post('/simular', ...gestion, validate({ body: simularSchema }), postSimular);
 router.get(
   '/variantes/:id/kardex',
   ...gestion,

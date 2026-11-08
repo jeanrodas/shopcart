@@ -1,0 +1,4 @@
+# Imagenes subidas en tiempo de ejecucion (F2). No se versionan; la carpeta se
+# conserva con un .gitkeep para que exista tras un clon limpio.
+uploads/*
+!uploads/.gitkeep

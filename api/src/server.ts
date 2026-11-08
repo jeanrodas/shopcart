@@ -2,9 +2,13 @@ import { env } from './config/env.js';
 import app from './app.js';
 import { getPool, closePool } from './config/db.js';
 import { logger } from './config/logger.js';
+import { asegurarCarpetaUploads } from './config/uploads.js';
 import { iniciarJobReservas, detenerJobReservas } from './jobs/liberarReservas.js';
 
 async function main(): Promise<void> {
+  // Carpeta de subidas (F2): se crea si no existe antes de atender peticiones.
+  asegurarCarpetaUploads();
+
   // Valida la conexion a la BD antes de empezar a escuchar.
   await getPool();
 

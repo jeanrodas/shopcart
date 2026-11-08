@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { NotFoundError } from './errors/index.js';
 import routes from './routes/index.js';
 import { openapiDocument } from './docs/openapi.js';
+import { UPLOADS_ROOT } from './config/uploads.js';
 
 // Version desde package.json (resuelto en runtime relativo a este archivo: funciona en
 // dev -src- y en la build -dist-, ambos a un nivel de api/package.json).
@@ -59,10 +60,32 @@ app.get('/', (_req, res) => {
   res.status(200).json({
     nombre: 'ShopCart API',
     version: pkg.version,
-    fase: 'Fase 1 - backend',
+    fase: 'Fase 2 - proyecto completo',
+    modoDemo: env.MODO_DEMO,
     enlaces: { health: '/health', apiDocs: '/api-docs', apiBase: '/api/v1' },
   });
 });
+
+// Archivos subidos (F2): estaticos de solo lectura. CORP cross-origin para que el
+// front (otro origen en dev) pueda mostrar las imagenes; CSP default-src 'none' y
+// nosniff endurecen la respuesta; sin listado ni dotfiles; fallthrough:false -> 404
+// propio de serve-static si el archivo no existe o la ruta intenta salir de la carpeta.
+app.use(
+  '/uploads',
+  (_req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  },
+  express.static(UPLOADS_ROOT, {
+    index: false,
+    dotfiles: 'deny',
+    maxAge: '7d',
+    immutable: true,
+    fallthrough: false,
+  }),
+);
 
 app.use('/', routes);
 

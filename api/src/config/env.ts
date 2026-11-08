@@ -52,10 +52,19 @@ const envSchema = z
   RATE_LIMIT_AUTH_VENTANA_MIN: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_CHECKOUT_MAX: z.coerce.number().int().positive().default(20),
   RATE_LIMIT_CUPON_MAX: z.coerce.number().int().positive().default(10),
+  // Tickets de eventos en vivo (F9, SSE): POST /eventos/ticket por minuto.
+  RATE_LIMIT_EVENTOS_MAX: z.coerce.number().int().positive().default(20),
 
   // Saltos de confianza para Express (X-Forwarded-For) detras de un proxy/balanceador.
   // 0 = sin proxy (usa la IP del socket). Ver app.ts.
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
+
+  // F2: subida de imagenes del admin. Carpeta de almacenamiento (se crea al arrancar) y
+  // origen publico opcional de la API (para construir URLs absolutas si se requiere).
+  UPLOADS_DIR: z.string().min(1).default('uploads'),
+  PUBLIC_API_URL: z.string().url().optional(),
+  RATE_LIMIT_UPLOAD_MAX: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_UPLOAD_VENTANA_MIN: z.coerce.number().int().positive().default(15),
 
   // Modo demo: habilita el pago simulado en un ambiente de produccion PUBLICO de
   // demostracion. En un ambiente real debe quedar en false.

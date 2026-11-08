@@ -11,6 +11,9 @@ import checkoutRoutes from './checkout.routes.js';
 import pedidosRoutes from './pedidos.routes.js';
 import bitacoraRoutes from './bitacora.routes.js';
 import reportesRoutes from './reportes.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import eventosRoutes from './eventos.routes.js';
+import archivosRoutes from './archivos.routes.js';
 
 const router = Router();
 
@@ -37,6 +40,12 @@ apiV1.use('/pedidos', pedidosRoutes);
 apiV1.use('/bitacora', bitacoraRoutes);
 // Dashboard y reportes (RF-08): Administrador.
 apiV1.use('/reportes', reportesRoutes);
+// Dashboard del area interna (F9): Administrador y Operador (lectura).
+apiV1.use('/dashboard', dashboardRoutes);
+// Eventos en vivo (F9, SSE): ticket + stream para Administrador y Operador.
+apiV1.use('/eventos', eventosRoutes);
+// Subida de imagenes del admin (F2).
+apiV1.use('/archivos', archivosRoutes);
 router.use('/api/v1', apiV1);
 
 export default router;

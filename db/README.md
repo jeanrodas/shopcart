@@ -5,7 +5,7 @@ procedures; el backend solo los ejecuta.
 
 ## Requisitos
 
-- **SQL Server 2022** (se usa `DATETRUNC`, disponible desde 2022).
+- **SQL Server 2019 o superior** (probado en 2022; no se usa `DATETRUNC` ni otras funciones exclusivas de 2022).
 - **`sqlcmd`** del cliente **ODBC 18** o **go-sqlcmd**. El instalador invoca `sqlcmd`
   con `-C` (confiar en el certificado del servidor, requerido por ODBC 18) y `-b`
   (abortar al primer error del script).
@@ -25,6 +25,23 @@ Equivalente en bash: `./aplicar.sh` (opciones `-s/--server`, `-u/--user`, `-p/--
 definido en una sola lista dentro de `aplicar.ps1`/`aplicar.sh`, se detiene en el primer
 error mostrando el script, y al final imprime conteos de verificacion (26 tablas,
 procedimientos, triggers, vistas y el login `shopcart_app`).
+
+### Reinstalar desde cero (semillas frescas)
+
+`reinstalar.ps1` / `reinstalar.sh` **borran** la base `ShopCart` (si existe) y vuelven a
+aplicar `aplicar`. Piden confirmacion (escribir `si`) salvo que se pase `-Force` / `--force`.
+Sirven para dejar **semillas frescas** antes de la suite de navegador (la usa `web:
+npm run test:e2e`). Mismas opciones de servidor/usuario que `aplicar`.
+
+```powershell
+.\reinstalar.ps1 -Force                       # Windows: borra y reinstala sin preguntar
+.\reinstalar.ps1 -User sa -Password '<pass>'  # pregunta confirmacion
+```
+
+```bash
+./reinstalar.sh --force
+./reinstalar.sh -s host -u sa -p '<pass>'      # pregunta confirmacion
+```
 
 ### Clave del login de aplicacion (produccion)
 
@@ -49,19 +66,29 @@ En contenedor, `aplicar.sh` resuelve `sqlcmd` del `PATH` o de `/opt/mssql-tools1
 ### Orden canonico y el equivalente manual
 
 ```
-001 002 003 004 005 006 007 008 009 010 011 013 014 012 015 016 017 018 019 020 [099]
+001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]
 ```
 
-`012` va **despues** de `013` y `014`: `FU_Carrito_CalcularTotales` (en `012`) referencia
+`023`, `024`, `026`, `027` y `028` (Fase 2) van **despues** de `018`: agregan SPs sin alterar los de `018`.
+`026` (operacion de inventario y pedidos), `027` (control: cupones, bitacora y usuarios) y
+`028` (datos del dashboard, bloque F9) cierran la lista: solo leen/extienden objetos ya
+creados, por eso van al final. `028` es el ultimo; usa las vistas `VW_Reportes_*` de `020`.
+`024` agrega el perfil del cliente, el cambio de contrasena y el listado de administracion
+del catalogo (ademas de la columna `Usuario.Telefono`). `023` agrega los SPs de solo
+lectura para la pantalla "Mis pedidos" del cliente. `012` va **despues** de `013` y `014`:
+`FU_Carrito_CalcularTotales` (en `012`) referencia
 la columna `Carrito.IDCupon` (que agrega `013`) y las funciones de cupon (`014`), y una
-funcion en linea exige que lo referenciado exista al momento de crearse. El `099`
+funcion en linea exige que lo referenciado exista al momento de crearse. Por el mismo
+motivo `016` y `018` van **despues** de `022`: sus SPs (`SP_Pedidos_CrearPedido`,
+`SP_Pedidos_Obtener`) referencian las columnas `NombreFactura`/`NITFactura` que agrega la
+migracion `022`, y `CREATE OR ALTER` valida esas columnas al compilar el SP. El `099`
 (semillas) es opcional y va al final. Equivalente manual con `sqlcmd` (una linea por
 script, en ese orden):
 
 ```bash
 sqlcmd -S localhost -E -C -b -i scripts/001_CreateDatabase.sql
 sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
-# ... continuar en el orden de arriba hasta 020, y 099 al final.
+# ... continuar en el orden de arriba hasta 021, y 099 al final.
 ```
 
 ## Idempotencia
@@ -103,12 +130,20 @@ sqlcmd -S localhost -E -C -b -i scripts/002_SP_Sistema_Ping.sql
 | `014_SP_Cupones.sql` | Funciones y SPs de cupones (RF-05): validar, aplicar/quitar al carrito y CRUD de administracion. |
 | `012_SP_Carrito.sql` | Carrito (RF-04): `FU_Carrito_CalcularTotales` y SPs del carrito. Se aplica despues de `013`/`014` (ver orden canonico). |
 | `015_Catalogo_EstadosPedido.sql` | `EstadoPedido` y `TransicionEstadoPedido`: grafo del ciclo de vida (RF-06/07). |
-| `016_SP_Checkout.sql` | Checkout y pago (RF-06): reserva, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente), liberacion de reservas. |
+| `016_SP_Checkout.sql` | Checkout y pago (RF-06): reserva, `SP_Checkout_Iniciar`/`_Resumen`, `SP_Pedidos_CrearPedido` (pago simulado idempotente), liberacion de reservas. Se aplica despues de `022` (ver orden canonico). |
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion: indice unico filtrado para el token de invitado (tolera multiples NULL). |
-| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. |
+| `018_SP_Pedidos.sql` | Pedidos y devoluciones (RF-07): cambio de estado, cancelacion, devolucion (TVP), consulta/listado y el trigger `TR_Pedido_TransicionValida`. Se aplica despues de `022` (ver orden canonico). |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based en Producto/Variante/Kardex/Cupon/PedidoHistorialEstado/Devolucion, consulta (`SP_Bitacora_Consultar`), modulos y helper. Solo `INSERT`. |
 | `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas de venta neta y SPs de ventas por periodo/categoria, top productos, carritos abandonados y resumen con comparativo; indice `IX_Devolucion_Pedido_Monto`. |
-| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Opcional. |
+| `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda: `SP_Cupones_Vigentes` y `SP_Catalogo_Destacados` (mas vendidos + ofertas). Solo lectura. |
+| `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: `NombreFactura`/`NITFactura` (snapshot) en `dbo.Pedido` con `CHECK CK_Pedido_NITFactura`. Idempotente. |
+| `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. Se aplica despues de `018`. |
+| `024_SP_Fase2_Cuenta.sql` | Fase 2 (aditivo): columna nullable `Usuario.Telefono`; `SP_Usuarios_ObtenerPerfil` y `SP_Usuarios_ActualizarPerfil` (nombre y telefono del propio usuario); `SP_Auth_ObtenerHashPorID` y `SP_Auth_CambiarContrasena` (guarda el hash nuevo y revoca toda la cadena de refresh del usuario); `SP_Catalogo_ListarAdmin` (listado de administracion con SKUs via `STRING_AGG`, estado derivado por `CASE` —publicado/agotado/incompleto/oculto— filtro de estado, `OFFSET/FETCH` y un recordset de conteos). Sin SQL dinamico. Se aplica despues de `023`. Nota: `009` suma la columna aditiva `CantidadProductosTotal` y `021` excluye de destacados los productos con `DisponibleTotal = 0`. |
+| `025_Migracion_VarianteImagen.sql` | Fase 2 (aditivo): columna nullable `dbo.Variante.ImagenURL` (una imagen propia por variante; `NULL` = usa la del producto). Se ejecuta **antes** de `010/012/016/018/023/024` porque esos SPs referencian la columna (por eso en el orden del instalador va reordenado tras `008`, como `022` va antes de `016/018`). `SP_Catalogo_CrearVariante`/`ActualizarVariante` reciben `@ImagenURL` (y `@ConservarImagen BIT = 1` por defecto, para que los consumidores de M2 que no la envian no borren nada); `SP_Catalogo_ObtenerProducto` expone `ImagenURL`; `SP_Catalogo_ListarAdmin` agrega `VariantesConImagen`; y donde se expone la imagen de la linea (`012` carrito, `018` pedido, `023` resumen del cliente) se usa `COALESCE(v.ImagenURL, <imagen principal del producto>)` sin cambiar el nombre de la columna. |
+| `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, bloque F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion via `STRING_AGG`, existencia/reservado/disponible de `VW_Inventario_Disponible`, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`; parametro aditivo `@IDProducto` que acota a un producto —boton "Inventario" del catalogo—); `SP_Inventario_Resumen` (KPIs: disponibles, reservadas, bajo stock, agotadas, movimientos de hoy por tipo, inconsistencias del invariante, `UmbralBajoStock`/`ReservaMinutos` de `Parametro`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura** con la misma regla que `RegistrarMovimiento`: devuelve `Permitido`/`Motivo`; no escribe); `SP_Pedidos_ResumenOperacion` (conteos del flujo, antiguedad del PAGADO mas viejo y `EntregadoReciente`/`CanceladosRecientes`/`DevueltosRecientes` = ultimos 7 dias por ultima actualizacion); y `SP_Pedidos_ListarOperacion` (listado de operacion con estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango, `NombreCliente`/`Municipio`/`CantidadLineas`/`MinutosEnEstado`, y parametro aditivo `@RecienteDias` que acota por ultima actualizacion a N dias para que la tabla coincida con los conteos de los estados terminales del resumen). Solo lee objetos previos, por eso va al final. El registro real y los cambios de estado siguen en `011`/`018` sin cambios. |
+| `027_SP_Fase2_Control.sql` | Fase 2 (aditivo, bloque F8): control del area interna. **Cupones**: `SP_Cupones_ListarAdmin` (listado con `EstadoDerivado` —Vigente/Programado/Vencido/Agotado/Inactivo por `CASE`—, `Alcance`, `DiasParaVencer` y filtro `vigentes`/`futuros`/`vencidos`/`agotados`/`inactivos`) y `SP_Cupones_ResumenAdmin` (descuento otorgado 30d, tasa de uso, cupon mas usado, por vencer ≤7d y conteos por estado; todo calculado en SQL). **Bitacora**: re-crea `SP_Bitacora_Consultar` (CREATE OR ALTER) agregando el parametro `@Texto` (LIKE sobre `ValorAnterior`/`ValorNuevo`) al final —`@IDEntidad` ya era el "IDRegistro"— y agrega `SP_Bitacora_ListarPorRegistro` (todos los eventos de una entidad). **Usuarios**: `SP_Usuarios_ListarAdmin` (pedidos no cancelados `CantidadPedidos`/`TotalComprado`, `MinutosBloqueo` restantes, filtros `bloqueados`/`desactivados`, y un 3er recordset de conteos por rol/estado) y `SP_Usuarios_Desbloquear` (limpia `IntentosFallidos` y `BloqueadoHasta`). No altera los SP de M1/M5/M8. |
+| `028_SP_Fase2_Dashboard.sql` | Fase 2 (aditivo, bloque F9): datos del dashboard del area interna. Solo agrega lo que `020` no cubre: `SP_Dashboard_Resumen` (los 4 KPIs —ventas netas, pedidos, ticket promedio, unidades— cada uno con su valor del periodo anterior y `VariacionPct` en SQL); `SP_Dashboard_VentasPorDia` (serie diaria **con ceros** en dias sin ventas via CTE recursiva de numeros, no cursor; devuelve `Pedidos`/`VentaNeta`/`UnidadesNetas`/`TicketPromedio` por dia); `SP_Dashboard_VentasPorCategoria` (como `020` + `Porcentaje` del total); `SP_Dashboard_Embudo` (carritos creados/con lineas/checkouts/pagos aprobados/rechazados con tasas en SQL); `SP_Dashboard_HorasPico` (pedidos por `DiaSemana` 1-7 y `Hora` 0-23 en **hora local**: `@ZonaHoraria` —nombre de `sys.time_zone_info`, Guatemala por defecto— convierte con `AT TIME ZONE` y se valida con `THROW 50422`; solo celdas con pedidos); `SP_Dashboard_Cupones` (cupones mas usados del periodo con descuento otorgado); y `SP_Eventos_EstadoVariante` (SKU/Disponible/Umbral/BajoStock de una variante, para construir el evento SSE `inventario.*` sin SQL en TypeScript). Top productos se **reusa** de `020`. No altera `020`. Usa `VW_Reportes_*`, por eso va al final. |
+| `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion, catalogo, inventario, carritos, cupones y ~12 pedidos de demostracion (M6-M9) con fechas repartidas en 60 dias. Asigna `Variante.ImagenURL = /img/productos/<SKU>.jpeg` a las tres presentaciones del Refrigerante (verde/rojo/azul). Opcional. |
 
 ## Convenciones
 

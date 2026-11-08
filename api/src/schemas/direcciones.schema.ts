@@ -5,7 +5,8 @@ import { textoPlano } from './common.schema.js';
 export const direccionSchema = z.object({
   alias: textoPlano(50),
   nombreReceptor: textoPlano(150),
-  telefono: textoPlano(20),
+  // Telefono: solo digitos, espacios y + ( ) - (misma lista que el perfil).
+  telefono: z.string().trim().min(1).max(20).regex(/^[0-9+()\-\s]+$/, 'Telefono invalido (solo digitos, espacios y + ( ) -)'),
   linea1: textoPlano(200),
   linea2: textoPlano(200, 0).optional(),
   municipio: textoPlano(100),

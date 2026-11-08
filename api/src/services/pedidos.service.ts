@@ -1,7 +1,13 @@
 import sql from 'mssql';
 import { executeSp } from '../data/spExecutor.js';
 import { invalidarTodo } from '../utils/reportesCache.js';
+import { emitir } from '../eventos/bus.js';
+import { ROLES } from '../config/roles.js';
 import type { DevolucionInput, ListarPedidosQuery } from '../schemas/pedidos.schema.js';
+
+// Rol -> IDRol (dbo.Rol, sembrado por privilegio en 004: Cliente<Operador<Administrador).
+// Lo usan los SP de acciones permitidas, que comparan por privilegio.
+const ID_ROL: Record<string, number> = { Cliente: 1, Operador: 2, Administrador: 3 };
 
 interface DevolucionRow {
   IDDevolucion: number;
@@ -15,6 +21,13 @@ export interface Pedido {
   lineas: unknown[];
   historial: unknown[];
   devoluciones: Array<Record<string, unknown> & { lineas: unknown[] }>;
+}
+
+interface PaginaPedidos {
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamanoPagina: number;
 }
 
 /** Construye el TVP dbo.TVP_DevolucionLinea a partir de las lineas del body. */
@@ -44,31 +57,104 @@ function ensamblarPedido(recordsets: unknown[][]): Pedido {
   return { pedido, lineas, historial, devoluciones };
 }
 
+/**
+ * Listado de pedidos. El Cliente usa SP_Pedidos_ListarCliente (tarjeta enriquecida:
+ * CantidadLineas/Unidades, hasta 3 imagenes y resumen de nombres, filtro de estado por
+ * lista separada por comas y busqueda por numero). Operador/Admin conservan
+ * SP_Pedidos_Listar sin cambios. La respuesta mantiene la misma forma {filas,total,...}.
+ */
 export async function listar(
   idUsuario: number | null,
   q: ListarPedidosQuery,
-): Promise<{ filas: unknown[]; total: number; pagina: number; tamanoPagina: number }> {
-  const result = await executeSp('SP_Pedidos_Listar', [
-    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
-    { name: 'CodigoEstado', type: sql.NVarChar(30), value: q.estado ?? null },
-    { name: 'Desde', type: sql.DateTime2(0), value: q.desde ? new Date(q.desde) : null },
-    { name: 'Hasta', type: sql.DateTime2(0), value: q.hasta ? new Date(q.hasta) : null },
+  rol: string,
+): Promise<PaginaPedidos> {
+  const tamano = q.tamano ?? q.tamanoPagina;
+
+  if (rol === ROLES.Cliente) {
+    const result = await executeSp('SP_Pedidos_ListarCliente', [
+      { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+      { name: 'CodigoEstado', type: sql.NVarChar(200), value: q.estado ?? null },
+      { name: 'Numero', type: sql.NVarChar(30), value: q.numero ?? q.texto ?? null },
+      { name: 'Pagina', type: sql.Int, value: q.pagina },
+      { name: 'Tamano', type: sql.Int, value: tamano },
+      { name: 'Orden', type: sql.NVarChar(4), value: q.orden ?? null },
+      { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
+    ]);
+    const filas = (result.recordsets[0] ?? []) as unknown[];
+    const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+    return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
+  }
+
+  // Operador/Administrador: SP_Pedidos_ListarOperacion (026, F2). Aditivo sobre
+  // SP_Pedidos_Listar (018, intacto): acepta el estado como lista separada por comas,
+  // busca por numero/nombre/correo y agrega columnas de operacion (NombreCliente,
+  // Municipio, CantidadLineas/Unidades, MinutosEnEstado). Conserva IDPedido/EstadoCodigo.
+  const result = await executeSp('SP_Pedidos_ListarOperacion', [
+    { name: 'CodigoEstado', type: sql.NVarChar(200), value: q.estado ?? null },
     { name: 'Texto', type: sql.NVarChar(100), value: q.texto ?? null },
+    // Dias de calendario (hora local); el SP los convierte a UTC con AT TIME ZONE. Se pasan
+    // como cadena YYYY-MM-DD para no introducir desfase horario al serializar un Date.
+    { name: 'Desde', type: sql.Date, value: q.desde ?? null },
+    { name: 'Hasta', type: sql.Date, value: q.hasta ?? null },
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
     { name: 'Pagina', type: sql.Int, value: q.pagina },
-    { name: 'TamanoPagina', type: sql.Int, value: q.tamanoPagina },
+    { name: 'TamanoPagina', type: sql.Int, value: tamano },
+    { name: 'RecienteDias', type: sql.Int, value: q.recienteDias ?? null },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.ordenCol ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
+    // Acciones permitidas por fila se calculan en SQL segun el rol del solicitante.
+    { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
   ]);
 
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
-  return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+  return { filas, total, pagina: q.pagina, tamanoPagina: tamano };
 }
 
-export async function obtener(idPedido: number, idUsuario: number | null): Promise<Pedido> {
+/** Resumen de operacion para el area interna: conteos del flujo y antiguedad del PAGADO mas viejo. */
+export async function resumenOperacion(): Promise<unknown | null> {
+  const result = await executeSp('SP_Pedidos_ResumenOperacion', []);
+  return (result.recordsets[0]?.[0] ?? null) as unknown | null;
+}
+
+/** Resumen del cliente para "Mis pedidos": conteos por estado, total comprado y envio en curso. */
+export async function resumen(idUsuario: number): Promise<unknown | null> {
+  const result = await executeSp('SP_Pedidos_ResumenCliente', [
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  return (result.recordsets[0]?.[0] ?? null) as unknown | null;
+}
+
+export async function obtener(
+  idPedido: number,
+  idUsuario: number | null,
+  rol: string,
+): Promise<Pedido & { pago: unknown | null }> {
+  // Obtener primero: valida propiedad y lanza 50404 uniforme si el pedido es ajeno.
   const result = await executeSp('SP_Pedidos_Obtener', [
     { name: 'IDPedido', type: sql.Int, value: idPedido },
     { name: 'IDUsuario', type: sql.Int, value: idUsuario },
   ]);
-  return ensamblarPedido(result.recordsets as unknown[][]);
+  const pedido = ensamblarPedido(result.recordsets as unknown[][]);
+
+  // Acciones permitidas calculadas en SQL desde dbo.TransicionEstadoPedido (el front no
+  // replica el grafo). SP aditivo; no toca SP_Pedidos_Obtener (018).
+  const accRes = await executeSp<{ AccionesPermitidas: string }>('SP_Pedidos_AccionesPermitidas', [
+    { name: 'IDPedido', type: sql.Int, value: idPedido },
+    { name: 'IDRol', type: sql.Int, value: ID_ROL[rol] ?? null },
+  ]);
+  if (pedido.pedido && typeof pedido.pedido === 'object') {
+    (pedido.pedido as Record<string, unknown>).AccionesPermitidas = accRes.recordset[0]?.AccionesPermitidas ?? '';
+  }
+
+  // Pago simulado (metodo, estado, referencia) para la pantalla de detalle.
+  const pagoRes = await executeSp('SP_Pedidos_PagoCliente', [
+    { name: 'IDPedido', type: sql.Int, value: idPedido },
+    { name: 'IDUsuario', type: sql.Int, value: idUsuario },
+  ]);
+  const pago = (pagoRes.recordsets[0]?.[0] ?? null) as unknown | null;
+
+  return { ...pedido, pago };
 }
 
 export async function cambiarEstado(
@@ -85,9 +171,35 @@ export async function cambiarEstado(
     { name: 'IDUsuarioEjecuta', type: sql.Int, value: idUsuarioEjecuta },
     { name: 'RolEjecuta', type: sql.NVarChar(30), value: rolEjecuta },
   ]);
-  // Un cambio de estado (incluida la cancelacion) altera ventas/inventario netos.
-  invalidarTodo();
-  return ensamblarPedido(result.recordsets as unknown[][]);
+  const pedido = ensamblarPedido(result.recordsets as unknown[][]);
+  // Un cambio de estado (incluida la cancelacion) altera ventas/inventario netos: emite
+  // pedido.estado (que ademas invalida el cache de reportes via el bus). El "de"/"a" y el
+  // usuario salen del ultimo renglon del historial que devuelve el SP.
+  emitirEstado(idPedido, pedido);
+  return pedido;
+}
+
+interface HistorialRow {
+  EstadoAnteriorCodigo: string | null;
+  EstadoNuevoCodigo: string;
+  UsuarioNombre: string | null;
+}
+
+function emitirEstado(idPedido: number, p: Pedido): void {
+  const cab = p.pedido as { NumeroPedido?: string } | null;
+  const hist = p.historial as HistorialRow[];
+  const ult = hist[hist.length - 1];
+  if (!cab || !ult) {
+    invalidarTodo(); // caso defensivo: sin datos del historial, se invalida igual
+    return;
+  }
+  emitir('pedido.estado', {
+    idPedido,
+    numero: cab.NumeroPedido ?? '',
+    de: ult.EstadoAnteriorCodigo,
+    a: ult.EstadoNuevoCodigo,
+    usuario: ult.UsuarioNombre ?? 'sistema',
+  });
 }
 
 export async function registrarDevolucion(

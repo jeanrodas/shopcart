@@ -1,7 +1,11 @@
 import sql from 'mssql';
 import { executeSp, type SpParam } from '../data/spExecutor.js';
 import { ensamblarCarrito, type CarritoResultado } from './carrito.service.js';
-import type { CuponInput, ListarCuponesQuery } from '../schemas/cupones.schema.js';
+import type {
+  CuponInput,
+  ListarCuponesQuery,
+  ListarCuponesAdminQuery,
+} from '../schemas/cupones.schema.js';
 
 /** Parametros comunes de Crear/Actualizar (las fechas ISO se pasan como Date). */
 function cuponParams(datos: CuponInput): SpParam[] {
@@ -46,6 +50,14 @@ export async function validar(idUsuario: number, codigo: string): Promise<unknow
   return result.recordset[0] ?? null;
 }
 
+/* ------------------------------- Publico (tienda) ------------------------- */
+
+/** Cupones vigentes para la tienda. Nunca expone limites ni usos (ver SP). */
+export async function vigentes(): Promise<{ cupones: unknown[] }> {
+  const result = await executeSp('SP_Cupones_Vigentes', []);
+  return { cupones: result.recordset };
+}
+
 /* ---------------------------- CRUD Administrador -------------------------- */
 
 export async function listar(q: ListarCuponesQuery): Promise<{
@@ -65,6 +77,33 @@ export async function listar(q: ListarCuponesQuery): Promise<{
   const filas = (result.recordsets[0] ?? []) as unknown[];
   const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
   return { filas, total, pagina: q.pagina, tamanoPagina: q.tamanoPagina };
+}
+
+/** Listado de administracion (F8): estado derivado, alcance y dias para vencer. */
+export async function listarAdmin(q: ListarCuponesAdminQuery): Promise<{
+  filas: unknown[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}> {
+  const result = await executeSp('SP_Cupones_ListarAdmin', [
+    { name: 'Texto', type: sql.NVarChar(50), value: q.texto ?? null },
+    { name: 'Filtro', type: sql.NVarChar(20), value: q.filtro ?? null },
+    { name: 'Pagina', type: sql.Int, value: q.pagina },
+    { name: 'Tamano', type: sql.Int, value: q.tamano },
+    { name: 'Orden', type: sql.NVarChar(40), value: q.orden ?? null },
+    { name: 'Direccion', type: sql.NVarChar(4), value: q.direccion ?? null },
+  ]);
+
+  const filas = (result.recordsets[0] ?? []) as unknown[];
+  const total = (result.recordsets[1]?.[0] as { Total: number } | undefined)?.Total ?? 0;
+  return { filas, total, pagina: q.pagina, tamano: q.tamano };
+}
+
+/** KPIs del panel de administracion de cupones (F8). */
+export async function resumenAdmin(): Promise<unknown> {
+  const result = await executeSp('SP_Cupones_ResumenAdmin', []);
+  return result.recordset[0] ?? null;
 }
 
 export async function obtener(idCupon: number): Promise<unknown> {

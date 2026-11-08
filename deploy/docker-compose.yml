@@ -33,6 +33,11 @@ services:
     build: ../api
     env_file:
       - ./.env
+    environment:
+      # Las subidas van a un volumen persistente para no perderse al recrear el contenedor.
+      UPLOADS_DIR: ${UPLOADS_DIR:-/app/uploads}
+    volumes:
+      - shopcart_uploads:/app/uploads
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -62,5 +67,6 @@ services:
 
 volumes:
   shopcart_mssql_data:
+  shopcart_uploads:
   caddy_data:
   caddy_config:

@@ -6,6 +6,8 @@ import type {
   AjusteInput,
   ExistenciasQuery,
   KardexQuery,
+  InventarioAdminQuery,
+  SimularInput,
 } from '../schemas/inventario.schema.js';
 
 function actor(req: Parameters<RequestHandler>[0]): number {
@@ -39,5 +41,20 @@ export const getKardex: RequestHandler = async (req, res) => {
 
 export const getConsistencia: RequestHandler = async (_req, res) => {
   const result = await inventarioService.verificarConsistencia();
+  res.status(200).json(result);
+};
+
+export const getAdmin: RequestHandler = async (req, res) => {
+  const result = await inventarioService.listarAdmin(req.query as unknown as InventarioAdminQuery);
+  res.status(200).json(result);
+};
+
+export const getResumen: RequestHandler = async (_req, res) => {
+  const result = await inventarioService.resumenInventario();
+  res.status(200).json(result);
+};
+
+export const postSimular: RequestHandler = async (req, res) => {
+  const result = await inventarioService.simularMovimiento(req.body as SimularInput);
   res.status(200).json(result);
 };

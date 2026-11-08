@@ -77,3 +77,34 @@ WHERE NOT EXISTS (
       AND x.IDEstadoDestino = destino.IDEstadoPedido
 );
 GO
+
+/* ------------------------------------------------------------
+   FU_Pedido_AccionesPermitidas (F2, C2.1)
+   Dado un codigo de estado y un rol (IDRol), devuelve las acciones permitidas como lista
+   separada por comas (PREPARAR, DESPACHAR, ENTREGAR, CANCELAR, DEVOLVER), derivadas DEL
+   grafo dbo.TransicionEstadoPedido (una sola fuente de verdad; el frontend no lo replica).
+   El rol se compara por privilegio (Cliente<Operador<Administrador = 1<2<3 por el orden de
+   siembra en 004); IDRolRequerido NULL = cualquier rol. Estado terminal o sin transiciones
+   -> cadena vacia. Se define aqui (con el grafo) para que 023 y 026 puedan usarla.
+   ------------------------------------------------------------ */
+CREATE OR ALTER FUNCTION dbo.FU_Pedido_AccionesPermitidas(@EstadoCodigo NVARCHAR(30), @IDRol INT)
+RETURNS NVARCHAR(100)
+AS
+BEGIN
+    DECLARE @acc NVARCHAR(100);
+    SELECT @acc = STRING_AGG(CONVERT(NVARCHAR(100),
+        CASE ed.Codigo
+            WHEN N'EN_PREPARACION' THEN N'PREPARAR'
+            WHEN N'DESPACHADO'     THEN N'DESPACHAR'
+            WHEN N'ENTREGADO'      THEN N'ENTREGAR'
+            WHEN N'CANCELADO'      THEN N'CANCELAR'
+            WHEN N'DEVUELTO'       THEN N'DEVOLVER'
+        END), N',')
+    FROM dbo.TransicionEstadoPedido t
+    INNER JOIN dbo.EstadoPedido eo ON eo.IDEstadoPedido = t.IDEstadoOrigen
+    INNER JOIN dbo.EstadoPedido ed ON ed.IDEstadoPedido = t.IDEstadoDestino
+    WHERE eo.Codigo = @EstadoCodigo
+      AND (t.IDRolRequerido IS NULL OR @IDRol >= t.IDRolRequerido);
+    RETURN ISNULL(@acc, N'');
+END
+GO
