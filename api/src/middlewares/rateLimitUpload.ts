@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { env } from '../config/env.js';
 
 /**
@@ -11,7 +11,8 @@ export const rateLimitUpload = rateLimit({
   limit: env.RATE_LIMIT_UPLOAD_MAX,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => String(req.usuario?.id ?? req.ip ?? 'desconocido'),
+  keyGenerator: (req) =>
+    req.usuario?.id != null ? String(req.usuario.id) : ipKeyGenerator(req.ip ?? 'desconocido'),
   handler: (req, res) => {
     res.status(429).json({
       code: 'RATE_LIMITED',

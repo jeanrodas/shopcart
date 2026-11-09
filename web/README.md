@@ -57,7 +57,9 @@ humo de la compra (`compra.spec.ts`) y el dashboard en vivo (`dashboard.spec.ts`
   inicios de sesión y cada `page.goto` renueva el access con `/auth/refresh`, que comparte ese
   limitador; con el default saltaría `429` en las últimas pruebas. (Déjalo en 400 solo para
   correr la suite; `api/.env` es local y no se versiona.) `global-setup.ts` hace un login de
-  prueba y avisa por consola si detecta `429`.
+  prueba y avisa por consola si detecta `429`. **Reinicia la API después de cambiar ese valor**
+  para que tome efecto. Si corres la suite **más de una vez en 15 minutos**, reinicia la API antes:
+  el limitador de `/auth` acumula los intentos de la corrida anterior.
 
 La suite **asume semillas frescas**: varias pruebas mutan datos sembrados (ver "Limitaciones"
 abajo). Dos scripts:
@@ -79,7 +81,7 @@ npx playwright test compra   # un archivo suelto
   semillas podrían estar mutadas y conviene `npm run test:e2e`.
 
 Las pruebas corren **en serie** (`workers: 1`, `fullyParallel: false`) porque **comparten
-estado** (misma BD y sesión); así `npx playwright test` sin parámetros pasa de forma estable.
+estado** (misma BD y sesión); el estado limpio lo garantiza `npm run test:e2e`, que reinstala la BD antes de correr.
 `chromium` corre la suite completa y `firefox` solo las de compra (`compra` / `compra-estable`).
 
 ### Limitaciones conocidas

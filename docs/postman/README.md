@@ -34,9 +34,13 @@ multiples logins no hagan saltar el limitador (`429`).
 ## Coleccion completa
 
 ```bash
-npx --yes newman run docs/postman/ShopCart.postman_collection.json \
-  --env-var baseUrl=http://localhost:3000
+node -e "require('fs').writeFileSync('docs/postman/fixtures/big.bin', Buffer.alloc(3*1024*1024))"
+npx --yes newman run docs/postman/ShopCart.postman_collection.json --working-dir docs/postman/fixtures --env-var baseUrl=http://localhost:3000
 ```
+
+La primera linea genera el fixture `big.bin` (3 MB, no versionado) que usa `F2 Archivos`, y
+`--working-dir docs/postman/fixtures` apunta newman a los fixtures de esa carpeta; asi da 749/749.
+Las dos lineas corren igual en PowerShell y en bash.
 
 ## Carpetas de subida de imagenes (`F2 Archivos`)
 

@@ -108,9 +108,12 @@ Con la API arriba (variables de evaluacion; ver README):
 - **Coleccion completa (verificacion exhaustiva).** Narra y **comprueba** cada modulo con
   sus asserts:
   ```bash
-  npx newman run docs/postman/ShopCart.postman_collection.json --env-var baseUrl=http://localhost:3000
+  node -e "require('fs').writeFileSync('docs/postman/fixtures/big.bin', Buffer.alloc(3*1024*1024))"
+  npx --yes newman run docs/postman/ShopCart.postman_collection.json --working-dir docs/postman/fixtures --env-var baseUrl=http://localhost:3000
   ```
-  Esperado: todas las iteraciones/requests/asserts en verde, `exit 0`. (La carpeta
+  La primera linea genera el fixture `big.bin` (3 MB, no versionado) que usa `F2 Archivos`, y
+  `--working-dir docs/postman/fixtures` apunta newman a los fixtures de esa carpeta (corren igual
+  en PowerShell y en bash). Esperado: **749/749** en verde, `exit 0`. (La carpeta
   `Manual (rate limit)` esta dentro; con `RATE_LIMIT_AUTH_MAX=100` no dispara 429.)
 - **Concurrencia del checkout** (`api/`):
   `BASE_URL=http://localhost:3000 npm run test:concurrencia` -> **7/7** escenarios

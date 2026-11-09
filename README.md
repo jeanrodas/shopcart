@@ -1,13 +1,15 @@
 # ShopCart
 
-Backend de e-commerce para las gasolineras y tienda de conveniencia "Don Arturo /
-RinoMart". Monorepo: la base de datos en `db/` y la API en `api/`.
+Plataforma de e-commerce para las gasolineras y tienda de conveniencia "Don Arturo /
+RinoMart". Monorepo: la base de datos en `db/`, la API en `api/` y el frontend web en `web/`.
 
 ## Descripcion
 
 ShopCart es una API REST respaldada por SQL Server en la que **toda la logica de datos
-vive en stored procedures** (el backend nunca arma SQL). Esta entrega corresponde a la
-**Fase 1** y cubre los requisitos funcionales RF-01 a RF-09:
+vive en stored procedures** (el backend nunca arma SQL). Esta entrega contiene la plataforma
+completa (`db/`, `api/`, `web/`): la **Fase 1** (backend) cubre los requisitos funcionales RF-01
+a RF-09 y la **Fase 2** agrega el frontend web (se describe en su seccion, mas abajo). Los RF de
+Fase 1:
 
 | RF | Modulo | Resumen |
 |----|--------|---------|
@@ -22,7 +24,7 @@ vive en stored procedures** (el backend nunca arma SQL). Esta entrega correspond
 | RF-09 | Bitacora | Auditoria inmutable de cambios con el usuario responsable. |
 
 Extras: rate limiting, cache de reportes con invalidacion por evento y exportacion a
-Excel. La **Fase 2** (front-end web) queda fuera del alcance de esta entrega.
+Excel. La **Fase 2** (front-end web) se describe en su propia seccion, mas abajo.
 
 ## Stack
 
@@ -336,7 +338,7 @@ no cambian):
 > siguen pasando en verde con estos cambios (newman, `exit 0`).
 
 **Orden canonico del instalador** (una sola lista en `aplicar.ps1`/`aplicar.sh`):
-`001…008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]`.
+`001 002 003 004 029 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]`.
 Reglas de **dependencia de compilacion** (`CREATE OR ALTER` valida las columnas al compilar):
 **`025` va antes de `010`** (y de `012/016/018/023/024`) porque agrega `Variante.ImagenURL` que
 esos SP referencian; **`022` va antes de `016`/`018`** porque agrega `Pedido.NombreFactura`/
@@ -460,15 +462,16 @@ en ese instalador; el detalle, la idempotencia y el equivalente manual estan en
 [`db/README.md`](db/README.md). El orden de ejecucion actual es:
 
 ```
-001 002 003 004 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 [099]
+001 002 003 004 029 005 006 007 008 025 009 010 011 013 014 012 015 017 019 020 021 022 016 018 023 024 026 027 028 [099]
 ```
 
+`029` va antes de `005` (agrega `Usuario.DebeCambiarContrasena`, que referencian `005`/`006`/`024`).
 `012` va despues de `013`/`014` (su funcion de totales referencia la columna `Carrito.IDCupon`
 y las funciones de cupon) y `016`/`018` van despues de `022` (sus SPs referencian las columnas
 `NombreFactura`/`NITFactura` que agrega `022`, y `CREATE OR ALTER` las valida al compilar).
-`023`, `024`, `026` y `027` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
-`026` (operacion del area interna) y `027` (control: cupones, bitacora y usuarios) cierran la
-lista: solo leen/extienden objetos ya creados. La
+`023`, `024`, `026`, `027` y `028` (Fase 2) van despues de `018` y solo agregan objetos (no alteran los de `018`).
+`026` (operacion del area interna), `027` (control: cupones, bitacora y usuarios) y `028` (datos del
+dashboard) cierran la lista: solo leen/extienden objetos ya creados; `028` es el ultimo. La
 tabla describe cada script en orden numerico de archivo:
 
 | Script | Descripcion |
@@ -492,7 +495,7 @@ tabla describe cada script en orden numerico de archivo:
 | `017_Migracion_CarritoTokenUnico.sql` | Migracion posterior al `001`: cambia la unicidad del token de invitado a un indice unico filtrado para tolerar multiples NULL (RF-06). |
 | `018_SP_Pedidos.sql` | Pedidos (RF-07): ciclo de vida (`SP_Pedidos_CambiarEstado`), devoluciones (`SP_Pedidos_RegistrarDevolucion` con `TVP_DevolucionLinea`), consulta (`SP_Pedidos_Obtener`), listado (`SP_Pedidos_Listar`) y el trigger `TR_Pedido_TransicionValida`. |
 | `019_Bitacora.sql` | Bitacora de auditoria (RF-09): triggers set-based que registran altas/cambios/bajas de productos, variantes, kardex, cupones y estados de pedido (`TR_Producto_Bitacora`, `TR_Variante_Bitacora`, `TR_Kardex_Bitacora`, `TR_Cupon_Bitacora`, `TR_PedidoHistorialEstado_Bitacora`), la consulta (`SP_Bitacora_Consultar`), los modulos (`SP_Bitacora_Modulos`) y el helper `SP_Bitacora_Registrar`. |
-| `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES con `DATETRUNC`), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
+| `020_Reportes.sql` | Dashboard y reportes (RF-08): vistas `VW_Reportes_PedidoNeto` y `VW_Reportes_LineaNeta` (venta neta de devoluciones) y SPs `SP_Reportes_VentasPorPeriodo` (DIA/SEMANA/MES sin `DATETRUNC`, con `CASE`/`DATEFROMPARTS`, compatible con SQL Server 2019), `SP_Reportes_VentasPorCategoria`, `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen` (con comparativo del periodo anterior); indice de apoyo `IX_Devolucion_Pedido_Monto`. |
 | `021_SP_Catalogo_Publico.sql` | SPs publicos para la tienda (frontend): `SP_Cupones_Vigentes` (cupones aplicables ahora, sin exponer limites ni usos) y `SP_Catalogo_Destacados` (mas vendidos de 30 dias + ofertas por cupon de categoria). |
 | `022_Migracion_PedidoFacturacion.sql` | Migracion aditiva: columnas `NombreFactura` y `NITFactura` (snapshot) en `dbo.Pedido` y `CHECK CK_Pedido_NITFactura` (NULL, `CF` o inicia con digito). Idempotente. |
 | `023_SP_Pedidos_Cliente.sql` | Fase 2 (solo lectura): `SP_Pedidos_ListarCliente` (listado enriquecido del cliente con filtro de estado por lista `STRING_SPLIT`, busqueda por numero, hasta 3 imagenes y resumen de nombres), `SP_Pedidos_ResumenCliente` (conteos por estado, total comprado y envio en curso) y `SP_Pedidos_PagoCliente`. Aditivo: no altera `018`. |
@@ -501,6 +504,7 @@ tabla describe cada script en orden numerico de archivo:
 | `026_SP_Fase2_Operacion.sql` | Fase 2 (aditivo, F7): operacion del area interna. `SP_Inventario_ListarAdmin` (tabla por variante con presentacion, existencia/reservado/disponible, ultimo movimiento, imagen y chips `bajoStock`/`agotadas`/`conReservas`); `SP_Inventario_Resumen` (KPIs + movimientos de hoy por tipo + inconsistencias + `UmbralBajoStock`/`ReservaMinutos`); `SP_Inventario_SimularMovimiento` (vista previa **solo lectura**: `Permitido`/`Motivo`); `SP_Pedidos_ResumenOperacion` (conteos del flujo y antiguedad del PAGADO mas viejo); `SP_Pedidos_ListarOperacion` (estado por lista `STRING_SPLIT`, busqueda por numero/nombre/correo, rango y columnas de operacion). Solo lectura/simulacion: el registro real y los cambios de estado siguen en `011`/`018`. Va al final. |
 | `027_SP_Fase2_Control.sql` | Fase 2 (aditivo, F8): control del area interna. Cupones (`SP_Cupones_ListarAdmin` con estado derivado/alcance/dias-para-vencer y filtros; `SP_Cupones_ResumenAdmin` con KPIs de 30 dias y conteos por estado), bitacora (`SP_Bitacora_Consultar` +`@Texto` LIKE sobre los JSON; `SP_Bitacora_ListarPorRegistro`) y usuarios (`SP_Usuarios_ListarAdmin` con pedidos/bloqueo/conteos; `SP_Usuarios_Desbloquear`). No altera los SP de M1/M5/M8. Va al final. |
 | `028_SP_Fase2_Dashboard.sql` | Fase 2 (aditivo, F9): datos del dashboard. Solo lo que `020` no cubre: `SP_Dashboard_Resumen` (4 KPIs con comparativo y `VariacionPct` en SQL), `SP_Dashboard_VentasPorDia` (serie diaria con ceros via CTE recursiva + unidades y ticket por dia), `SP_Dashboard_VentasPorCategoria` (+`Porcentaje`), `SP_Dashboard_Embudo` (carritos/checkouts/pagos con tasas), `SP_Dashboard_HorasPico` (matriz dia×hora en hora local; `@ZonaHoraria` validada contra `sys.time_zone_info`, Guatemala por defecto), `SP_Dashboard_Cupones` (mas usados del periodo) y `SP_Eventos_EstadoVariante` (para el evento SSE de inventario). Top productos se reusa de `020`. Usa `VW_Reportes_*`; va al final. |
+| `029_Migracion_UsuarioFlags.sql` | Fase 2 (aditivo): columna `Usuario.DebeCambiarContrasena` y trigger `TR_Usuario_Bitacora` (audita alta/rol/estado/desbloqueo, sin `HashContrasena`). Va **antes de 005** (lo referencian 005/006/024). |
 | `099_Semillas.sql` | Datos de ejemplo: usuarios/direccion (M1), catalogo (M2), carga de inventario (M3), carritos (M4), cupones (M5) y ~12 pedidos de demostracion con fechas repartidas (M6-M9); asigna la imagen propia (`/img/productos/<SKU>.jpeg`) a las tres presentaciones del Refrigerante. Se aplica al final. |
 
 ## Decisiones tecnicas
@@ -1017,8 +1021,9 @@ por `GET /api/v1/reportes/*`.
 
 **Vistas y SPs (`020_Reportes.sql`).** `VW_Reportes_PedidoNeto` (venta neta por pedido) y
 `VW_Reportes_LineaNeta` (unidades/monto netos por linea) aislan la regla de devoluciones.
-Encima: `SP_Reportes_VentasPorPeriodo` (agrupa por `DIA`/`SEMANA`/`MES` con `DATETRUNC` de
-SQL Server 2022; semana con `DATEFIRST 1`), `SP_Reportes_VentasPorCategoria`,
+Encima: `SP_Reportes_VentasPorPeriodo` (agrupa por `DIA`/`SEMANA`/`MES` sin `DATETRUNC`, con un
+`CASE` sobre `CAST`/`DATEADD`/`DATEFROMPARTS` compatible con SQL Server 2019; semana con
+`DATEFIRST 1`), `SP_Reportes_VentasPorCategoria`,
 `SP_Reportes_TopProductos`, `SP_Reportes_CarritosAbandonados` y `SP_Reportes_Resumen`. Todos
 validan el rango (`Hasta > Desde`, `<= 366 dias`) con error `50400 -> 400`. `TopProductos`
 agrupa la categoria por el snapshot de la linea (`ln.IDCategoria`).
@@ -1315,9 +1320,13 @@ Dos formas de usarla, de menor a mayor cobertura:
    borde de cada modulo. Con el **Collection Runner** o con newman:
 
    ```bash
-   npx --yes newman run docs/postman/ShopCart.postman_collection.json \
-     --env-var baseUrl=http://localhost:3000
+   node -e "require('fs').writeFileSync('docs/postman/fixtures/big.bin', Buffer.alloc(3*1024*1024))"
+   npx --yes newman run docs/postman/ShopCart.postman_collection.json --working-dir docs/postman/fixtures --env-var baseUrl=http://localhost:3000
    ```
+
+   La primera linea genera el fixture `big.bin` (3 MB, no versionado) que usa `F2 Archivos`, y
+   `--working-dir docs/postman/fixtures` apunta newman a los fixtures de esa carpeta; asi da 749/749.
+   Las dos lineas corren igual en PowerShell y en bash.
 
    Requiere los `RATE_LIMIT_*_MAX=100` (los trae `api/.env.example`): con los defaults, los
    multiples logins/checkouts/cupones acumulados harian saltar el limitador (`429`). Tambien
@@ -1362,12 +1371,23 @@ Flujos completos en un navegador real (`web/tests/*.spec.ts`): compra de punta a
 
 ```bash
 cd web
-npx playwright test
+npm run test:e2e
 ```
 
-Las pruebas corren **en serie** (`workers: 1`) porque **comparten datos** (misma BD y sesión);
-por eso `npx playwright test` sin parámetros pasa de forma estable. Ver también
-[`web/README.md`](web/README.md).
+`npm run test:e2e` reinstala la BD (semillas frescas) antes de correr; por eso pasan las **39**
+de forma estable. Correr `npx playwright test` directo solo pasa con la BD **recién sembrada**: si
+antes se corrió newman, `operador: pedidos` falla porque el pedido semilla `SC-000002` sale de la
+primera página. Las pruebas corren **en serie** (`workers: 1`) porque **comparten datos** (misma BD
+y sesión).
+
+Dos notas sobre el limitador de `/auth`:
+
+- Después de cambiar `RATE_LIMIT_AUTH_MAX` en `api/.env` hay que **reiniciar la API** para que tome
+  el nuevo valor.
+- Si se corre la suite más de una vez en 15 minutos, reinicia la API antes: el limitador de `/auth`
+  acumula los intentos de la corrida anterior y puede saltar `429`.
+
+Ver también [`web/README.md`](web/README.md).
 
 ### Pruebas de carga (Node puro, solo HTTP)
 
@@ -1795,7 +1815,7 @@ shopcart/
     aplicar.ps1            # instalador (PowerShell) en el orden canonico
     aplicar.sh             # instalador equivalente (bash); -a/--app-password para shopcart_app
     README.md              # scripts, orden, idempotencia, convenciones
-    scripts/               # 001..020 + 099 (DDL, SPs, vistas, triggers, semillas)
+    scripts/               # 001..029 + 099 (DDL, SPs, vistas, triggers, semillas)
   deploy/
     docker-compose.yml     # sqlserver + api + caddy (name: shopcart)
     Caddyfile              # HTTPS + reverse_proxy a api:3000
@@ -1819,6 +1839,7 @@ shopcart/
       jobs/                # job de liberacion de reservas vencidas
     tests/                 # concurrencia.mjs, rendimiento.mjs (Node puro, solo HTTP)
     .env.example
+  web/                     # frontend (React 18 + Vite + TS): tienda y area interna (/admin)
   docs/
     er.mmd                 # diagrama ER completo (Mermaid)
     postman/ShopCart.postman_collection.json

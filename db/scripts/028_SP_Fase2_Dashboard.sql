@@ -113,7 +113,7 @@ GO
 CREATE OR ALTER PROCEDURE dbo.SP_Dashboard_VentasPorDia
     @Desde        DATETIME2(0),
     @Hasta        DATETIME2(0),
-    @Granularidad NVARCHAR(10) = N'DIA'  -- DIA | SEMANA | MES (agrupa con DATETRUNC, como M9)
+    @Granularidad NVARCHAR(10) = N'DIA'  -- DIA | SEMANA | MES (agrupa sin DATETRUNC, con el CASE de 020)
 AS
 BEGIN
     SET NOCOUNT ON;
