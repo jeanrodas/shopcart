@@ -52,11 +52,15 @@ Excel. La **Fase 2** (front-end web) se describe en su propia seccion, mas abajo
 
 ### 0. Probar sin instalar (ambiente desplegado)
 
-La API ya esta desplegada en **https://jeanrodas.lat** (modo demo). Sin instalar nada:
+La tienda ya esta desplegada en **https://jeanrodas.lat** (modo demo). Sin instalar nada:
 
 - https://jeanrodas.lat/ — metadatos (nombre, version, fase, enlaces)
 - https://jeanrodas.lat/health — estado del servicio y de la BD
 - https://jeanrodas.lat/api-docs — Swagger (OpenAPI 3)
+
+Al abrir https://jeanrodas.lat en un navegador se carga la tienda (frontend de Fase 2) con el
+acceso rapido de demostracion en el login; la raiz responde los metadatos en JSON cuando la
+consulta un cliente de API (Postman, curl).
 
 Para probar con Postman, importe `docs/postman/ShopCart.postman_collection.json` y ponga
 la variable `baseUrl` en `https://jeanrodas.lat`. Al correr en modo demo (rate limits
@@ -618,9 +622,10 @@ tecnicos estan en las notas de arriba y en cada modulo).
   revoca **toda la cadena activa** del usuario y se rechaza (401).
 - **Lockout de login:** 5 intentos fallidos bloquean la cuenta 15 minutos
   (parametros `LOGIN_MAX_INTENTOS` / `LOGIN_BLOQUEO_MINUTOS`).
-- **403 en recursos ajenos verificado en el SP.** La pertenencia de una direccion
+- **404 uniforme en recursos ajenos verificado en el SP.** La pertenencia de una direccion
   se valida dentro del stored procedure con el `@IDUsuario` del token, no en el
-  backend; una direccion de otro usuario responde 403.
+  backend; una direccion de otro usuario responde 404 igual que un recurso inexistente,
+  para no revelar su existencia.
 - **Usuario desactivado** se rechaza en el login y en el refresh. El access token
   (15 min) no se revoca: simplemente expira solo.
 - **Rate limiting** en `/auth/registro`, `/auth/login` y `/auth/refresh`
